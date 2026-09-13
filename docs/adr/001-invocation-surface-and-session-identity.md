@@ -103,9 +103,7 @@ The terminal binary is the *last* of the three, not the first.
    Tier A; if not, it takes the `.md`-command-with-`$ARGUMENTS` route.
 2. Whether Claude's `.md` commands can read `CLAUDE_CODE_SESSION_ID` from the shell at
    expansion time, which would let a plain command reach Tier A without MCP.
-3. agy's equivalent. `agy` has `skills` and lifecycle hooks; whether a skill can be a
-   slash command and can see the session is a P4 question.
-4. Whether the slash command should be namespaced (`/dcompact:restore`) or bare
+3. Whether the slash command should be namespaced (`/dcompact:restore`) or bare
    (`/dcompact`). Namespacing avoids collisions with the agent's built-ins; bare is shorter.
    Leaning namespaced, decided in the phase that implements it.
 
