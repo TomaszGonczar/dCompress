@@ -1,5 +1,5 @@
 import { payloadHash } from "./hash.js";
-import type { CanonicalValue, Fact, PackOptions, Payload } from "./types.js";
+import type { CanonicalValue, DegradedState, Fact, PackOptions, Payload } from "./types.js";
 
 const PRIORITY: Record<Fact["kind"], number> = {
   "decision.stated": 5,
@@ -92,10 +92,29 @@ function factLine(fact: Fact, includeEvidence: boolean): string {
   return `- **${markdown(fact.kind)}** \`${markdown(fact.key)}\`${suffix ? `: ${suffix}` : ""}`;
 }
 
-function header(payload: Payload): string[] {
+/**
+ * Render the health line from finite `DegradedState` tokens.
+ *
+ * The caller passes states, never text: the vocabulary is closed, so the header cannot say
+ * something the product does not model. Each state keeps its documented family — `unavailable:`
+ * and `untrusted:` tokens already name their family, so prefixing them with `degraded` would
+ * misreport an unavailable store as a degraded extraction. Only the plain internal tokens are
+ * reported under `degraded:`. `ok` means "no other state" and is filtered rather than combined.
+ * The order is fixed so equal health renders identically.
+ */
+export function formatDegradedStates(degraded: readonly DegradedState[]): string {
+  const states = [...new Set(degraded)]
+    .filter((state) => state !== "ok")
+    .map((state) => (state.startsWith("unavailable:") || state.startsWith("untrusted:") ? state : `degraded: ${state}`))
+    .sort();
+  return states.length === 0 ? "ok" : states.join(", ");
+}
+
+function header(payload: Payload, degraded: readonly DegradedState[] | undefined): string[] {
   const marker = `[dcompact:${payloadHash(payload).slice(7, 19)}]`;
   return [
     `## dcompact context ${marker}`,
+    ...(degraded === undefined ? [] : [`Status: ${formatDegradedStates(degraded)}`]),
     `Facts: ${payload.counters.facts} | external: ${payload.counters.external_path_count} | unmapped: ${payload.counters.unmapped_tool_calls} | coverage: ${payload.counters.coverage_ppm} ppm`,
     `Source entries: ${payload.counters.source_entries} | tool calls: ${payload.counters.source_tool_calls}`,
   ];
@@ -126,7 +145,7 @@ export function renderPack(payload: Payload, options?: PackOptions): string {
     selectedCount += group.facts.length;
   }
   const omittedByMaxFacts = payload.facts.length - selectedCount;
-  const base = header(payload);
+  const base = header(payload, options?.degraded);
   const includeEvidence = options?.includeEvidence === true;
   const notice = (count: number): string => `> [dcompact] elided ${count} fact${count === 1 ? "" : "s"} to fit ${maxBytes} UTF-8 bytes.`;
   const mandatory = (count: number): string => `${[...base, notice(count)].join("\n")}\n`;

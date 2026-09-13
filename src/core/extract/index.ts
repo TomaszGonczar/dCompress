@@ -8,9 +8,10 @@ export interface ExtractionResult {
   readonly degraded: DegradedState[];
 }
 
-const isFactKind = (kind: ToolKind): kind is Exclude<ToolKind, "command" | "ignored"> => kind !== "command" && kind !== "ignored";
+const isFactKind = (kind: ToolKind): kind is Exclude<ToolKind, "command" | "ignored" | "todo"> => kind !== "command" && kind !== "ignored" && kind !== "todo";
 
-function compareText(left: string, right: string): number {
+/** Sort comparison for evidence, mirroring the merge rule in `mergeFacts`. */
+function compareCodePoints(left: string, right: string): number {
   if (left === right) return 0;
   const a = Array.from(left, (value) => value.codePointAt(0) ?? 0);
   const b = Array.from(right, (value) => value.codePointAt(0) ?? 0);
@@ -24,6 +25,26 @@ function rawText(raw: string | Uint8Array): string {
   return typeof raw === "string" ? raw : new TextDecoder().decode(raw);
 }
 
+const compareText = compareCodePoints;
+
+/**
+ * Evidence for one fact: the event's own physical line first, then any additional declared
+ * source lines. A tool call split across a `tool_use` line and its `tool_result` line cites
+ * both, so a failure fact is never backed only by a line that lacks its error text; the same
+ * applies to a task event whose identity lives in the result line.
+ * Ordering and deduplication match `mergeFacts`, which is what makes a single- and multi-source
+ * fact comparable under the same canonical form.
+ */
+function eventEvidence(event: NormalizedEvent): Fact["evidence"] {
+  const entries = [{ line: event.line, rawLine: event.rawLine }, ...(event.sources ?? [])].map(({ line, rawLine }) => ({
+    line,
+    sha256: lineHash(rawLine),
+  }));
+  return entries
+    .sort((left, right) => left.line - right.line || compareCodePoints(left.sha256, right.sha256))
+    .filter((entry, index, all) => index === 0 || entry.line !== all[index - 1].line || entry.sha256 !== all[index - 1].sha256);
+}
+
 function makeFact(kind: FactKind, key: string, event: NormalizedEvent, attrs: Record<string, CanonicalValue>, snippet: string, scope: Fact["scope"] | undefined): Fact {
   return {
     kind,
@@ -31,7 +52,7 @@ function makeFact(kind: FactKind, key: string, event: NormalizedEvent, attrs: Re
     ...(scope === undefined ? {} : { scope }),
     at: { entry: event.entry, ts: event.timestamp },
     attrs,
-    evidence: [{ line: event.line, sha256: lineHash(event.rawLine) }],
+    evidence: eventEvidence(event),
     snippet,
     unbacked: false,
   };
@@ -102,6 +123,13 @@ function factsAndState(events: readonly NormalizedEvent[], config: ExtractConfig
           break;
         }
         if (mapping === "ignored") break;
+        // A `todo` tool carries state, not a file/command fact: the todo fact comes from the
+        // paired `NormalizedTodoEvent`, and the mapped call still counts as covered.
+        if (mapping === "todo") break;
+        // The call happened, but its outcome was never observed: emitting an effect fact here
+        // would assert that a command ran or a file changed on no evidence. The call is still
+        // counted above, so coverage and `source_tool_calls` reflect the full transcript.
+        if (event.resultObserved === false) break;
         if (mapping === "command" || mapping === "cmd.run" || mapping === "cmd.failed") {
           const command = normalizeCommand(event.command ?? "", config);
           if (command === null) break;
@@ -203,6 +231,21 @@ export function extractFacts(events: readonly NormalizedEvent[], config: Extract
 export function extractPayload(events: readonly NormalizedEvent[], config: ExtractConfig): Payload {
   const result = extraction(events, config);
   return { facts: result.facts, counters: result.counters, git: result.git, plan: result.plan, path_base: config.pathBase, version: 1 };
+}
+
+/**
+ * The payload together with the extraction health for the same run, in one pass.
+ *
+ * Health is deliberately not part of `Payload`: it is a property of the run, not of the
+ * extracted facts, so it must not enter the canonical bytes or the hash. Callers that display
+ * both — the preview pack — would otherwise extract twice to get the two halves.
+ */
+export function extractPayloadWithHealth(events: readonly NormalizedEvent[], config: ExtractConfig): { readonly payload: Payload; readonly degraded: DegradedState[] } {
+  const result = extraction(events, config);
+  return {
+    payload: { facts: result.facts, counters: result.counters, git: result.git, plan: result.plan, path_base: config.pathBase, version: 1 },
+    degraded: result.degraded,
+  };
 }
 
 export default extractFacts;
