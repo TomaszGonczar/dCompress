@@ -83,7 +83,9 @@ did, mechanically, in a structured transcript:
 | Claude Code | `transcript_path` from every hook payload | `~/.claude/projects/<slug>/<session>.jsonl`, one JSON object per line, `{type, message:{role,content[]}, uuid, parentUuid, timestamp, cwd, sessionId, gitBranch, version}` |
 | Codex | rollout file per session | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`, `{timestamp, ordinal, type, payload}` with `type ∈ {session_meta, event_msg, response_item, world_state, turn_context}` |
 | OMP | session journal | `~/.omp/agent/sessions/<slug>/<session>.jsonl`, entries `{type: message\|custom_message\|compaction\|branch_summary\|…}` |
-| Antigravity CLI | conversation DB | `~/.gemini/antigravity-cli/conversations/<uuid>.db` — **SQLite, no hook surface in `agy --help`; see §7.4** |
+
+Agents with no supported integration are covered by the generic fallback in §7.5, which reads
+any readable transcript or SQLite conversation store rather than requiring an adapter.
 
 Tool calls in those transcripts are structured records: *which* tool, *which* path, *what*
 command, *what* error. That is the fact layer. dcompact reads it with rules.
@@ -235,7 +237,6 @@ flowchart TD
         CC["Claude Code"]
         CX["Codex"]
         OMP["OMP / pi"]
-        AGY["Antigravity CLI"]
     end
 
     subgraph Identity["Session identity — supplied, never guessed"]
@@ -248,7 +249,6 @@ flowchart TD
         ACC["claude"]
         ACX["codex"]
         AOMP["omp"]
-        AAGY["agy"]
     end
 
     ADAPTERDEF["adapters/&lt;agent&gt;.json<br/>event map · config paths · fixture hashes<br/>degraded state · last verified"]
@@ -272,21 +272,17 @@ flowchart TD
     TOOL --> CC
     SC --> OMP
     TOOL --> CX
-    SC --> AGY
     CLI --> EXPL
     CC --> ENV
     OMP --> CTX
     CX -.-> EXPL
-    AGY -.-> EXPL
     ENV --> ACC
     CTX --> AOMP
     EXPL --> ACC
     EXPL --> ACX
-    EXPL --> AAGY
     ACC --> NORM
     ACX --> NORM
     AOMP --> NORM
-    AAGY --> NORM
     ADAPTERDEF -.configures.-> NORM
     NORM --> EXTR --> CANON --> HASH --> SNAP
     SNAP --> MAN
@@ -300,7 +296,7 @@ Two things this diagram is asserting that earlier versions got wrong:
 1. **Invocation enters through the agent**, not through a terminal. The binary exists for CI
    and for agents with no integration; it is last in priority, not first.
 2. **Identity is supplied by the agent or by the user, never inferred.** Dotted edges are the
-   degraded path: agents whose identity channel is still unverified (Codex, agy) currently
+   degraded path: agents whose identity channel is still unverified (Codex) currently
    require an explicit session, and that is acceptable — guessing is not.
 
 ### 6.1 Invocation surface — how the user reaches this
@@ -334,7 +330,6 @@ Verified identity channels:
 | OMP | in-process extension | `ctx.sessionManager.getSessionId()` | ✅ verified |
 | OMP | MCP | **not viable** — only 14 env vars, no session id | ✅ measured |
 | Codex | hooks / prompts | unknown | ⚠️ P4 |
-| agy | skills / hooks | unknown | ⚠️ P4 |
 
 ### 6.2 Command surface
 
@@ -505,51 +500,20 @@ OMP also *imports* other agents' commands (`~/.claude/commands`, `~/.codex/comma
 `~/.config/opencode/commands`, `.agents/commands`), which means a single OMP setup can
 serve several agents' command surfaces. Worth exploiting in P11; not required for v0.1.
 
-### 7.4 Antigravity CLI — full support (corrected: hooks exist)
-
-**Correction to an earlier claim in this document.** An earlier revision stated that `agy`
-"exposes no hook surface" based on `agy --help`, which lists only flags and the `agent`,
-`mcp`, `plugin`, `models`, `remote-control`, `update` subcommands. That inference was wrong.
-Hooks are configured through `settings.json` under the `hooks` key, and the binary carries a
-full lifecycle-hook implementation.
-
-Evidence:
-
-- `~/.gemini/antigravity-cli/settings.json` already contains a live `hooks` object with a
-  `SessionStart` entry using a `matcher` and a `type: "command"` handler — the same
-  three-level shape Claude Code and Codex use.
-- `agy` (v1.2.2, 180 MB binary) contains these symbols: `hooks_go_proto.CallHookRequest`,
-  `CallHookResponse`, `CommandHook`, `HookHandlerConfig`, `HookSystemMessage`,
-  `HookInjectedStep`, `HookUserMessage`, `HookToolCall`, `SessionStartHookArgs/Result`,
-  `PreToolHookArgs/Result`, `PostToolHookArgs/Result`, `OnToolErrorArgs/Result`,
-  `StopHookArgs/Result`, and **`OnCompactionArgs`**.
-- The lifecycle enum is present verbatim: `LIFECYCLE_HOOK_ON_COMPACTION`,
-  `ON_SESSION_START`, `ON_SESSION_END`, `ON_TOOL_ERROR`, `PRE_TOOL`, `POST_TOOL`,
-  `PRE_TURN`, `POST_TURN`, `STOP` (+ `UNSPECIFIED`).
-
-So `agy` is a **full-support adapter**, not a degraded one. `OnCompaction` is the `PreCompact`
-equivalent and is the event that matters most.
-
-Also available (all verified): `agy mcp add|remove|list|enable|disable` (stdio and http), and
-`agy plugin` subcommands including `import [source]` — documented as importing plugins from
-**gemini or claude**, which means an agent-plugin format can carry hooks across agents.
-`--print-interactive`, `--mode`, `--sandbox`, `--output-format stream-json` remain available.
-
-Still unverified, and therefore a P4 task: the exact `settings.json` hook schema (event
-names as written by a user, handler fields, matcher semantics), whether a hook can inject
-context, and whether hooks fire in `--print` (headless) mode. Conversations persist as SQLite
-under `~/.gemini/antigravity-cli/conversations/`, which is now only a *fallback* fact source,
-not the primary one.
-
-### 7.5 MCP — the portable pull tier (any MCP-capable agent)
+### 7.4 MCP — the portable pull tier (any MCP-capable agent)
 
 Hooks are proprietary per agent. MCP is the only cross-agent standard in this space, and it
 is the difference between supporting three agents and supporting most of them.
 
-| Mechanism | Agents | Direction | Guarantee |
+| Mechanism | Clients | Direction | Guarantee |
 |---|---|---|---|
-| **Native hooks** | Claude, Codex, OMP, agy | **Push** — harness injects context at the event | Snapshot always taken; pack always injected, whether or not the model cooperates |
-| **MCP server** | Claude, Codex, OMP, agy, Cursor, Windsurf, VS Code, Gemini CLI, OpenCode | **Pull** — the model or user calls a tool | Recall on demand only |
+| **Native hooks** | Claude, Codex, OMP (agents with a hook surface) | **Push** — harness injects context at the event | Snapshot always taken; pack always injected, whether or not the model cooperates |
+| **MCP server** | Claude Code, Codex, OMP, Cursor, Windsurf, Gemini CLI, OpenCode, VS Code | **Pull** — the model or user calls a tool | Recall on demand only |
+
+"Agents" and "MCP clients" are not the same set, and the plan should not blur them. VS Code is
+an editor that hosts an agent (Copilot), not an agent; the MCP client is the editor process.
+Cursor and Windsurf are the same shape — an IDE carrying its own agent. The reachability claim
+below is about **clients**, because that is what an MCP server definition actually attaches to.
 
 **MCP cannot replace hooks, and the plan must not pretend otherwise.** An MCP tool fires only
 when something *chooses* to call it. An unattended agent that has already lost context does
@@ -558,7 +522,7 @@ is the continuity mechanism; pull is a recovery and inspection mechanism.
 
 What MCP does buy, cheaply:
 
-- **Reach.** One stdio server definition reaches nine agents. `mcpServers` is the same JSON
+- **Reach.** One stdio server definition reaches eight clients. `mcpServers` is the same JSON
   shape in Claude Code, Cursor, Windsurf, and standalone `.mcp.json`; OMP additionally reads
   `.mcp.json` and `mcp.json` at the project root, and translates every other agent's native
   MCP config on discovery.
@@ -576,7 +540,7 @@ Tools exposed (v1): `dcompact_restore` (bounded pack, same renderer and budget a
 Honest labelling: `doctor --json` reports `tier: "hooks"` or `tier: "mcp-only"` per agent.
 An MCP-only agent must never be described as having continuity.
 
-### 7.6 Everything else — honest fallback
+### 7.5 Everything else — honest fallback
 
 The tool still works without any integration, because the fact source need not come from a
 hook: `dcompact snapshot --from <transcript>` accepts a transcript path directly, and
@@ -592,7 +556,7 @@ that tracks it via periodic `git format-patch` syncs, and the two have documente
 against the documented OMP surface, with the shared parts isolated so a future `pi` adapter is
 a small mapper rather than a rewrite. Do not assume Pi compatibility — verify it in P4.
 
-### 7.7 Install model (all agents)
+### 7.6 Install model (all agents)
 
 ```
 1. detect    → read target config, locate existing dcompact markers or format-specific owned fields
@@ -648,7 +612,6 @@ Rules:
   | **OMP** | `session.compacting` → contributes into the summary; optionally register as a `{ compaction }` method | Facts are inside what the model reads — continuity *through* compaction |
   | **Claude Code** | `SessionStart(source=compact\|resume).additionalContext` | Injected after compaction |
   | **Codex** | `SessionStart` (confirm in P4) | Injected after compaction |
-  | **agy** | `OnCompaction` if it injects (verify) | Unknown |
 
   dcompact must **not** inject on Claude's `PreCompact`: the payload would be summarized away.
   That reasoning does not transfer to OMP, where `session.compacting` contributes *into* the
@@ -828,9 +791,8 @@ Session forking, multi-machine sync, a GUI, a TUI dashboard, agent-to-agent hand
 embedding-based search, snapshot compression/encryption, Windows-first support, any feature
 that calls a model.
 
-(The earlier list included "agy hook install (impossible)" — that was wrong. `agy` has
-lifecycle hooks including `OnCompaction`, verified in the binary and in live
-`settings.json`. See §7.4.)
+Agents without a hook adapter are not excluded — they are served by the generic fallback
+(§7.5) and the MCP tier (§7.4), both of which are pull-only and labelled as such.
 
 ## 13. Decisions taken and open questions
 
@@ -850,8 +812,5 @@ lifecycle hooks including `OnCompaction`, verified in the binary and in live
 3. **Secret redaction:** not implemented in the current Batch 1 code; planned for P12 before
    the v0.1 release. Its default and warning behavior must be defined before shipping, and
    until then snapshots and packs remain potentially sensitive.
-4. **agy hook schema:** the events exist and `OnCompaction` is present in the binary, but the
-   user-facing `settings.json` schema and whether hooks fire in `--print` (headless) mode are
-   unverified. Headless is the mode an autonomous run uses, so this decides push vs pull for agy.
-5. **Scope-set discovery:** settled by `SCHEMA.md` §5.2: roots are derived from transcript
+4. **Scope-set discovery:** settled by `SCHEMA.md` §5.2: roots are derived from transcript
    evidence, not filesystem probes; a vanished root does not invalidate a snapshot.
