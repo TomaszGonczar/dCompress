@@ -648,9 +648,22 @@ Rules:
     omega-component-prep  69 · other 38 · Desktop 9 · xd:// 4 · /tmp 3 · ~/.omp 1
   ```
 
-  **93% of that session's file facts would have been dropped**, while `coverage` still read
-  high — because coverage counted *tool calls mapped*, not *paths retained*. The loss was
-  invisible in the pack header.
+  Split by tool, which is the part that matters:
+
+  | Tool | In `repo_root` | Outside |
+  |---|---|---|
+  | `read` | 9 | 81 |
+  | `write` | **0** | **35** |
+  | `edit` | **0** | **35** |
+
+  **Zero of that session's writes and edits landed in the repo it ran in.** The honest claim is
+  not "93% of facts were lost" — repo reads worked fine — but that dcompact would have recorded
+  *nothing about what the session produced*, while `coverage` still read high because coverage
+  counted *tool calls mapped*, not *paths retained*.
+
+  *Scope of this evidence:* one session, one workflow — `cwd` in `Omega-v3`, deliverable written
+  to a sibling directory passed by argument. A session that edits its own repo measures
+  differently. The rule below rests on the structural argument, with this as one instance.
 
   The old rule was wrong on three counts, each now fixed:
 
