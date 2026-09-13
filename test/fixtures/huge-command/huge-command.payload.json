@@ -1,0 +1,39 @@
+{
+  "facts": [
+    {
+      "kind": "cmd.run",
+      "key": "printf word000 word001 word002 word003 word004 word005 word006 word007 word008 word009 word010 word011 word012 word013 word014 word015 word016 word017 word018 word019 word020 word021 word022 word023 word024 word025 word026 word027 word028 word029 word030 word031 word032 word033 word034 word035 word036 word037 word038 word039 word040 word041 word042 word043 word044 word045 word046 word047 word048 word049 word050 word051 word052 word053 word054 word055 word056 word057 word058 word059 word060 word061 word062…",
+      "at": {
+        "entry": 0,
+        "ts": null
+      },
+      "attrs": {
+        "failed": false,
+        "runs": 1
+      },
+      "evidence": [
+        {
+          "line": 1,
+          "sha256": "sha256:85329c86722db2cb3c518c51b57bdbad3b7c978e0f530e31cc57fc9079503bf3"
+        }
+      ],
+      "snippet": "bash printf word000 word001 word002 word003 word004 word005 word006 word007 word008 word009 word010 word011 word012 word013 word014 word015 word016 word017 word018 word019 word020 word021 word022 word023 word024 word025 word026 word027 word028 word029 word030 word031 word032 word033 word034 word035 word036 word037 word038 word039 word040 word041 word042 word043 word044 word045 word046 word047 word048 word049 word050 word051 word052 word053 word054 word055 word056 word057 word058 word059 word060 word061 word062…",
+      "unbacked": false
+    }
+  ],
+  "counters": {
+    "facts": 1,
+    "by_kind": {
+      "cmd.run": 1
+    },
+    "source_entries": 1,
+    "source_tool_calls": 1,
+    "unmapped_tool_calls": 0,
+    "coverage_ppm": 1000000,
+    "external_path_count": 0
+  },
+  "git": null,
+  "plan": null,
+  "path_base": "repo",
+  "version": 1
+}

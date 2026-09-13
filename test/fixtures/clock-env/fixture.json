@@ -1,0 +1,41 @@
+{
+  "name": "clock-env",
+  "adapterId": "generic",
+  "toolKinds": {
+    "write": "file.modified",
+    "edit": "file.modified",
+    "save": "file.modified",
+    "read": "file.read",
+    "bash": "command",
+    "ignored": "ignored"
+  },
+  "scopeRoots": [
+    {
+      "root": "/workspace/repo",
+      "scope": "repo"
+    }
+  ],
+  "cwd": "/workspace/repo",
+  "repoRoot": "/workspace/repo",
+  "pathBase": "repo",
+  "decisionCues": [
+    "we will",
+    "must",
+    "always",
+    "never",
+    "don't",
+    "don’t"
+  ],
+  "equivalentTo": "single-edit",
+  "perturbations": [
+    "TZ",
+    "LANG",
+    "LC_ALL",
+    "HOME",
+    "cwd",
+    "clock",
+    "hostname",
+    "os"
+  ],
+  "expectedDegraded": []
+}
