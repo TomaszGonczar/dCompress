@@ -225,9 +225,6 @@ Already gathered, to be confirmed and extended:
 | Codex `response_item` inner schema for tool calls | **Unverified** → P4 task | — |
 | OMP extension API, `session_before_compact`, `session.compacting`, `context`, session entries, camelCase `role` | Verified | [docs:omp://extensions.md, omp://compaction.md] |
 | OMP journal on-disk shape | Partially observed | `[observed:~/.omp/agent/sessions/…]` |
-| agy: **has lifecycle hooks** (`settings.json#hooks`, 9 events incl. `ON_COMPACTION`) | Verified (binary symbols + live config); Unverified (schema, headless firing) | `~/.gemini/antigravity-cli/settings.json`, `agy` v1.2.2 symbols |
-| agy MCP support (`agy mcp add\|list\|enable\|disable`, stdio + http) | Verified | `agy mcp --help` |
-| agy plugin import from gemini/claude (`agy plugin import [source]`) | Verified (command exists) | `agy plugin --help` |
 | MCP config shape across agents (`mcpServers`, stdio) | Verified | OMP MCP docs; `~/.cursor/mcp.json`; `claude mcp list` |
 
 Also produce, per adapter, a **tool-name vocabulary** table from the real transcripts
@@ -236,16 +233,11 @@ with the observed frequency in the sample. That table is the input to the extrac
 first place a new agent version will break things.
 
 Exit criteria: `ADAPTER-SPEC.md` merged with zero `[unverified]` claims on the critical path
-(Claude, Codex, OMP, **agy**); every remaining `[unverified]` claim listed in a "blocked"
+(Claude, Codex, OMP); every remaining `[unverified]` claim listed in a "blocked"
 section with the task that resolves it.
 
-Two specific unknowns to close here, because they were mis-inferred once already:
+One specific unknown to close here, because it was mis-inferred once already:
 
-- **agy hook schema.** The events exist (`LIFECYCLE_HOOK_*` enum verified in the binary;
-  a live `hooks` object exists in `settings.json`). What is unverified is the exact
-  `settings.json` schema, whether a hook can inject context, and whether hooks fire in
-  `--print` (headless) mode — which is the mode an autonomous run uses, so it decides whether
-  agy gets push continuity or only pull.
 - **Pi compatibility.** `pi` is upstream, OMP is the fork. The documented divergences
   (UI architecture, `pkg.pi` vs `pkg.omp` manifest key, `vitest` vs `bun:test`, hooks vs
   extensions naming) mean Pi support cannot be assumed. Either verify the shared surface or
@@ -348,6 +340,74 @@ appears and counts exactly; injection is skipped on the second call; `doctor --j
 schema-stable and snapshot-tested; every degraded state from CONCEPT §11.2 has a test that
 produces it.
 
+### 7.1 Continuity fidelity test
+
+A pack that validates and injects can still be useless if it drops what the next session needs.
+This measures whether dcompact actually delivers continuity, rather than merely producing
+well-formed output. It belongs here because it needs a working `restore` and injection path.
+
+**Method — pre-registered detail recall, not judgement.** Before the session, plant a fixed list
+of details across categories (file path, decision, error→fix, command, open question, negative
+constraint). Record the list *before* the run. The score is a count, so it is recomputable by
+anyone rather than an impression.
+
+**Three arms**, and the control is essential:
+
+| Arm | Measured |
+|---|---|
+| A — built-in compaction | planted details surviving in the host's compacted context |
+| B — dcompact | planted details surviving in the injected pack |
+| C — control, neither | what the model still knows cold, with no compaction |
+
+Without C the test cannot distinguish "dcompact works" from "compaction never hurt here."
+
+**Three artifacts are needed, not one.** A raw transcript alone gives one side of a two-sided
+claim:
+
+| Artifact | Source |
+|---|---|
+| Raw transcript (ground truth) | agent JSONL via `transcript_path` |
+| Built-in compaction summary | **`PostCompact` receives `compact_summary`** — capture it there; not otherwise retrievable |
+| dcompact pack | `restore` |
+
+The `compact_summary` capture is what makes arm A scorable. Without it the comparison is a vibe.
+
+**Execution: Orca orchestration, not bare terminals.** Per ADR 004
+(`Omega-v3/knowledge/adr/004-orca-orchestration-standard.md`), which supersedes ADR 001,
+orchestration is the established standard for supervised fleet execution. It supplies exactly
+what this test needs:
+
+```
+orca orchestration run-create
+orca orchestration task-create --spec …
+orca orchestration worker-start --task <id> --agent codex --model gpt-5.6-luna --effort medium --worktree current
+orca orchestration worker-read --dispatch <id> --limit <n>
+orca orchestration worker-list          # liveness: hung vs slow
+```
+
+`--model`/`--effort` per worker makes the comparison reproducible rather than dependent on
+whatever a terminal happened to start with. Heartbeat distinguishes a stalled agent from a long
+compaction — without it a hung run looks slow and the result is uninterpretable. `worker-read
+--limit` gives bounded per-worker output, which makes the surviving-detail count automatable.
+ADR 001 rejected this approach and ADR 004 replaced it precisely because unstructured terminals
+produced unreadable results: no completion contract, no liveness signal, no attribution.
+
+**Scale, stated honestly.** Six terminals is anecdote, not evidence. Pick one and say so:
+
+1. **Directional only** — three runs per arm, reported as *"in these runs dcompact retained N
+   more planted details"*, with sample size named as a limitation.
+2. **Powered** — if a rate is the claim, size the sample first. The DS-3 experience is directly
+   relevant: a correlation at n=22 looked real, was not significant, and the fix was more data
+   rather than a friendlier test.
+
+Exit criteria for §7.1: planted list committed before the runs; all three arms run including the
+control; `compact_summary` captured; per-arm counts recomputed from committed artifacts; a
+written verdict — or an explicit statement that the sample was too small to tell. **If dcompact
+does not beat built-in compaction, that is the finding.** Do not tune the test around it.
+
+Scope note: this measures **retention of planted specifics**, not semantic correctness of the
+pack. Narrower, and it should be said in the verdict.
+
 ---
 
 ## P8 — Codex adapter
@@ -404,8 +464,7 @@ Tests that must exist:
 - Invalid JSON/TOML in the target: install refuses, file untouched.
 - Interrupted install (kill between write and verify): `doctor` reports incomplete;
   `install --repair` completes it.
-- File permissions preserved; symlinked config file handled (write through, do not replace
-  the symlink).
+- File permissions preserved; a symlinked config file is refused and left untouched.
 
 Exit criteria (D4): all of the above green, including the byte-identical restore.
 
@@ -414,8 +473,6 @@ Exit criteria (D4): all of the above green, including the byte-identical restore
 ## P11 — MCP server (portable pull tier)
 
 **Goal:** reach every MCP-capable agent with one implementation, reusing the whole engine.
-Replaces the former "agy tier" phase — agy turned out to have real hooks (see CONCEPT §7.4),
-so it belongs in the adapter work, not in a degraded tier.
 
 The server exposes the engine over stdio. No new extraction code, no new protocol design, no
 network: `npx -y dcompact mcp` (or the resolved local binary) as a `stdio` server.
@@ -439,9 +496,11 @@ command in hosts that expose MCP prompts.
    agent. An MCP-only agent must never be described as having continuity.
 
 Why it is cheap: one server definition (`{"command":"npx","args":["-y","dcompact","mcp"]}`)
-is portable across nine agents — Claude Code, Codex, OMP, agy, Cursor, Windsurf, VS Code,
-Gemini CLI, OpenCode — and the same JSON shape works in `~/.cursor/mcp.json`,
-`.vscode/mcp.json`, and project `.mcp.json`.
+is portable across eight MCP clients — Claude Code, Codex, OMP, Cursor, Windsurf, Gemini CLI,
+OpenCode, VS Code — and the same JSON shape works in `~/.cursor/mcp.json`,
+`.vscode/mcp.json`, and project `.mcp.json`. Note that an MCP client is not necessarily an
+agent: VS Code is an editor hosting Copilot, and Cursor and Windsurf carry their own agents.
+Reach is counted in clients because that is what the server definition attaches to.
 
 Exit criteria:
 - Server starts, lists tools, and `dcompact_restore` returns the identical pack the CLI
@@ -461,7 +520,7 @@ Exit criteria:
 Deliverables:
 - `dcompact snapshot --from <transcript>` for any agent whose log is readable
 - `dcompact snapshot --from-db <uuid>` (`--experimental`) for SQLite-backed transcripts,
-  reporting `degraded: schema-unverified` until a fixture exists
+  reporting `degraded: schema-drift` until a fixture exists
 - Generic tier: `git.state` + `.gitignore`-respecting mtime scan, labelled `tier: generic`
   in `doctor` and the pack header, so a user is never misled into thinking they have full
   extraction
@@ -510,7 +569,6 @@ cannot know which session they mean. So every supported agent gets a command *in
 | Claude Code | MCP server registration + `~/.claude/commands/dcompact/*.md` | `CLAUDE_CODE_SESSION_ID` from env (verified) |
 | OMP | native extension registering `/dcompact` | `ctx.sessionManager.getSessionId()` (verified) |
 | Codex | `~/.codex/prompts/*.md` (or hooks), pending P4 | TBD in P4 |
-| agy | skill or lifecycle hook, pending P4 | TBD in P4 |
 
 **Commands exposed in-agent:** `/dcompact:restore`, `/dcompact:snapshot`, `/dcompact:list`,
 `/dcompact:verify`. Namespaced to avoid colliding with the agent's own built-ins.
@@ -646,10 +704,11 @@ What a reviewer should be able to verify in five minutes, without running anythi
 - A bug policy that names the failure modes and pairs each with a mechanism, rather than
   claiming quality.
 - An integration matrix that is honest about which agents get **push** (hooks) and which get
-  **pull** (MCP) — and that says plainly that pull is not continuity. The `agy` case is the
-  reverse of the usual story: an early claim that it had no hook surface was wrong, the
-  correction is documented with evidence, and the tool moved from "degraded tier" to
-  full-support adapter.
+  **pull** (MCP) — and that says plainly that pull is not continuity. The OMP case is worth
+  reading: the assumption was that one MCP server would cover it, and measurement killed that
+  — OMP hands MCP children 14 environment variables and no session identifier, so the
+  integration had to become an in-process extension instead. The reversal is recorded with
+  its evidence rather than quietly patched over.
 - Committed evidence: recorded sessions, `doctor --json` samples, the test-vector corpus.
 
 The differentiating claim is narrow and defensible: *the agent's memory should be a
