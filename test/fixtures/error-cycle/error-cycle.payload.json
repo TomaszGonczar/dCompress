@@ -1,0 +1,102 @@
+{
+  "facts": [
+    {
+      "kind": "error.raised",
+      "key": "permission:permission denied",
+      "at": {
+        "entry": 0,
+        "ts": null
+      },
+      "attrs": {
+        "class": "permission",
+        "count": 1
+      },
+      "evidence": [
+        {
+          "line": 1,
+          "sha256": "sha256:86323bad00d3e89c62186839c05832ec82b18ddfc884ad53e67dbbe49e3a8552"
+        }
+      ],
+      "snippet": "permission denied",
+      "unbacked": false
+    },
+    {
+      "kind": "error.fixed",
+      "key": "permission:permission denied",
+      "at": {
+        "entry": 1,
+        "ts": null
+      },
+      "attrs": {
+        "count": 1,
+        "fixed_by": "npm test"
+      },
+      "evidence": [
+        {
+          "line": 2,
+          "sha256": "sha256:cc3ac4deb28cdee7b49ff15e9dae04b89fa4d94f0c63afe0f80811a4a8d2f161"
+        }
+      ],
+      "snippet": "fixed by npm test",
+      "unbacked": false
+    },
+    {
+      "kind": "cmd.failed",
+      "key": "npm test",
+      "at": {
+        "entry": 0,
+        "ts": null
+      },
+      "attrs": {
+        "last_error_class": "permission",
+        "runs": 1
+      },
+      "evidence": [
+        {
+          "line": 1,
+          "sha256": "sha256:86323bad00d3e89c62186839c05832ec82b18ddfc884ad53e67dbbe49e3a8552"
+        }
+      ],
+      "snippet": "bash npm test",
+      "unbacked": false
+    },
+    {
+      "kind": "cmd.run",
+      "key": "npm test",
+      "at": {
+        "entry": 1,
+        "ts": null
+      },
+      "attrs": {
+        "failed": false,
+        "runs": 1
+      },
+      "evidence": [
+        {
+          "line": 2,
+          "sha256": "sha256:cc3ac4deb28cdee7b49ff15e9dae04b89fa4d94f0c63afe0f80811a4a8d2f161"
+        }
+      ],
+      "snippet": "bash npm test",
+      "unbacked": false
+    }
+  ],
+  "counters": {
+    "facts": 4,
+    "by_kind": {
+      "error.raised": 1,
+      "error.fixed": 1,
+      "cmd.failed": 1,
+      "cmd.run": 1
+    },
+    "source_entries": 2,
+    "source_tool_calls": 2,
+    "unmapped_tool_calls": 0,
+    "coverage_ppm": 1000000,
+    "external_path_count": 0
+  },
+  "git": null,
+  "plan": null,
+  "path_base": "repo",
+  "version": 1
+}

@@ -20,8 +20,10 @@ These are the product. Breaking one is not a bug, it is a regression of the prem
 
 1. **No model in the extraction path.** No LLM call, ever, to produce facts. Extractors are
    pure functions.
-2. **Determinism.** Same transcript bytes → same snapshot bytes, on any machine, at any time.
-   No clock, `$HOME`, cwd, locale, or hostname may reach the hashed payload. See SCHEMA §5.
+2. **Determinism.** Same transcript bytes and the same extraction inputs → the same canonical
+   **payload** bytes, and therefore the same hash, on any machine, at any time. No clock,
+   `$HOME`, cwd, locale, or hostname may reach the hashed payload. The `envelope` may and does
+   differ; it is not part of the artifact's identity. Precise scope: SCHEMA §6.1.
 3. **Core is pure.** Nothing under `src/core/**` may import `fs`, `child_process`, `net`,
    `http`, `https`, `dns`, `tls`, or read `process.env`. Clock and I/O are injected.
 4. **No network at runtime.** No HTTP client anywhere in the runtime path.
@@ -56,7 +58,8 @@ These are the product. Breaking one is not a bug, it is a regression of the prem
   wrong fact is worse than a missing one, because it is injected with the same confidence as
   a right one.
 - **Prefer a refusal to a clever repair.** `install` refuses on an unparseable config;
-  `uninstall` refuses on an outside-edited file. Each refusal prints the exact next step.
+  `uninstall` refuses when dcompact's managed region was edited, while preserving edits
+  outside that region. Each refusal prints the exact next step.
 
 ## Commit format
 

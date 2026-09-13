@@ -1,0 +1,3 @@
+{"type":"tool","entry":0,"toolCallId":"outside-1","toolName":"write","path":"/outside/private/report.md","isError":false,"timestamp":null}
+{"type":"tool","entry":1,"toolCallId":"inside-1","toolName":"write","path":"src/local.ts","isError":false,"timestamp":null}
+{"type":"tool","entry":2,"toolCallId":"outside-2","toolName":"write","path":"/other/private/notes.md","isError":false,"timestamp":null}

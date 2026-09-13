@@ -1,0 +1,88 @@
+{
+  "facts": [
+    {
+      "kind": "file.modified",
+      "key": "31ff783316b5:notes.md",
+      "scope": "external",
+      "at": {
+        "entry": 2,
+        "ts": null
+      },
+      "attrs": {
+        "edits": 1,
+        "tools": [
+          "write"
+        ]
+      },
+      "evidence": [
+        {
+          "line": 3,
+          "sha256": "sha256:12fb03cc3289e7fd132ed2a4c2277c6085e33064e639a7968048c416a9fdb97b"
+        }
+      ],
+      "snippet": "write 31ff783316b5:notes.md",
+      "unbacked": false
+    },
+    {
+      "kind": "file.modified",
+      "key": "88148e1718a9:report.md",
+      "scope": "external",
+      "at": {
+        "entry": 0,
+        "ts": null
+      },
+      "attrs": {
+        "edits": 1,
+        "tools": [
+          "write"
+        ]
+      },
+      "evidence": [
+        {
+          "line": 1,
+          "sha256": "sha256:66a3c76a67097183422ab704fd54e66e55c93d273172125e1c9cfa77e4e9eb26"
+        }
+      ],
+      "snippet": "write 88148e1718a9:report.md",
+      "unbacked": false
+    },
+    {
+      "kind": "file.modified",
+      "key": "src/local.ts",
+      "scope": "cwd",
+      "at": {
+        "entry": 1,
+        "ts": null
+      },
+      "attrs": {
+        "edits": 1,
+        "tools": [
+          "write"
+        ]
+      },
+      "evidence": [
+        {
+          "line": 2,
+          "sha256": "sha256:4a5735c777b225ef1c5d9c62a65295d1787c1260cb14387bf985cf55acce75c7"
+        }
+      ],
+      "snippet": "write src/local.ts",
+      "unbacked": false
+    }
+  ],
+  "counters": {
+    "facts": 3,
+    "by_kind": {
+      "file.modified": 3
+    },
+    "source_entries": 3,
+    "source_tool_calls": 3,
+    "unmapped_tool_calls": 0,
+    "coverage_ppm": 1000000,
+    "external_path_count": 2
+  },
+  "git": null,
+  "plan": null,
+  "path_base": "cwd",
+  "version": 1
+}

@@ -1,0 +1,42 @@
+{
+  "facts": [
+    {
+      "kind": "file.modified",
+      "key": "src/dispatch.ts",
+      "scope": "repo",
+      "at": {
+        "entry": 0,
+        "ts": null
+      },
+      "attrs": {
+        "edits": 1,
+        "tools": [
+          "write"
+        ]
+      },
+      "evidence": [
+        {
+          "line": 1,
+          "sha256": "sha256:62f6e39ed6063508b9c27783029bf6ff3f7ae8bbb00ec3ef89b41c23e1453fff"
+        }
+      ],
+      "snippet": "write src/dispatch.ts",
+      "unbacked": false
+    }
+  ],
+  "counters": {
+    "facts": 1,
+    "by_kind": {
+      "file.modified": 1
+    },
+    "source_entries": 1,
+    "source_tool_calls": 1,
+    "unmapped_tool_calls": 0,
+    "coverage_ppm": 1000000,
+    "external_path_count": 0
+  },
+  "git": null,
+  "plan": null,
+  "path_base": "repo",
+  "version": 1
+}

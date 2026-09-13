@@ -1,0 +1,60 @@
+{
+  "facts": [
+    {
+      "kind": "file.modified",
+      "key": "src/shared.ts",
+      "scope": "repo",
+      "at": {
+        "entry": 0,
+        "ts": null
+      },
+      "attrs": {
+        "edits": 5,
+        "tools": [
+          "edit",
+          "save",
+          "write"
+        ]
+      },
+      "evidence": [
+        {
+          "line": 1,
+          "sha256": "sha256:4cca52f678887e59cf8fc950a53ad16ef2e70ad4b3bcd0ae0024786c639bb933"
+        },
+        {
+          "line": 2,
+          "sha256": "sha256:c45276f9684f689c31bf0ce2d896af86844ece0ff2c0709cca38b2d876a53151"
+        },
+        {
+          "line": 3,
+          "sha256": "sha256:9a51ebbaf38abab8348c51ce4344fa36faebb72c11fe9cdebca11bc19d417f50"
+        },
+        {
+          "line": 4,
+          "sha256": "sha256:ce2c82f35225db5cf56a03180d6b3a568a586a52b215f24ed9ea477f528497f9"
+        },
+        {
+          "line": 5,
+          "sha256": "sha256:2fa6f1c3304161a8f0c4e49981ad384a62430fa14f0dc8e55380ff1594863dca"
+        }
+      ],
+      "snippet": "write src/shared.ts",
+      "unbacked": false
+    }
+  ],
+  "counters": {
+    "facts": 1,
+    "by_kind": {
+      "file.modified": 1
+    },
+    "source_entries": 5,
+    "source_tool_calls": 5,
+    "unmapped_tool_calls": 0,
+    "coverage_ppm": 1000000,
+    "external_path_count": 0
+  },
+  "git": null,
+  "plan": null,
+  "path_base": "repo",
+  "version": 1
+}

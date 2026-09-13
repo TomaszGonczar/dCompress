@@ -1,0 +1,25 @@
+{
+  "name": "paths-outside",
+  "adapterId": "generic",
+  "toolKinds": {
+    "write": "file.modified",
+    "edit": "file.modified",
+    "save": "file.modified",
+    "read": "file.read",
+    "bash": "command",
+    "ignored": "ignored"
+  },
+  "scopeRoots": [],
+  "cwd": "/workspace/repo/work",
+  "repoRoot": null,
+  "pathBase": "cwd",
+  "decisionCues": [
+    "we will",
+    "must",
+    "always",
+    "never",
+    "don't",
+    "don’t"
+  ],
+  "expectedDegraded": []
+}
