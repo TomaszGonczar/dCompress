@@ -372,10 +372,8 @@ claim:
 
 The `compact_summary` capture is what makes arm A scorable. Without it the comparison is a vibe.
 
-**Execution: Orca orchestration, not bare terminals.** Per ADR 004
-(`Omega-v3/knowledge/adr/004-orca-orchestration-standard.md`), which supersedes ADR 001,
-orchestration is the established standard for supervised fleet execution. It supplies exactly
-what this test needs:
+**Execution: Orca orchestration, not bare terminals.** Supervised orchestration supplies the
+coordination and evidence controls this test needs:
 
 ```
 orca orchestration run-create
@@ -389,8 +387,8 @@ orca orchestration worker-list          # liveness: hung vs slow
 whatever a terminal happened to start with. Heartbeat distinguishes a stalled agent from a long
 compaction — without it a hung run looks slow and the result is uninterpretable. `worker-read
 --limit` gives bounded per-worker output, which makes the surviving-detail count automatable.
-ADR 001 rejected this approach and ADR 004 replaced it precisely because unstructured terminals
-produced unreadable results: no completion contract, no liveness signal, no attribution.
+ADR 001 rejected this approach because unstructured terminals produced unreadable results: no
+completion contract, no liveness signal, no attribution.
 
 **Scale, stated honestly.** Six terminals is anecdote, not evidence. Pick one and say so:
 

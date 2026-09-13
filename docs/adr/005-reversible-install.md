@@ -4,7 +4,7 @@
 **Date:** 2026-09-13
 **Deciders:** Operator
 **Supersedes:** nothing
-**Affects:** CONCEPT §§2, 6.2, 7.7, 11.1; DEVELOPMENT_PLAN P10; OG-55…OG-71
+**Affects:** CONCEPT §§2, 6.2, 7.6, 11.1; DEVELOPMENT_PLAN P10; OG-55…OG-71
 
 ## Context
 

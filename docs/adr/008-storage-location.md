@@ -4,7 +4,7 @@
 **Date:** 2026-09-13
 **Deciders:** Operator
 **Supersedes:** CONCEPT §13.1 (open question)
-**Affects:** CONCEPT §§6.2, 10, 13; SCHEMA §§2, 8; DEVELOPMENT_PLAN P0 and P3; OG-55…OG-71
+**Affects:** CONCEPT §§6.3, 10, 13; SCHEMA §§2, 8; DEVELOPMENT_PLAN P0 and P3; OG-55…OG-71
 
 ## Context
 

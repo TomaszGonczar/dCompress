@@ -921,6 +921,52 @@ describe("preview CLI", () => {
     expect(() => parsePreviewArgs(["--nope"])).toThrow(UsageError);
   });
 
+  it("refuses an unusably small --max-bytes as usage, without an internal-error stack", () => {
+    for (const budget of ["0", "64", "200"]) {
+      const result = capture(["preview", "--transcript", fixturePath, "--max-bytes", budget]);
+
+      expect(result.status).toBe(2);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("--max-bytes must be at least");
+      // The old path surfaced `RangeError: maxBytes cannot contain …` plus a Node stack.
+      expect(result.stderr).not.toContain("RangeError");
+      expect(result.stderr).not.toContain("Internal error");
+      expect(result.stderr).not.toMatch(/\n\s+at /);
+      // A refusal prints the exact next step, per the repository's refusal convention.
+      expect(result.stderr).toContain("--max-bytes");
+      expect(result.stderr).toContain("--help");
+    }
+  });
+
+  it("names a minimum --max-bytes that is exactly the boundary, and one byte less refuses", () => {
+    const refusal = capture(["preview", "--transcript", fixturePath, "--max-bytes", "0"]);
+    const minimum = Number(/--max-bytes must be at least (\d+)/.exec(refusal.stderr)?.[1]);
+    expect(Number.isSafeInteger(minimum)).toBe(true);
+    expect(minimum).toBeGreaterThan(0);
+
+    // At the reported minimum the pack renders, and it holds the header and the elision notice.
+    const atMinimum = capture(["preview", "--transcript", fixturePath, "--max-bytes", String(minimum)]);
+    expect(atMinimum.status).toBe(0);
+    expect(new TextEncoder().encode(atMinimum.stdout).byteLength).toBeLessThanOrEqual(minimum);
+    expect(atMinimum.stdout).toContain("## dcompact context [dcompact:");
+    expect(atMinimum.stdout).toContain("elided 9 facts");
+
+    // One byte below it is refused, which is what makes the reported number the boundary.
+    const below = capture(["preview", "--transcript", fixturePath, "--max-bytes", String(minimum - 1)]);
+    expect(below.status).toBe(2);
+    expect(below.stdout).toBe("");
+    expect(below.stderr).toContain(`at least ${minimum}`);
+  });
+
+  it("still renders a budget just large enough for the whole pack", () => {
+    const full = capture(["preview", "--transcript", fixturePath]);
+    const exact = new TextEncoder().encode(full.stdout).byteLength;
+    const result = capture(["preview", "--transcript", fixturePath, "--max-bytes", String(exact)]);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe(full.stdout);
+  });
+
   it("returns a structured preview result for direct callers", () => {
     const result = preview({ transcript: fixturePath, pack: {} });
 
@@ -936,12 +982,31 @@ describe("packaging", () => {
     const manifest = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {
       readonly bin?: Record<string, string>;
       readonly dependencies?: Record<string, string>;
+      readonly private?: boolean;
+      readonly license?: string;
+      readonly description?: string;
+      readonly repository?: { readonly url?: string };
     };
 
     expect(manifest.bin?.dcompact).toBe("dist/cli.js");
     expect(Object.keys(manifest.bin ?? {})).toEqual(["dcompact"]);
     // P6a adds no runtime dependency: the CLI only uses `node:fs` and `node:url`.
     expect(manifest.dependencies ?? {}).toEqual({});
+    // `private` is the guard against an accidental publish while the roadmap is unfinished; the
+    // metadata below it exists so a packed tarball and the public repository describe themselves.
+    expect(manifest.private).toBe(true);
+    expect(manifest.license).toBe("MIT");
+    // Matches the README subtitle, so the packed tarball and the repository say the same thing.
+    expect(manifest.description).toBe("Deterministic, rule-based memory for coding agents — no model in the extraction path.");
+    expect(manifest.repository?.url).toContain("github.com/TomaszGonczar/dcompact");
+  });
+
+  it("ships the MIT license text the README points at", () => {
+    const license = readFileSync(join(process.cwd(), "LICENSE"), "utf8");
+
+    expect(license.startsWith("MIT License\n")).toBe(true);
+    expect(license).toContain("Copyright (c) 2026 Tomasz Gonczar");
+    expect(license).toContain("THE SOFTWARE IS PROVIDED \"AS IS\"");
   });
 
   // A package-manager bin is a symlink, and on macOS the temp directory itself is a symlink,

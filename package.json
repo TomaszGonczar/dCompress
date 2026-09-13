@@ -2,6 +2,8 @@
   "name": "dcompact",
   "version": "0.1.0",
   "private": true,
+  "description": "Deterministic, rule-based memory for coding agents — no model in the extraction path.",
+  "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=20"
@@ -11,6 +13,22 @@
   },
   "files": [
     "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TomaszGonczar/dcompact.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TomaszGonczar/dcompact/issues"
+  },
+  "homepage": "https://github.com/TomaszGonczar/dcompact#readme",
+  "keywords": [
+    "coding-agents",
+    "context-compaction",
+    "deterministic",
+    "developer-tools",
+    "session-continuity",
+    "transcripts"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc --project tsconfig.build.json && chmod +x dist/cli.js",
