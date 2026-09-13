@@ -27,6 +27,7 @@ manifest.json
 sessions/
 *.jsonl
 transcripts/
+!test/fixtures/**/*.jsonl
 test/fixtures/**/*.real.jsonl
 
 # Install backups from `dcompact install`
