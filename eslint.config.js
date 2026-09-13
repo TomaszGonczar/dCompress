@@ -31,6 +31,13 @@ const reportForbiddenModule = (context, node, source) => {
   }
 };
 
+const reportDynamicModule = (context, node) => {
+  context.report({
+    node,
+    message: "src/core must use a statically analyzable module specifier",
+  });
+};
+
 export const corePurityRule = {
   meta: {
     type: "problem",
@@ -42,9 +49,6 @@ export const corePurityRule = {
   create(context) {
     const sourceCode = context.sourceCode;
     const hostBindings = new Map();
-
-    const sourceValue = (node) =>
-      node?.type === "Literal" && typeof node.value === "string" ? node.value : undefined;
 
     const bindingFor = (node) => {
       if (node?.type !== "Identifier") {
@@ -68,16 +72,6 @@ export const corePurityRule = {
       return !variable || variable.defs.length === 0;
     };
 
-    const staticPropertyName = (node) => {
-      if (!node) {
-        return undefined;
-      }
-      if (!node.computed && node.type === "Identifier") {
-        return node.name;
-      }
-      return node.type === "Literal" && typeof node.value === "string" ? node.value : undefined;
-    };
-
     const unwrap = (node) => {
       let current = node;
       while (
@@ -89,6 +83,45 @@ export const corePurityRule = {
         current = current.expression;
       }
       return current;
+    };
+
+    const constantString = (expression) => {
+      const node = unwrap(expression);
+      if (node?.type === "Literal" && typeof node.value === "string") {
+        return node.value;
+      }
+      if (node?.type === "TemplateLiteral") {
+        let value = node.quasis[0]?.value.cooked ?? node.quasis[0]?.value.raw;
+        for (let index = 0; index < node.expressions.length; index += 1) {
+          const expressionValue = constantString(node.expressions[index]);
+          const quasi = node.quasis[index + 1];
+          if (value === undefined || expressionValue === undefined || !quasi) {
+            return undefined;
+          }
+          value += expressionValue + (quasi.value.cooked ?? quasi.value.raw);
+        }
+        return value;
+      }
+      if (node?.type === "BinaryExpression" && node.operator === "+") {
+        const left = constantString(node.left);
+        const right = constantString(node.right);
+        if (left !== undefined && right !== undefined) {
+          return left + right;
+        }
+      }
+      return undefined;
+    };
+
+    const sourceValue = (node) => constantString(node);
+
+    const staticPropertyName = (node) => {
+      if (!node) {
+        return undefined;
+      }
+      if (!node.computed && node.type === "Identifier") {
+        return node.name;
+      }
+      return constantString(node);
     };
 
     // Track aliases so `const host = globalThis; host.process` is covered too.
@@ -116,6 +149,12 @@ export const corePurityRule = {
         if (hostKind(node.object) === "globalThis" && staticPropertyName(node.property) === "require") {
           return "require";
         }
+        if (hostKind(node.object) === "require" && staticPropertyName(node.property) === "bind") {
+          return "require.bind";
+        }
+      }
+      if (node.type === "CallExpression" && hostKind(node.callee) === "require.bind") {
+        return "require";
       }
       return undefined;
     };
@@ -198,7 +237,12 @@ export const corePurityRule = {
         }
       },
       ImportExpression(node) {
-        reportForbiddenModule(context, node.source, sourceValue(node.source));
+        const source = sourceValue(node.source);
+        if (source === undefined) {
+          reportDynamicModule(context, node.source);
+        } else {
+          reportForbiddenModule(context, node.source, source);
+        }
       },
       VariableDeclarator(node) {
         const kind = hostKind(node.init);
@@ -220,7 +264,12 @@ export const corePurityRule = {
       },
       CallExpression(node) {
         if (hostKind(node.callee) === "require") {
-          reportForbiddenModule(context, node.arguments[0], sourceValue(node.arguments[0]));
+          const source = sourceValue(node.arguments[0]);
+          if (source === undefined) {
+            reportDynamicModule(context, node.arguments[0] ?? node.callee);
+          } else {
+            reportForbiddenModule(context, node.arguments[0], source);
+          }
         }
       },
       Identifier(node) {
