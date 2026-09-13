@@ -4,7 +4,7 @@
 **Date:** 2026-09-13
 **Deciders:** Operator
 **Supersedes:** nothing
-**Affects:** AGENTS.md invariant 6; CONCEPT §§6.2, 7.7, 8, 11.1–11.3; DEVELOPMENT_PLAN D8; OG-55…OG-71
+**Affects:** AGENTS.md invariant 6; CONCEPT §§6.2, 7.6, 8, 11.1–11.3; DEVELOPMENT_PLAN D8; OG-55…OG-71
 
 ## Context
 

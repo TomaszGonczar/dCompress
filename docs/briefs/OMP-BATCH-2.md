@@ -1,7 +1,7 @@
 # HANDOFF — OMP, Batch 2
 
 **Issued:** 2026-09-13
-**Next issue:** [OG-59 — P4 Adapter recon](https://linear.app/tpg96/issue/OG-59/04-p4-adapter-recon-produce-adapter-specmd)
+**Next issue:** OG-59 — P4 Adapter recon (produce `docs/ADAPTER-SPEC.md`)
 **Scope:** produce `docs/ADAPTER-SPEC.md`; write no implementation code
 **Repository:** `https://github.com/TomaszGonczar/dcompact`
 
@@ -247,12 +247,12 @@ that is the finding; do not tune the test around it.
 
 ## 8. Working verification commands
 
-Run from `/Users/tomaszgonczar/dcompact`. Before every mutating git command, inspect the live
-Orca and working-tree state:
+Run from the repository root. Before every mutating git command, inspect the live Orca and
+working-tree state:
 
 ```bash
-orca terminal list --worktree path:/Users/tomaszgonczar/dcompact --json
-ps -axo pid=,command= | rg 'codex|omp|claude|/Users/tomaszgonczar/dcompact'
+orca terminal list --worktree "$(pwd)" --json
+ps -axo pid=,command= | rg 'codex|omp|claude|dcompact'
 git status --short --branch
 ```
 

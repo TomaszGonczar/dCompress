@@ -113,13 +113,13 @@ Measured on this machine, 2026-09-13:
 
 ```
 # Claude Code MCP child process environment
-CLAUDE_CODE_SESSION_ID=3d496ed2-36fb-442b-8e33-5f725ad22beb
-CLAUDE_PROJECT_DIR=/private/tmp/mcp-probe
+CLAUDE_CODE_SESSION_ID=<session-id>
+CLAUDE_PROJECT_DIR=<probe-directory>
 CLAUDE_CODE_ENTRYPOINT=sdk-cli
-→ resolves to /Users/…/.claude/projects/-private-tmp-mcp-probe/3d496ed2-….jsonl (24 lines)
+→ resolves to <claude-config-dir>/projects/<project-slug>/<session-id>.jsonl (24 lines)
 
 # OMP MCP child process environment
-cwd=/home/agent/work
+cwd=<sandbox-working-directory>
 total env vars: 14      (no session identifier)
 → OMP must use an in-process extension instead
 ```
