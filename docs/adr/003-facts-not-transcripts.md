@@ -22,9 +22,13 @@ the source line itself.
 ## Decision
 
 dcompact stores extracted facts and the schema-defined counters, provenance references,
-degraded states, and envelope metadata. It does not store transcript entries, conversation
-prose, assistant reasoning, file contents, or secrets. Full transcripts remain under the
-agent's control at their existing location.
+degraded states, and envelope metadata. It does not store transcript entries, full
+conversation prose, assistant reasoning, or file contents. Facts may include bounded,
+transcript-derived snippets for human-readable context; these are not a transcript archive.
+Secret redaction is not implemented in the current Batch 1 code and is planned for P12 before
+the v0.1 release. Until then, a snippet can contain sensitive text if the source record
+supplies it. Full transcripts remain under the agent's control at their existing location, and
+snapshots must be treated as potentially sensitive.
 
 Every fact must be derived from transcript data or an explicit input. Provenance is a bounded
 line-and-hash reference as specified by `SCHEMA.md`; it is not a transcript cache. Paths in a
@@ -50,7 +54,8 @@ not cause dcompact to retain a copy or silently preserve unsupported facts.
 
 - **Store every transcript:** rejected because it duplicates sensitive data, increases the
   attack and backup surface, and defeats bounded snapshots.
-- **Store excerpts as evidence:** rejected because excerpts can contain secrets and make
-  provenance less mechanical. Line number plus raw-line hash is sufficient for verification.
+- **Store excerpts as evidence:** rejected as a transcript cache because excerpts can contain
+  secrets and make provenance less mechanical. The bounded fact snippet is a separate,
+  human-readable field; line number plus raw-line hash is sufficient for verification.
 - **Store only a prose summary:** rejected because it loses atomic facts and has no reliable
   provenance; ADR 002 also rules out model-generated extraction.

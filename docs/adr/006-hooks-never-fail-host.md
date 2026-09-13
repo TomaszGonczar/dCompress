@@ -20,16 +20,33 @@ is worse than no snapshot.
 ## Decision
 
 Every dcompact hook entry point wraps its internal work in a failure boundary and exits `0`
-for internal errors under the normal, non-blocking integration contract. It reports the
-failure as a first-class degraded or unavailable state, emits only safe local diagnostics,
-and leaves the host agent's input and configuration alone. Time and resource budgets are
-enforced; when a budget is exceeded, the hook stops and reports `degraded: budget-exceeded`.
+for internal errors. It reports the result using only the following finite hook outcomes:
+`ok`; `degraded: schema-drift`, `degraded: extraction-empty`,
+`degraded: provenance-broken`, `degraded: budget-exceeded`, `degraded: internal-error`, or
+`degraded: no-pre-compaction-hook`;
+`unavailable: agent-not-installed` or `unavailable:store`; and `untrusted:
+hook-pending-review`. The two hook-only outcomes `unavailable:store` and
+`internal-error` (displayed as `degraded: internal-error`) are raw `DegradedState` values in
+`src/core/types.ts`; they are surfaced through hook output, `doctor`, or diagnostics and must
+not be used to claim that an envelope was written when persistence failed. The hook emits only
+safe local diagnostics and leaves the host agent's input and configuration alone. Time and
+resource budgets are enforced; when a budget is exceeded, the hook stops and reports
+`degraded: budget-exceeded`.
 
-The hook never guesses a session or repairs unknown transcript data. It records fewer facts,
-or none, and marks the result degraded. Hook failures are observable through the pack header,
-`doctor`, and local logs when enabled. An explicitly configured blocking mode, if supported
-by a future integration, is an opt-in contract outside the default installer and must be
-clearly surfaced; normal installed hooks remain non-blocking.
+The hook never guesses a session or repairs unknown transcript data. Malformed or changed hook
+or transcript input, including unknown transcript shape, maps to `degraded: schema-drift`; an
+empty extraction from a non-empty recognized transcript
+maps to `degraded: extraction-empty`; an unreadable or rotated provenance source maps to
+`degraded: provenance-broken`; an absent agent maps to `unavailable: agent-not-installed`;
+an untrusted installed hook maps to `untrusted: hook-pending-review`; lack of a pre-compaction
+hook maps to `degraded: no-pre-compaction-hook`; and a lock timeout or wall-clock exhaustion
+maps to `degraded: budget-exceeded`. A disk-full or other store-write
+failure maps to `unavailable:store`: the hook reports it through its output, `doctor`, or a
+safe local diagnostic and does not claim that an envelope was persisted. An unexpected dcompact
+bug maps to `degraded: internal-error`. An unmapped tool is not a hook failure: it is counted
+in the payload and does not itself change the state. Otherwise a completed hook is `ok`. There
+is no blocking mode; installed hooks always return `0`, even when they emit a degraded or
+unavailable result.
 
 ## Consequences
 

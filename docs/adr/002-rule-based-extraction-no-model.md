@@ -23,8 +23,15 @@ line evidence and tested with golden fixtures.
 The extraction path is rule-based and contains no model call. Each extractor is a pure
 function from normalized transcript events and explicit configuration to facts. Adapters may
 locate and map agent-specific records, but they do not interpret prose or add model-derived
-facts. Unknown shapes produce fewer facts and an explicit degraded state; they are never
-repaired by asking a model to guess.
+facts.
+
+An **unknown transcript shape** is a record the adapter cannot normalize according to its
+declared schema; it produces fewer facts and the valid `degraded: schema-drift` state (or
+`degraded: extraction-empty` when a non-empty, otherwise recognized transcript yields no
+facts). An **unmapped tool** is different: the record shape is recognized, but the adapter's
+tool-to-kind map has no decision for that tool. It increments `counters.unmapped_tool_calls`
+and reduces `coverage_ppm`, while leaving the degraded state unchanged (including the
+`degraded: []` unknown-tool fixture). Neither case is repaired by asking a model to guess.
 
 The resulting facts are canonicalized and hashed according to `SCHEMA.md`. A model may be a
 caller of an exposed tool, but it is not a dependency of extraction, canonicalization,
