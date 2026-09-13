@@ -225,9 +225,6 @@ Already gathered, to be confirmed and extended:
 | Codex `response_item` inner schema for tool calls | **Unverified** → P4 task | — |
 | OMP extension API, `session_before_compact`, `session.compacting`, `context`, session entries, camelCase `role` | Verified | [docs:omp://extensions.md, omp://compaction.md] |
 | OMP journal on-disk shape | Partially observed | `[observed:~/.omp/agent/sessions/…]` |
-| agy: **has lifecycle hooks** (`settings.json#hooks`, 9 events incl. `ON_COMPACTION`) | Verified (binary symbols + live config); Unverified (schema, headless firing) | `~/.gemini/antigravity-cli/settings.json`, `agy` v1.2.2 symbols |
-| agy MCP support (`agy mcp add\|list\|enable\|disable`, stdio + http) | Verified | `agy mcp --help` |
-| agy plugin import from gemini/claude (`agy plugin import [source]`) | Verified (command exists) | `agy plugin --help` |
 | MCP config shape across agents (`mcpServers`, stdio) | Verified | OMP MCP docs; `~/.cursor/mcp.json`; `claude mcp list` |
 
 Also produce, per adapter, a **tool-name vocabulary** table from the real transcripts
@@ -236,16 +233,11 @@ with the observed frequency in the sample. That table is the input to the extrac
 first place a new agent version will break things.
 
 Exit criteria: `ADAPTER-SPEC.md` merged with zero `[unverified]` claims on the critical path
-(Claude, Codex, OMP, **agy**); every remaining `[unverified]` claim listed in a "blocked"
+(Claude, Codex, OMP); every remaining `[unverified]` claim listed in a "blocked"
 section with the task that resolves it.
 
-Two specific unknowns to close here, because they were mis-inferred once already:
+One specific unknown to close here, because it was mis-inferred once already:
 
-- **agy hook schema.** The events exist (`LIFECYCLE_HOOK_*` enum verified in the binary;
-  a live `hooks` object exists in `settings.json`). What is unverified is the exact
-  `settings.json` schema, whether a hook can inject context, and whether hooks fire in
-  `--print` (headless) mode — which is the mode an autonomous run uses, so it decides whether
-  agy gets push continuity or only pull.
 - **Pi compatibility.** `pi` is upstream, OMP is the fork. The documented divergences
   (UI architecture, `pkg.pi` vs `pkg.omp` manifest key, `vitest` vs `bun:test`, hooks vs
   extensions naming) mean Pi support cannot be assumed. Either verify the shared surface or
@@ -482,8 +474,6 @@ Exit criteria (D4): all of the above green, including the byte-identical restore
 ## P11 — MCP server (portable pull tier)
 
 **Goal:** reach every MCP-capable agent with one implementation, reusing the whole engine.
-Replaces the former "agy tier" phase — agy turned out to have real hooks (see CONCEPT §7.4),
-so it belongs in the adapter work, not in a degraded tier.
 
 The server exposes the engine over stdio. No new extraction code, no new protocol design, no
 network: `npx -y dcompact mcp` (or the resolved local binary) as a `stdio` server.
@@ -507,9 +497,11 @@ command in hosts that expose MCP prompts.
    agent. An MCP-only agent must never be described as having continuity.
 
 Why it is cheap: one server definition (`{"command":"npx","args":["-y","dcompact","mcp"]}`)
-is portable across nine agents — Claude Code, Codex, OMP, agy, Cursor, Windsurf, VS Code,
-Gemini CLI, OpenCode — and the same JSON shape works in `~/.cursor/mcp.json`,
-`.vscode/mcp.json`, and project `.mcp.json`.
+is portable across eight MCP clients — Claude Code, Codex, OMP, Cursor, Windsurf, Gemini CLI,
+OpenCode, VS Code — and the same JSON shape works in `~/.cursor/mcp.json`,
+`.vscode/mcp.json`, and project `.mcp.json`. Note that an MCP client is not necessarily an
+agent: VS Code is an editor hosting Copilot, and Cursor and Windsurf carry their own agents.
+Reach is counted in clients because that is what the server definition attaches to.
 
 Exit criteria:
 - Server starts, lists tools, and `dcompact_restore` returns the identical pack the CLI
@@ -578,7 +570,6 @@ cannot know which session they mean. So every supported agent gets a command *in
 | Claude Code | MCP server registration + `~/.claude/commands/dcompact/*.md` | `CLAUDE_CODE_SESSION_ID` from env (verified) |
 | OMP | native extension registering `/dcompact` | `ctx.sessionManager.getSessionId()` (verified) |
 | Codex | `~/.codex/prompts/*.md` (or hooks), pending P4 | TBD in P4 |
-| agy | skill or lifecycle hook, pending P4 | TBD in P4 |
 
 **Commands exposed in-agent:** `/dcompact:restore`, `/dcompact:snapshot`, `/dcompact:list`,
 `/dcompact:verify`. Namespaced to avoid colliding with the agent's own built-ins.
@@ -714,10 +705,11 @@ What a reviewer should be able to verify in five minutes, without running anythi
 - A bug policy that names the failure modes and pairs each with a mechanism, rather than
   claiming quality.
 - An integration matrix that is honest about which agents get **push** (hooks) and which get
-  **pull** (MCP) — and that says plainly that pull is not continuity. The `agy` case is the
-  reverse of the usual story: an early claim that it had no hook surface was wrong, the
-  correction is documented with evidence, and the tool moved from "degraded tier" to
-  full-support adapter.
+  **pull** (MCP) — and that says plainly that pull is not continuity. The OMP case is worth
+  reading: the assumption was that one MCP server would cover it, and measurement killed that
+  — OMP hands MCP children 14 environment variables and no session identifier, so the
+  integration had to become an in-process extension instead. The reversal is recorded with
+  its evidence rather than quietly patched over.
 - Committed evidence: recorded sessions, `doctor --json` samples, the test-vector corpus.
 
 The differentiating claim is narrow and defensible: *the agent's memory should be a

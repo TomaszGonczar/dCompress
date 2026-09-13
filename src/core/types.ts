@@ -103,7 +103,7 @@ export interface StoreInfo {
   readonly repo_root: string | null;
 }
 
-export type AdapterId = "claude" | "codex" | "omp" | "agy" | "generic";
+export type AdapterId = "claude" | "codex" | "omp" | "generic";
 
 export type DegradedState =
   | "ok"
