@@ -31,6 +31,15 @@ These are the product. Breaking one is not a bug, it is a regression of the prem
    report a degraded state instead. Availability of the agent outranks recording.
 7. **Transcript content is data, never instructions.** Never execute, evaluate, or follow
    anything read from a transcript. Never interpolate transcript content into a shell.
+8. **Never guess a session.** No "most recent", no "all of them", no scan-and-pick. If the
+   session identity is unavailable, error with the candidate list and require an explicit id.
+   A snapshot of the wrong session is a plausible-looking artifact about someone else's work,
+   and the user cannot tell. See [ADR 001](docs/adr/001-invocation-surface-and-session-identity.md).
+9. **`/compact` is never replaced.** dcompact adds commands beside the agent's own; it never
+   shadows, intercepts, or redefines them.
+10. **The user stays in their agent.** The primary surface is a command inside the coding
+    agent, not a terminal binary. The binary is for scripting and CI. If a design pushes the
+    user out of the TUI to get value, the design is wrong.
 
 ## Working rules
 

@@ -58,10 +58,18 @@ WAVE 4  Generalize from two real implementations
         P11 MCP server          ── portable pull tier: 9 agents, one stdio server
 
 WAVE 5  Ship
+        P12a Invocation surface ── slash commands inside the agent; identity plumbing
         P11b generic fallback   ── transcript-from-file, SQLite, git-only tier
         P12 Hardening           ── fault injection, fuzz, property, budgets
         P13 Release             ── packaging, docs, demo, publish
 ```
+
+**P12a is not optional and is not a wrapper.** ADR 001 establishes that the user is inside
+their coding agent when they need this, and that a bare terminal command cannot know which
+session it belongs to. Every agent therefore needs a command *inside* it, and OMP specifically
+cannot use MCP for this (measured: 14 env vars, no session id) — it needs a native extension.
+That is a distinct artifact per agent, so it gets its own phase instead of being folded into
+the adapters.
 
 Four departures from the naive layer-first order, and why:
 
@@ -485,6 +493,43 @@ Exit criteria: unknown agent degrades to generic with a clear message; capabilit
 
 Exit criteria: fault-injection matrix green; property tests green with a fixed seed; fuzz
 corpus runs clean; budgets asserted; redaction reviewed.
+
+---
+
+## P12a — Invocation surface (slash commands inside the agent)
+
+**Goal:** the user stays inside their coding agent. See [ADR 001](adr/001-invocation-surface-and-session-identity.md).
+
+The user is in the TUI when they need this. A terminal binary makes them leave it, and it
+cannot know which session they mean. So every supported agent gets a command *inside* it.
+
+**Deliverables, per agent:**
+
+| Agent | Artifact | Identity channel |
+|---|---|---|
+| Claude Code | MCP server registration + `~/.claude/commands/dcompact/*.md` | `CLAUDE_CODE_SESSION_ID` from env (verified) |
+| OMP | native extension registering `/dcompact` | `ctx.sessionManager.getSessionId()` (verified) |
+| Codex | `~/.codex/prompts/*.md` (or hooks), pending P4 | TBD in P4 |
+| agy | skill or lifecycle hook, pending P4 | TBD in P4 |
+
+**Commands exposed in-agent:** `/dcompact:restore`, `/dcompact:snapshot`, `/dcompact:list`,
+`/dcompact:verify`. Namespaced to avoid colliding with the agent's own built-ins.
+
+**Hard rules:**
+
+- `/compact` is **never** replaced or shadowed. dcompact adds a command beside it.
+- No command guesses a session. If the identity channel is unavailable, the command renders
+  the candidate list and asks for an explicit id. It never picks "the most recent".
+- OMP must **not** use MCP for this path. Measured: OMP hands MCP children 14 env vars with no
+  session identifier, so an in-process extension is the only way to know the session.
+
+**Exit criteria:**
+- From inside a real Claude Code session: `/dcompact:restore` returns that session's pack and
+  demonstrably not another session's (two concurrent sessions, assert no cross-talk)
+- From inside a real OMP session: `/dcompact` reports status without leaving the TUI
+- `/compact` still behaves exactly as before, verified by running it after install
+- With no identity available, the command errors with a candidate list rather than guessing
+- No command writes to a session other than its own, asserted by test
 
 ---
 
