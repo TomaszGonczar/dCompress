@@ -163,12 +163,13 @@ The engine must not assume any adapter exposes an exit code.
 src/dispatch.ts — replace retry loop"*. On OMP this needs **no derivation**: the transcript
 already carries `toolCall.intent`, a per-call intent string written by the agent.
 
-Measured, verbatim from a live journal:
+Measured on a real journal (`toolCall.intent` is present on every call); the three strings
+below are synthetic examples of that field, not journal text:
 
 ```
-read  → "Listing archaeology output directory"
-bash  → "Checking size and file count"
-read  → "Reading morning start brief"
+read  → "Listing output directory contents"
+bash  → "Checking file count and size"
+read  → "Reading the task brief"
 ```
 
 That is exactly the field's purpose, present deterministically, with no model involved.
@@ -356,7 +357,7 @@ Exit codes: `0` success, `1` operational failure, `2` usage, `3` integrity failu
 (hash mismatch, provenance broken), `4` degraded but usable. Installed hooks always exit `0`
 and report one of the finite schema states; there is no blocking mode.
 
-### 6.2 Storage layout
+### 6.3 Storage layout
 
 ```
 ${XDG_DATA_HOME:-~/.local/share}/dcompact/
@@ -633,12 +634,12 @@ Rules:
   cwd), never from filesystem probing.
 
   This corrects the earlier single-`repo_root` rule, which excluded and only counted facts. In
-  one measured OMP session (`repo_root = ~/Omega-v3`):
+  one measured OMP session (`repo_root = ~/work`):
 
   ```
   file ops inside repo_root:    9
     file ops OUTSIDE:           124   (93.2%)   ← retained as external facts under the current rule
-    omega-component-prep  69 · other 38 · Desktop 9 · xd:// 4 · /tmp 3 · ~/.omp 1
+    components  69 · sibling-dir 38 · scratch 9 · xd:// 4 · /tmp 3 · ~/.omp 1
   ```
 
   Split by tool, which is the part that matters:
@@ -654,9 +655,11 @@ Rules:
   coverage counted mapped tool calls, not paths retained. Under the current rule those facts
   remain present, with host path text withheld.
 
-  *Scope of this evidence:* one session, one workflow — `cwd` in `Omega-v3`, deliverable written
-  to a sibling directory passed by argument. A session that edits its own repo measures
-  differently. The rule below rests on the structural argument, with this as one instance.
+  *Scope of this evidence:* one session, one workflow — a `cwd` in one checkout, with the
+  deliverable written to a sibling directory passed by argument. The directory names above are
+  neutral placeholders; only the counts and the ratio are the measurement. A session that edits
+  its own repo measures differently. The rule below rests on the structural argument, with this
+  as one instance.
 
   The old rule was wrong on three counts, each now fixed:
 

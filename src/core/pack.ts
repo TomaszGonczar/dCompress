@@ -1,6 +1,9 @@
 import { payloadHash } from "./hash.js";
 import type { CanonicalValue, DegradedState, Fact, PackOptions, Payload } from "./types.js";
 
+/** Default pack byte budget, used when no `maxBytes` is supplied. */
+export const DEFAULT_MAX_BYTES = 16384;
+
 const PRIORITY: Record<Fact["kind"], number> = {
   "decision.stated": 5,
   "error.raised": 10,
@@ -130,8 +133,33 @@ function renderGroups(groupsToRender: readonly { priority: number; facts: Fact[]
   return lines;
 }
 
+/**
+ * Smallest `maxBytes` for which {@link renderPack} can render this payload.
+ *
+ * The floor is the header plus the elision notice, because the renderer may drop every fact
+ * group but can never drop either of those. The notice names the budget, so the floor is the
+ * fixed point `f(m) <= m` of a function that steps by one byte whenever `m` gains a digit; it is
+ * found by iterating from the header length, which converges in a couple of steps and needs no
+ * arithmetic assumption beyond monotonicity. Only `degraded` can change the header here — no
+ * fact is rendered at the floor, so `maxFacts` and `includeEvidence` cannot move it.
+ */
+export function minimumPackBytes(payload: Payload, options?: Pick<PackOptions, "degraded">): number {
+  const base = header(payload, options?.degraded);
+  const headerBytes = byteLength(`${base.join("\n")}\n`);
+  const total = payload.facts.length;
+  if (total === 0) return headerBytes;
+
+  let candidate = headerBytes;
+  while (true) {
+    const notice = `> [dcompact] elided ${total} fact${total === 1 ? "" : "s"} to fit ${candidate} UTF-8 bytes.`;
+    const required = byteLength(`${[...base, notice].join("\n")}\n`);
+    if (required <= candidate) return candidate;
+    candidate = required;
+  }
+}
+
 export function renderPack(payload: Payload, options?: PackOptions): string {
-  const maxBytes = options?.maxBytes ?? 16 * 1024;
+  const maxBytes = options?.maxBytes ?? DEFAULT_MAX_BYTES;
   const maxFacts = options?.maxFacts ?? Number.MAX_SAFE_INTEGER;
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 0) throw new RangeError("maxBytes must be a non-negative integer");
   if (!Number.isSafeInteger(maxFacts) || maxFacts < 0) throw new RangeError("maxFacts must be a non-negative integer");

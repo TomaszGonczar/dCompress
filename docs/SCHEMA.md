@@ -22,7 +22,7 @@ Two further defects in revision 2's §5.2 were found while ruling, both mine:
   **derived from the transcript alone** (§5.2 rule 5) — no I/O, no ambient state.
 - **The proposed fix would have reintroduced the original bug.** "Keep the scope set, count
   the rest" would still discard 56% of the measured loss, because the largest measured
-  contributor (`omega-component-prep`, 69 of 124 paths) is a plain directory, not a git
+  contributor (`components`, 69 of 124 paths) is a plain directory, not a git
   worktree, and so never joined a worktree-based scope set.
 
 **Revision note (2, 2026-09-13).** Version 1 contained four genuine internal contradictions,
@@ -47,9 +47,12 @@ them locally — which is what happened.
 
 ## 1. Why this document exists
 
-`dcompact` claims determinism: the same transcript bytes must produce the same snapshot
-bytes, on any machine, at any time. That claim is only true if "the same bytes" is defined
-mechanically. This document is that definition.
+`dcompact` claims determinism: the same transcript bytes **plus the same extraction inputs**
+must produce the same canonical `payload`, and therefore the same `hash`, on any machine, at
+any time. The full snapshot *envelope* bytes may differ — the envelope carries the clock, host,
+and absolute paths, and is not part of the artifact's identity (§6.1). That claim is only true
+if "the same bytes" and "the same extraction inputs" are defined mechanically. This document is
+that definition.
 
 The single rule behind all the detail:
 
@@ -70,8 +73,8 @@ One file per snapshot: `snapshots/<utc-iso>-<hash12>.json`.
     "created_at": "2026-09-13T08:41:09Z",     // wall clock, UTC, seconds precision
     "adapter": "claude",
     "adapter_version": "2.1.104",              // reported by the agent, or null
-    "session_id": "099e41bf-…",
-    "transcript_path": "~/.claude/projects/…/099e41bf….jsonl",
+    "session_id": "<session-id>",
+    "transcript_path": "~/.claude/projects/<project-slug>/<session-id>.jsonl",
     "transcript_bytes": 184223,
     "transcript_lines": 1204,
     "transcript_mtime": "2026-09-13T08:40:58Z",
@@ -183,8 +186,9 @@ still read high. Under this rule those facts are present, hashed, and visible; o
 path text is withheld. The count is therefore a **secondary** signal, because it can no longer
 disagree with the fact list.
 
-*Note on the measurement:* it is one session, exercising one workflow (a `cwd` in `Omega-v3`
-whose deliverable was written to a sibling directory passed by argument). A session that edits
+*Note on the measurement:* it is one session, exercising one workflow (a `cwd` in one checkout
+whose deliverable was written to a sibling directory passed by argument). Directory names in
+this section are neutral placeholders; the counts are the measurement. A session that edits
 its own repo measures differently. The rule rests on the structural argument — a single root is
 the wrong primitive for an agent that touches sibling directories — with this session as one
 instance of the failure, not as a general rate.
@@ -501,7 +505,7 @@ across line endings: the line *hash* differs by platform, the extracted *facts* 
 ```jsonc
 {
   "manifest_version": 1,
-  "session": "claude-099e41bf-…",
+  "session": "claude-<session-id>",
   "snapshots": [
     { "id": "…", "hash": "sha256:6bd0…", "created_at": "…", "facts": 43,
       "pinned": false, "degraded": [] }

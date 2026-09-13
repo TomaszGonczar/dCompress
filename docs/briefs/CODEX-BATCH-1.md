@@ -50,7 +50,7 @@ build it. That is why OG-57 is a gate.
 ## 3. The three issues
 
 ### OG-55 — P0 Foundation
-**https://linear.app/tpg96/issue/OG-55/01-p0-foundation**
+**Linear issue `OG-55` — "01 · P0 — Foundation"**
 
 Deliverables:
 - `package.json` (ESM), `tsconfig.json` (`strict: true`), lint config (biome or eslint), `vitest`
@@ -72,7 +72,7 @@ Exit criteria:
 - ADRs merged
 
 ### OG-56 — P1 Core engine
-**https://linear.app/tpg96/issue/OG-56/02-p1-core-engine**
+**Linear issue `OG-56` — "02 · P1 — Core engine"**
 
 Pure functions only. **No `fs`, no `child_process`, no `process.env`, no `Date.now()`.**
 
@@ -107,7 +107,7 @@ Exit criteria:
 - Lint rule proves `src/core/**` cannot import I/O
 
 ### OG-57 — P2 Determinism suite — **THE GATE**
-**https://linear.app/tpg96/issue/OG-57/03-p2-test-vectors-and-determinism-suite**
+**Linear issue `OG-57` — "03 · P2 — Test vectors and determinism suite"**
 
 Deliverables:
 - `test/fixtures/` with all **10 vectors from SCHEMA §10**, each as
@@ -292,8 +292,8 @@ worktree-based scope set:
 
 | Measured path | Git worktree? | Under "count only" |
 |---|---|---|
-| `omega-component-prep` — **69 of 124 paths (56%)** | **no** | still dropped |
-| `Desktop` — 9 | no | still dropped |
+| `components` — **69 of 124 paths (56%)** | **no** | still dropped |
+| `scratch` — 9 | no | still dropped |
 | `~/.omp` — 1 | no | still dropped |
 
 **The ruling instead:**

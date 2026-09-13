@@ -31,20 +31,35 @@ nothing before that needs it.
 ## 2. Linear credential
 
 `tools/linear` reads `LINEAR_API_KEY` from the environment, from `.env` in the repo root, or
-from `~/.dcompact-agent.env`. Create the host file so it is available outside the repo:
+from `~/.dcompact-agent.env`. It also requires `DCOMPACT_LINEAR_PROJECT`, the id of the Linear
+project to operate on — that id is workspace-specific and is deliberately not committed, so the
+tool refuses with exit 2 rather than guessing.
+
+Only `LINEAR_API_KEY` is read from the files above. `DCOMPACT_LINEAR_PROJECT` **must come from
+the environment** each time you invoke the tool; it is not read from `.env` or
+`~/.dcompact-agent.env`, so exporting it in a shell profile or per invocation is what makes it
+available. Write both to the host file for your own reference, but export the project id
+explicitly:
 
 ```bash
-grep '^LINEAR_API_KEY=' ~/Omega-v3/.env >> ~/.dcompact-agent.env
+{
+  printf 'LINEAR_API_KEY=%s\n' '<your-key>'
+  printf 'DCOMPACT_LINEAR_PROJECT=%s\n' '<your-linear-project-id>'
+} >> ~/.dcompact-agent.env
 chmod 600 ~/.dcompact-agent.env
 ```
 
-Verify:
+Verify. The key is picked up from the file; the project id is passed through the environment:
 
 ```bash
 export LINEAR_API_KEY=$(grep '^LINEAR_API_KEY=' ~/.dcompact-agent.env | cut -d= -f2-)
-cd ~/Projects/dcompact && ./tools/linear next
+export DCOMPACT_LINEAR_PROJECT=<your-linear-project-id>
+cd <repo> && ./tools/linear next
 # → OG-55	01 · P0 — Foundation
 ```
+
+To load both into the current shell without exporting them individually, source the file —
+`set -a; . ~/.dcompact-agent.env; set +a`.
 
 ## 3. Agent credentials
 
@@ -72,8 +87,8 @@ EOF
 chmod 600 ~/.dcompact-agent/omp.env
 ```
 
-Copy the key value from `~/Omega-v3/.env`. OMP reads provider keys from the environment; the
-sandbox cannot see the host's OMP profile or its `agent.db`.
+Copy the key value from wherever your provider keys are stored on the host. OMP reads provider
+keys from the environment; the sandbox cannot see the host's OMP profile or its `agent.db`.
 
 Test that OMP authenticates inside the sandbox before a real run:
 
@@ -85,7 +100,7 @@ docker run --rm --env-file ~/.dcompact-agent/omp.env dcompact-sandbox:latest \
 ## 4. Build the sandbox image
 
 ```bash
-cd ~/Projects/dcompact
+cd <repo>
 docker build -t dcompact-sandbox:latest tools/sandbox
 ```
 
@@ -112,7 +127,7 @@ Linear, and stops — printing the command to run. Nothing executes a model unle
 `--execute`.
 
 ```bash
-cd ~/Projects/dcompact
+cd <repo>
 ./tools/agent-run OG-55 --dry-run     # inspect the plan, touch nothing
 ./tools/agent-run OG-55               # prepare: branch + brief + Linear update
 ```
@@ -168,5 +183,4 @@ or Linear. Codex needs no such key (it uses the mounted ChatGPT OAuth home).
 The gate is therefore procedural: `agent-run` never merges, and you review every PR.
 
 **Network:** the sandbox has network access because it must reach npm and the model API.
-For a no-network profile on pure-logic phases, your `Omega-v3/core/sandbox.py` gVisor pattern
-is the reference.
+For a no-network profile on pure-logic phases, a gVisor-based sandbox pattern is the reference.

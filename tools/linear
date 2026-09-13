@@ -2,7 +2,8 @@
 # tools/linear — minimal Linear CLI over the GraphQL API.
 #
 # Works on the host and inside the sandbox container. Reads LINEAR_API_KEY from the
-# environment, or from .env in the repo root when running locally.
+# environment, or from .env in the repo root when running locally, and requires
+# DCOMPACT_LINEAR_PROJECT (the project id is workspace-specific and is not committed).
 #
 #   linear next                 next unstarted issue in execution order
 #   linear list [--all]         issues in execution order
@@ -30,7 +31,12 @@ if [[ -z "${LINEAR_API_KEY:-}" ]]; then
   exit 2
 fi
 
-PROJECT_ID="${DCOMPACT_LINEAR_PROJECT:-<project-id>}"
+if [[ -z "${DCOMPACT_LINEAR_PROJECT:-}" ]]; then
+  echo "error: DCOMPACT_LINEAR_PROJECT not set (the Linear project id is workspace-specific and is not committed)" >&2
+  exit 2
+fi
+
+PROJECT_ID="$DCOMPACT_LINEAR_PROJECT"
 TEAM_KEY="${DCOMPACT_LINEAR_TEAM:-OG}"
 
 gql() {
