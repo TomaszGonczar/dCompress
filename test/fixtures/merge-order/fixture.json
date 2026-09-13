@@ -1,0 +1,31 @@
+{
+  "name": "merge-order",
+  "adapterId": "generic",
+  "toolKinds": {
+    "write": "file.modified",
+    "edit": "file.modified",
+    "save": "file.modified",
+    "read": "file.read",
+    "bash": "command",
+    "ignored": "ignored"
+  },
+  "scopeRoots": [
+    {
+      "root": "/workspace/repo",
+      "scope": "repo"
+    }
+  ],
+  "cwd": "/workspace/repo",
+  "repoRoot": "/workspace/repo",
+  "pathBase": "repo",
+  "decisionCues": [
+    "we will",
+    "must",
+    "always",
+    "never",
+    "don't",
+    "don’t"
+  ],
+  "tieSemantics": "equal at.entry uses higher source line",
+  "expectedDegraded": []
+}

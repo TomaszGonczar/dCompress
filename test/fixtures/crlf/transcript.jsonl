@@ -1,0 +1,2 @@
+{"type":"tool","entry":0,"toolCallId":"crlf-1","toolName":"write","path":"src/line-endings.ts","isError":false,"timestamp":null}
+{"type":"ignored","entry":1,"toolCallId":"crlf-ignored","reason":"line-ending twin sentinel","timestamp":null}

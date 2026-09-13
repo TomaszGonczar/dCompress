@@ -1,0 +1,23 @@
+{
+  "name": "dcompact",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "gen:vectors": "rm -rf .vectors-build && tsc --noEmit false --target ES2022 --module NodeNext --moduleResolution NodeNext --outDir .vectors-build --rootDir . scripts/gen-vectors.ts && node .vectors-build/scripts/gen-vectors.js; status=$?; rm -rf .vectors-build; exit $status"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.35.0",
+    "@types/node": "^20.19.0",
+    "eslint": "^9.35.0",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.42.0",
+    "vitest": "^4.1.11"
+  }
+}

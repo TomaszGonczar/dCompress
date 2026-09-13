@@ -1,0 +1,2 @@
+{"type":"tool","entry":0,"toolCallId":"nfd","toolName":"write","path":"café.txt","isError":false,"timestamp":null}
+{"type":"tool","entry":1,"toolCallId":"nfc","toolName":"write","path":"café.txt","isError":false,"timestamp":null}

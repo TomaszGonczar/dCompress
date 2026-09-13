@@ -49,9 +49,9 @@ Three properties define the product. If a feature weakens one of them, it does n
 
 | Property | Meaning | Why it matters |
 |---|---|---|
-| **Deterministic** | Same transcript bytes → same snapshot bytes. No model, no timestamps in the hash, no key ordering ambiguity, no locale. | Snapshots can be `verify`d. A change in output means a change in input or in the extractor version — never in a sampler. |
-| **Derived** | Every fact carries `path` + `line` into the transcript that produced it, and a snippet hash. | A restore can be audited. If the transcript was truncated or rotated, the fact is marked unbacked, not silently kept. |
-| **Reversible** | Every file dcompact edits is backed up and restored byte-identical. Every hook it installs carries a marker. | A tool that rewrites the user's agent config must be able to leave no trace. Uninstall is a first-class command, not a footnote. |
+| **Deterministic** | Same transcript bytes plus the same extraction inputs → the same canonical payload bytes and payload hash. No model, timestamps in the hash, key-order ambiguity, or locale dependence. | Snapshots can be `verify`d. A change in the payload means a change in transcript bytes, extraction inputs, or the extractor/schema version — never a sampler. |
+| **Derived** | Every fact carries bounded provenance `{line, sha256}`; the transcript path is stored once in the envelope, not inside each evidence entry. | A restore can be audited. If the transcript was truncated or rotated, provenance is marked unbacked, not silently kept as backed. |
+| **Reversible** | Every edited file has a byte-for-byte backup. Format-specific managed regions are removed or restored without clobbering outside edits; symlink targets are refused. | A tool that rewrites the user's agent config must be able to leave no trace while preserving later user changes. Uninstall is a first-class command, not a footnote. |
 
 ## 3. What dcompact is not
 
@@ -94,9 +94,9 @@ command, *what* error. That is the fact layer. dcompact reads it with rules.
 
 | Kind | Source signal | Determinism note |
 |---|---|---|
-| `file.modified` / `file.read` | tool calls `Write`, `Edit`, `MultiEdit`, `NotebookEdit`, `apply_patch`; `Read` | Path normalized per §SCHEMA |
-| `cmd.run` | `Bash` / `shell` tool input command, exit status from result | Command text normalized for whitespace only |
-| `error.raised` / `error.fixed` | `PostToolUseFailure` / failed tool result → later success on the same normalized error signature | Signature = normalized message + error class |
+| `file.modified` / `file.read` / `file.created` / `file.deleted` | **Per-adapter tool→kind map** — see §4.1.1 | Path normalized per SCHEMA §5.2 |
+| `cmd.run` | Shell tool input command; success/failure from the tool result's error flag, **not an exit code** — see §4.1.2 | Command text normalized per SCHEMA §5.4 |
+| `error.raised` / `error.fixed` | Failed tool result → later success on the same normalized error signature | Signature = normalized message + error class |
 | `decision.stated` | user turn first sentence under a decision cue lexicon (`use X instead`, `we will`, `don't`, `always`, `never`, `must`) | Cue match, not interpretation |
 | `todo.state` | agent todo/task tool payloads | Last-write-wins |
 | `git.state` | `git rev-parse HEAD`, `git status --porcelain`, `git diff --stat` executed by dcompact at snapshot time | Hash of porcelain output, not of the working tree |
@@ -105,10 +105,88 @@ command, *what* error. That is the fact layer. dcompact reads it with rules.
 Every extractor is a pure function `(entries, config) → Fact[]` with a golden fixture. No
 I/O inside an extractor. That constraint is what makes the hashes reproducible.
 
+#### 4.1.1 Tool names are per-adapter, never universal
+
+An earlier revision of this table named `Write`, `Edit`, `MultiEdit`, `NotebookEdit`,
+`Read`, `Bash`, `apply_patch`, `shell` as if they were the vocabulary. They are **Claude
+Code's**. Measured against a real OMP journal, the overlap is **zero**:
+
+| Adapter | Actually emitted (measured) |
+|---|---|
+| **OMP** | `bash` · `read` · `write` · `edit` · `eval` · `todo` · `hub` · `web_search` · `task` · `grep` |
+| **Claude Code** | `Bash` · `Read` · `Write` · `Edit` · `MultiEdit` · `NotebookEdit` |
+
+Not one name matches verbatim, and OMP is lowercase where Claude is capitalized. An extractor
+written against the table above would extract **zero file facts** on OMP.
+
+**Normative rule: the tool→fact-kind map lives in `adapters/<agent>.json`, per adapter.** The
+engine has no built-in vocabulary. A tool name the adapter does not map is a **counted miss**
+(`counters.unmapped_tool_calls`), never a silent drop.
+
+Each adapter's map must decide every name its agent can emit. For OMP that means deciding
+`eval`, `hub`, `task`, `todo`, `web_search`, `grep` explicitly — mapped to a kind, or declared
+ignored with a fixture asserting the ignore. Leaving them undecided is what makes extraction
+loss invisible.
+
+An unknown transcript shape is different from an unmapped tool. An unknown shape is a record
+the adapter cannot normalize against its declared schema and produces `degraded: schema-drift`
+(or `degraded: extraction-empty` when a non-empty recognized transcript yields no facts). An
+unmapped tool has a recognized record shape but no tool-to-kind mapping: it is counted in
+`counters.unmapped_tool_calls`, lowers `coverage_ppm`, and does **not** add degradation (the
+unknown-tool fixture has `degraded: []`). Neither condition is repaired by guessing.
+
+#### 4.1.2 There is no exit code — failure comes from the error flag
+
+An earlier revision said `cmd.run` takes "exit status from result". On OMP there is **no exit
+code in the transcript**. A bash `toolResult` carries exactly:
+
+```
+role · toolCallId · toolName · content · details · isError · timestamp
+details = { timeoutSeconds, wallTimeMs }
+```
+
+The only failure signal is `isError`, a genuine boolean (verified: every result in a 1,064-entry
+journal is `bool`, so there is no `"false"`-as-string trap to defend against). Therefore:
+
+- Success/failure is `isError`.
+- `last_error_class` is derived from `isError` **plus the error text**, never from an exit code.
+- `timeoutSeconds` / `wallTimeMs` in `details` are available for latency facts if useful.
+
+Claude Code and Codex may expose richer result metadata; that is what per-adapter maps are for.
+The engine must not assume any adapter exposes an exit code.
+
+#### 4.1.3 `snippet` comes from the agent, not from guesswork
+
+`snippet` is specified as a short human-readable description of the fact — e.g. *"Edit
+src/dispatch.ts — replace retry loop"*. On OMP this needs **no derivation**: the transcript
+already carries `toolCall.intent`, a per-call intent string written by the agent.
+
+Measured, verbatim from a live journal:
+
+```
+read  → "Listing archaeology output directory"
+bash  → "Checking size and file count"
+read  → "Reading morning start brief"
+```
+
+That is exactly the field's purpose, present deterministically, with no model involved.
+`toolCall.id` ↔ `toolResult.toolCallId` pair cleanly (measured 376/376, zero unmatched), so
+call/result correlation needs no heuristics either.
+
+Where an adapter exposes an intent field, the extractor **uses it verbatim** (whitespace-
+collapsed and capped per SCHEMA §5.4). Where it does not, the extractor synthesizes a minimal
+snippet from the fact itself. Adapters must not invent prose — a synthesized snippet is
+derived from the fact's own key and attrs, never from interpretation.
+
 ### 4.2 What is deliberately not extracted
 
-Conversation prose, assistant reasoning, model opinions, file contents, secrets. dcompact
-records *that* a file changed and its blob hash, never the blob.
+Full conversation prose, assistant reasoning, model opinions, and file contents are not
+retained as transcript entries. A fact may carry a bounded transcript-derived snippet for
+context, so dcompact does not promise that all prose is absent. Secret redaction is not
+implemented in the current Batch 1 code; it is planned for P12 before the v0.1 release.
+Until then, snippets may contain sensitive text supplied by the transcript, and snapshots
+must be handled as potentially sensitive. dcompact records *that* a file changed and its blob
+hash, never the blob.
 
 ## 5. Deterministic canonicalization
 
@@ -117,7 +195,7 @@ shell-scripting. The full normative rules live in [`SCHEMA.md`](SCHEMA.md); the 
 
 - JSON canonical form: keys sorted by code point, `\n` only, no trailing whitespace, fixed
   number formatting, UTF-8 NFC, no `undefined`.
-- Arrays that are semantically sets (badges, `paths[]`, `evidence[]`) are sorted by a
+- Arrays that are semantically sets (for example `tools[]` and `evidence[]`) are sorted by a
   documented key and deduplicated before hashing.
 - No wall-clock value enters the hashed payload. `created_at` lives in an **envelope**
   outside `payload`; the hash covers `payload` only.
@@ -126,11 +204,16 @@ shell-scripting. The full normative rules live in [`SCHEMA.md`](SCHEMA.md); the 
 - The hash is `sha256` over the canonical bytes, and the record stores
   `{schema_version, extractor_version, canonicalization, hash, payload}`.
 
+The determinism suite must run **every committed fixture** under perturbed `TZ`, `LANG`,
+`LC_ALL`, `HOME`, cwd, clock, hostname, and OS inputs, while holding transcript bytes and
+all extraction inputs constant. It also tests shuffled event order where merging is intended
+to be order-independent.
+
 Two consequences the tests must enforce:
 
-1. `snapshot` twice on the same transcript → byte-identical `payload` and identical `hash`.
-2. `snapshot` on a machine with a different `$HOME`, `TZ`, `LANG`, and clock → identical
-   `payload` and identical `hash`.
+1. `snapshot` twice on the same transcript and extraction inputs → byte-identical canonical
+   `payload` and identical `hash`; envelope bytes may differ.
+2. Every fixture remains payload/hash-identical under the prescribed environment perturbation.
 
 A non-deterministic snapshot is a release blocker, not a bug to triage later.
 
@@ -275,8 +358,8 @@ binary form is shown because it is the one that can be scripted.
 | `dcompact init [dir]` | Optional project-local store (`.dcompact/`) |
 
 Exit codes: `0` success, `1` operational failure, `2` usage, `3` integrity failure
-(hash mismatch, provenance broken), `4` degraded but usable. Hooks always exit `0` unless
-`--blocking` is explicitly configured, because a hook that fails must never stop the agent.
+(hash mismatch, provenance broken), `4` degraded but usable. Installed hooks always exit `0`
+and report one of the finite schema states; there is no blocking mode.
 
 ### 6.2 Storage layout
 
@@ -293,8 +376,16 @@ ${XDG_CONFIG_HOME:-~/.config}/dcompact/
   backups/<agent>-<ts>/    # pre-install copies of every file we touched
 ```
 
-Windows: `%LOCALAPPDATA%`/`%APPDATA%` equivalents. macOS: XDG defaults as above (documented,
-not silently redirected to `~/Library`).
+These XDG-style defaults apply on Linux, macOS, and Windows; no platform-specific application
+directory substitutes them. `DCOMPACT_HOME`, when set, is the single state root containing the equivalent `sessions/`, `config.json`, `logs/`,
+`adapters/`, and `backups/` subtrees; XDG variables are then ignored. State directories are
+private (`0700` where POSIX permissions apply) and files owner-readable/writable (`0600`, or
+the equivalent owner-only ACL on Windows). dcompact refuses symlinked state roots/directories
+and never follows them.
+
+`dcompact init` explicitly enables a project-local `.dcompact/` store. It is not the default,
+does not replace the user-scoped store, and uses the same schema, private permissions, and
+canonicalization rules.
 
 ## 7. Agent integration
 
@@ -312,7 +403,7 @@ handlers. Every hook receives `session_id`, `transcript_path`, `cwd` on stdin.
 | Event | Matcher | Use | Control available |
 |---|---|---|---|
 | `SessionStart` | `startup\|resume\|clear\|compact\|fork` | Inject context pack | `hookSpecificOutput.additionalContext` |
-| `PreCompact` | `manual\|auto` | Snapshot *before* history is dropped (the critical one) | can block compaction; `systemMessage`/`continue` discarded |
+| `PreCompact` | `manual\|auto` | Snapshot *before* history is dropped (the critical one) | Agent permits control here; dcompact always returns `0` and never blocks compaction |
 | `PostCompact` | `manual\|auto` | Snapshot again; receives `compact_summary` | none (side effects only) |
 | `SessionEnd` | — | Final snapshot; apply retention | none |
 | `Stop` / `SubagentStop` | — | Optional incremental snapshot per turn | `decision: "block"` (not used) |
@@ -359,9 +450,56 @@ registers:
 | `session_start` / `session_shutdown` | Load and flush state |
 
 Plus `pi.registerCommand("dcompact", …)` for `/dcompact` inside OMP, and the branch reader
-`ctx.sessionManager.getBranch()` for journal access. OMP's session-entry model
-(`message` / `custom_message` / `compaction` / `branch_summary`, with `role` in camelCase —
-`toolResult`, not `tool_result`) is the normalization target for this adapter.
+`ctx.sessionManager.getBranch()` for journal access.
+
+**OMP's real entry model (measured, not assumed).** An earlier revision declared the
+normalization target as `message` / `custom_message` / `compaction` / `branch_summary`. The
+actual journal contained:
+
+```
+message(672) · custom(376) · custom_message(5) · model_change(3)
+thinking_level_change(3) · title_change(2) · title(1) · session(1) · compaction(1)
+```
+
+Two consequences:
+
+- **`custom` is 35% of the journal** — all `customType: tool_execution_start` — and was
+  unaccounted for. It duplicates a `message` signal, so it is not fatal, but the adapter must
+  **declare it explicitly ignored** with a fixture asserting the ignore, rather than leaving
+  it undefined. The same applies to the five metadata types (`model_change`,
+  `thinking_level_change`, `title`, `title_change`, `session`).
+- **`branch_summary` does not exist by default** (`branchSummary.enabled = false`). It must be
+  handled defensively, not assumed present.
+
+Verified correct from the earlier revision: `role: "toolResult"` in camelCase, not
+`tool_result`. That detail is load-bearing — a filter comparing snake_case matches nothing and
+silently drops every tool result.
+
+#### 7.3.1 OMP can be a compaction method, not a post-compaction patch
+
+This is the highest-value adapter-specific upgrade available, and it is inconsistent with §8 as
+written. `§8` says *"Never inject on `PreCompact` (the payload would be summarized away)"* —
+that reasoning is **Claude-derived and does not generalize to OMP**, where the hook surface is
+richer:
+
+| OMP hook | Capability | What dcompact can do with it |
+|---|---|---|
+| `session_before_compact` | Supply a **full `{ compaction: CompactionResult }`**, or `{ cancel }` | Register as a first-class **`compaction.methodOrder` entry** — a deterministic compaction method |
+| `session.compacting` | Contribute `{ context: string[] }` **into** the summary | Facts land *inside* the summary the model actually reads |
+| `context` | Inject into the LLM message array | The §8 plan covers only this one |
+
+`session.compacting` is not injection *before* summarization — it is a **contribution to** the
+summary. That is strictly better than injecting after, and it means dcompact's continuity can
+be *through* compaction rather than *recovered after* it.
+
+**Adapter requirement:** the OMP adapter MUST register `session.compacting` to contribute the
+pack into the summary, and SHOULD offer the `{ compaction }` method registration behind a
+config flag (it changes the agent's compaction behaviour, so it is opt-in and reversible,
+consistent with invariant 5). For agents without this surface, §8's post-compaction injection
+remains the mechanism.
+
+`useless` also exists as a flag on OMP tool results — the same concept as OMP's own
+`dropUseless` elision, and a signal dcompact can use rather than derive.
 
 OMP also *imports* other agents' commands (`~/.claude/commands`, `~/.codex/commands`,
 `~/.config/opencode/commands`, `.agents/commands`), which means a single OMP setup can
@@ -457,19 +595,20 @@ a small mapper rather than a rewrite. Do not assume Pi compatibility — verify 
 ### 7.7 Install model (all agents)
 
 ```
-1. detect    → read target config, locate existing dcompact markers
-2. backup    → byte copy to backups/<agent>-<ts>/ with a recorded sha256 per file
-3. render    → hook entries from adapters/<agent>.json, wrapped in markers:
-               "# >>> dcompact >>>" … "# <<< dcompact <<<"
-4. write     → atomic (temp file + rename), preserving file mode
-5. verify    → re-read, parse, assert markers present and JSON/TOML valid
+1. detect    → read target config, locate existing dcompact markers or format-specific owned fields
+2. backup    → byte copy to backups/<agent>-<ts>/ with a recorded sha256; record absent targets
+3. render    → comment-capable formats use markers; JSON/TOML use declared owned fields/tables
+4. write     → atomic (temp file + rename), preserving file mode; refuse symlink targets
+5. verify    → re-read, parse, assert the managed region and format remain valid
 6. report    → backup path, trust requirement, degraded subsystems
 ```
 
 Rules: never rewrite a file whose parse fails; never touch a file outside the adapter's
-declared list; never install into a project-scoped config unless `--project` is given;
-`uninstall` restores from the recorded backup and refuses if the file changed outside the
-marker block (reporting the conflict instead of clobbering user edits). Multiple hosts do
+declared list; never install into a project-scoped config unless `--project` is given. An
+absent target may be created only when the adapter declares that safe; uninstall removes such
+a file only while its recorded managed content is unchanged. For an existing target,
+uninstall preserves edits outside dcompact's managed region and refuses if the managed region
+changed, reporting the exact next step rather than clobbering user edits. Multiple hosts do
 not coexist in one store — that is the multi-lane problem, and the answer is separate
 stores, not shared state.
 
@@ -502,8 +641,19 @@ Rules:
   `… (n facts elided, run dcompact show <id>)`.
 - Injection is idempotent: repeated injection of the same snapshot is detected by marker
   `[dcompact:<hash>]` in the injected text, and re-injection is skipped.
-- Never inject on `PreCompact` (the payload would be summarized away); inject on
-  `SessionStart(source=compact|resume)` and, for OMP, via the `context` hook.
+- Injection point is **adapter-specific, and the choice matters more than the payload**:
+
+  | Adapter | Injection point | Effect |
+  |---|---|---|
+  | **OMP** | `session.compacting` → contributes into the summary; optionally register as a `{ compaction }` method | Facts are inside what the model reads — continuity *through* compaction |
+  | **Claude Code** | `SessionStart(source=compact\|resume).additionalContext` | Injected after compaction |
+  | **Codex** | `SessionStart` (confirm in P4) | Injected after compaction |
+  | **agy** | `OnCompaction` if it injects (verify) | Unknown |
+
+  dcompact must **not** inject on Claude's `PreCompact`: the payload would be summarized away.
+  That reasoning does not transfer to OMP, where `session.compacting` contributes *into* the
+  summary rather than preceding it. Applying one agent's constraint to another is how a
+  design loses the better mechanism (CONCEPT §7.3.1).
 - Nothing is ever injected that the user has not had a chance to read: `restore` prints the
   exact bytes.
 
@@ -511,6 +661,64 @@ Rules:
 
 - **No network.** No HTTP client in the dependency tree for the runtime path. A CI check
   asserts it (dependency allowlist + no `net`/`http`/`fetch` imports in the core).
+- **External paths do not leak host text or disappear.** Paths are normalized according to
+  `SCHEMA.md` §5.2. In-scope paths are repo- or cwd-relative. A path outside every
+  transcript-derived scope root is retained as a fact using its basename plus an opaque scope
+  ID, tagged `scope: "external"`, and counted in `counters.external_path_count`; raw absolute
+  path, home-directory, username, and hostname text never enters the payload. Scope roots come
+  from the transcript (repo roots named in commands, cwd changes, explicit grants, and session
+  cwd), never from filesystem probing.
+
+  This corrects the earlier single-`repo_root` rule, which excluded and only counted facts. In
+  one measured OMP session (`repo_root = ~/Omega-v3`):
+
+  ```
+  file ops inside repo_root:    9
+    file ops OUTSIDE:           124   (93.2%)   ← retained as external facts under the current rule
+    omega-component-prep  69 · other 38 · Desktop 9 · xd:// 4 · /tmp 3 · ~/.omp 1
+  ```
+
+  Split by tool, which is the part that matters:
+
+  | Tool | In `repo_root` | Outside |
+  |---|---|---|
+  | `read` | 9 | 81 |
+  | `write` | **0** | **35** |
+  | `edit` | **0** | **35** |
+
+  **Zero of that session's writes and edits landed in the repo it ran in.** The old rule would
+  have recorded nothing about what the session produced, while coverage still read high because
+  coverage counted mapped tool calls, not paths retained. Under the current rule those facts
+  remain present, with host path text withheld.
+
+  *Scope of this evidence:* one session, one workflow — `cwd` in `Omega-v3`, deliverable written
+  to a sibling directory passed by argument. A session that edits its own repo measures
+  differently. The rule below rests on the structural argument, with this as one instance.
+
+  The old rule was wrong on three counts, each now fixed:
+
+  1. **`repo_root` is the wrong scoping primitive.** An agent that touches a sibling
+     workspace, a scratch directory, or a second repo loses most of its facts. Real agents do
+     this constantly.
+  2. **The `path_base: "cwd"` fallback did not help**, because it only triggered when cwd was
+     *not* a repo. Here it was, so the strict exclusion applied.
+  3. **`xd://` targets are not filesystem paths at all** (4 in that session) and no rule
+     covered them.
+
+  **Current rule:** a snapshot has a **transcript-derived scope set** of roots, not one root.
+  External facts are retained as identity plus opaque scope ID and counted. They are not
+  excluded by default. `external_path_count` is a secondary signal because the corresponding
+  facts remain in the hashed payload.
+
+- **Counts are surfaced, not buried.** `external_path_count`, `unmapped_tool_calls`, and
+  `coverage_ppm` appear in the **pack header**, not only in `doctor`. These counters expose
+  extraction coverage; an unmapped tool lowers `coverage_ppm` and increments its counter but
+  does not itself add a degraded state. Unknown transcript shape is a separate adapter/schema
+  problem and maps to `degraded: schema-drift` (or `degraded: extraction-empty` when no facts
+  come from a non-empty recognized transcript).
+- **Non-filesystem targets get a kind, not a drop.** `xd://`, `skill://`, and similar
+  internal device URIs are recorded as facts with a `uri` scheme tag rather than discarded or
+  mistaken for paths. They are evidence of work performed.
 - **No transcript written back into injected context.** Injection carries only normalized
   facts and short quoted snippets under a fixed character cap.
 - **Untrusted input.** Transcript content is data. dcompact never executes, evaluates,
@@ -519,9 +727,10 @@ Rules:
   display, and control characters are stripped so a fact cannot forge pack structure.
 - **Injection cannot escalate.** The pack is inserted as context text; it cannot add tools,
   change permissions, or call anything.
-- **Secrets.** A redaction pass runs over fact snippets with a conservative pattern set
-  (private keys, bearer tokens, `*_KEY=`-style assignments, long base64/hex runs), and
-  `--no-redaction` is opt-in with a warning.
+- **Secrets.** Secret redaction is not implemented in the current Batch 1 code and is planned
+  for P12 before the v0.1 release. Until then, bounded fact snippets may contain
+  transcript-supplied sensitive text, so snapshots and packs must be treated as potentially
+  sensitive; the current system makes no guarantee of secret removal.
 - **Local only.** No sync, no sharing, no upload. A snapshot is a file the user owns;
   `rm -rf` of the store is a complete deletion.
 - **Least surprise.** Install prints every file it will touch before touching it, and
@@ -550,15 +759,16 @@ explicitly.
 
 | Guarantee | Mechanism |
 |---|---|
-| dcompact never breaks an agent | Hooks exit `0` on any internal error; every hook body is wrapped; a hard wall-clock budget (default 400 ms for synchronous hook work) aborts extraction and reports degraded |
-| dcompact never corrupts user config | Backup before edit, atomic writes, marker-scoped edits, refuse-on-conflict, `uninstall` restores byte-identical (byte-compare is a test) |
-| dcompact never silently extracts nothing | Adapters declare an expected shape; zero facts extracted from a non-empty transcript raises `degraded: extraction-empty` and says so in `doctor` and in the injected pack header |
+| dcompact never breaks an agent | Hooks exit `0` on any internal error; every hook body is wrapped; a hard wall-clock budget (default 400 ms for synchronous hook work) aborts extraction and reports one finite documented state |
+| dcompact never corrupts user config | Backup before edit, atomic writes, format-specific managed-region edits, symlink refusal, refuse-on-conflict, and uninstall that preserves outside edits or restores a clean file byte-identically |
+| dcompact never silently extracts nothing | Adapters declare an expected shape; an unknown shape reports `degraded: schema-drift`, while zero facts from a non-empty recognized transcript reports `degraded: extraction-empty` in `doctor` and the injected pack header |
 | dcompact never silently mis-extracts | Golden fixture per adapter with a recorded transcript hash; fixture hash mismatch → adapter marked `schema-drift`, extraction continues but every snapshot from that adapter is stamped `degraded: schema-drift` until a human updates the fixture |
 
 ### 11.2 Degraded states (first-class, not error strings)
 
 `ok` · `degraded: schema-drift` · `degraded: extraction-empty` · `degraded: provenance-broken`
-· `degraded: budget-exceeded` · `unavailable: agent-not-installed` · `untrusted: hook-pending-review`
+· `degraded: budget-exceeded` · `degraded: internal-error` · `degraded: no-pre-compaction-hook`
+· `unavailable: agent-not-installed` · `unavailable:store` · `untrusted: hook-pending-review`
 
 Every state is serializable, testable, and visible in `doctor --json` and in the pack
 header. A user must never have to infer that the tool is operating in a reduced mode.
@@ -567,15 +777,18 @@ header. A user must never have to infer that the tool is operating in a reduced 
 
 | Class | Example | Detection | Containment | Recovery |
 |---|---|---|---|---|
-| Extraction miss | New tool name not mapped → file edits not recorded | Coverage counter: tool calls seen vs facts emitted; ratio drop raises degraded | Extraction continues, miss is counted | Extractor patch + fixture |
+| Extraction miss | Known record shape but new tool name not mapped → file edits not recorded | `unmapped_tool_calls` and `coverage_ppm` counters | Extraction continues, miss is counted; no degraded state is added | Extractor map patch + fixture |
+| Unknown transcript shape | Malformed or changed hook/transcript input cannot be normalized against its declared shape | Adapter/fixture schema check | Extraction continues where safe and reports `degraded: schema-drift` | Adapter definition update + version stamp |
 | Extraction false positive | Shell heredoc parsed as a file path | Fixture + `verify --provenance` | Fact marked unbacked | Normalizer patch |
 | Hook breakage | Agent changes hook schema; hook stops firing | `doctor` heartbeat: last-successful-hook timestamp per adapter | Hook exits 0, logs locally | Adapter definition update + version stamp |
 | Trust invalidation | Codex re-trusts required after an edit | `doctor` reads trust state where exposed | Reported as `untrusted` | Stable hook command string; documented `/hooks` step |
+| Store persistence failure | Disk full or store write failure | Hook output, `doctor`, or local diagnostic | Report `unavailable:store`; do not claim an envelope was written | Free space or repair the store, then retry |
+| Unexpected internal failure | Unanticipated dcompact bug | Fault boundary and diagnostic | Report `degraded: internal-error`; hook still exits 0 | Bug fix and regression test |
 | Corrupt snapshot | Truncated write, power loss | Hash mismatch on read | Snapshot quarantined, never injected | Prune the bad file; `verify --all` |
 | Store race | Two agents snapshot the same session concurrently | Lock file with pid + mtime, stale-lock break | Second writer waits ≤1 s then writes a distinct snapshot | Atomic rename guarantees one winner |
 | Injection bloat | Pack exceeds budget on a huge session | Byte budget enforced before write | Groups dropped bottom-up, elision notice | Budget config |
 | Retention over-delete | Clock jump, DST, VM resume | Newest-never-pruned rule; pins; dry-run | Deletions logged with reason | Restore from backup if pinned; document irreversibility |
-| Install corruption | User edits inside the marker block | Marker-scoped restore + conflict refusal | Refuse and report | Manual merge; `uninstall --force` after backup |
+| Install corruption | User edits inside a managed marker block or structured JSON/TOML field | Managed-region comparison | Refuse and report; outside edits remain preservable | Manual merge after the recorded backup |
 
 ### 11.4 Determinism as collateral
 
@@ -588,9 +801,10 @@ Determinism is fragile under exactly the changes that break extraction. Rules:
   `schema-older` rather than a false hash mismatch.
 - Extractor version is stored separately from schema version, so an extractor improvement
   invalidates provenance checks while leaving schema compatibility intact.
-- A `determinism` test suite re-runs extraction on every fixture with perturbed
-  environment (`TZ`, `LANG`, `HOME`, cwd, injected clock) and asserts identical hashes on
-  each supported platform in CI.
+- A `determinism` test suite re-runs extraction on **every fixture** with perturbed
+  environment (`TZ`, `LANG`, `LC_ALL`, `HOME`, cwd, injected clock, hostname, and OS) while
+  holding transcript bytes and extraction inputs constant, and asserts identical payloads and
+  hashes on each supported platform in CI.
 
 ### 11.5 Versioning and drift
 
@@ -611,17 +825,33 @@ disagrees with reality, and the rebuild is reported in `doctor`.
 ## 12. Non-goals for v0.1
 
 Session forking, multi-machine sync, a GUI, a TUI dashboard, agent-to-agent handoff,
-embedding-based search, snapshot compression/encryption, Windows-first support, agy hook
-install (impossible), any feature that calls a model.
+embedding-based search, snapshot compression/encryption, Windows-first support, any feature
+that calls a model.
 
-## 13. Open questions to resolve before P0 exit
+(The earlier list included "agy hook install (impossible)" — that was wrong. `agy` has
+lifecycle hooks including `OnCompaction`, verified in the binary and in live
+`settings.json`. See §7.4.)
 
-1. macOS storage location: follow XDG as documented, or use `~/Library/Application Support`
-   on Darwin and document the split?
-2. Redaction default: on by default, or off by default with a first-run prompt?
-3. `PreCompact` on Claude Code can block compaction. dcompact must never block — confirm
-   that a never-blocking policy is acceptable, since blocking would be the only way to
-   guarantee a pre-compaction snapshot.
-4. Project-scoped stores: is `.dcompact/` worth it in v0.1, or is user-scoped only enough?
-5. agy DB tier: worth the maintenance cost of an undocumented SQLite schema, or defer to
-   the wrapper tier only?
+## 13. Decisions taken and open questions
+
+### Resolved
+
+1. **macOS storage** → XDG on every platform with a `DCOMPACT_HOME` override. Settled in
+   [ADR 008](adr/008-storage-location.md) during OG-55.
+2. **Hooks never block the host** → installed hooks always return `0`, report only the finite
+   states in §11.2; installed hooks have no blocking mode. If no pre-compaction hook exists,
+   the result is surfaced as `degraded: no-pre-compaction-hook`. This may mean a missed
+   snapshot when a hook is unavailable; preserving agent availability outranks completeness.
+   On OMP, `session.compacting` can contribute facts into the summary rather than racing it
+   (§7.3.1).
+
+### Open
+
+3. **Secret redaction:** not implemented in the current Batch 1 code; planned for P12 before
+   the v0.1 release. Its default and warning behavior must be defined before shipping, and
+   until then snapshots and packs remain potentially sensitive.
+4. **agy hook schema:** the events exist and `OnCompaction` is present in the binary, but the
+   user-facing `settings.json` schema and whether hooks fire in `--print` (headless) mode are
+   unverified. Headless is the mode an autonomous run uses, so this decides push vs pull for agy.
+5. **Scope-set discovery:** settled by `SCHEMA.md` §5.2: roots are derived from transcript
+   evidence, not filesystem probes; a vanished root does not invalidate a snapshot.
