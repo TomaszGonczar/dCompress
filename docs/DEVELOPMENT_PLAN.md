@@ -464,8 +464,7 @@ Tests that must exist:
 - Invalid JSON/TOML in the target: install refuses, file untouched.
 - Interrupted install (kill between write and verify): `doctor` reports incomplete;
   `install --repair` completes it.
-- File permissions preserved; symlinked config file handled (write through, do not replace
-  the symlink).
+- File permissions preserved; a symlinked config file is refused and left untouched.
 
 Exit criteria (D4): all of the above green, including the byte-identical restore.
 
@@ -521,7 +520,7 @@ Exit criteria:
 Deliverables:
 - `dcompact snapshot --from <transcript>` for any agent whose log is readable
 - `dcompact snapshot --from-db <uuid>` (`--experimental`) for SQLite-backed transcripts,
-  reporting `degraded: schema-unverified` until a fixture exists
+  reporting `degraded: schema-drift` until a fixture exists
 - Generic tier: `git.state` + `.gitignore`-respecting mtime scan, labelled `tier: generic`
   in `doctor` and the pack header, so a user is never misled into thinking they have full
   extraction
