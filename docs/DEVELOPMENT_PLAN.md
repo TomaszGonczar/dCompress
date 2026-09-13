@@ -348,6 +348,74 @@ appears and counts exactly; injection is skipped on the second call; `doctor --j
 schema-stable and snapshot-tested; every degraded state from CONCEPT §11.2 has a test that
 produces it.
 
+### 7.1 Continuity fidelity test
+
+A pack that validates and injects can still be useless if it drops what the next session needs.
+This measures whether dcompact actually delivers continuity, rather than merely producing
+well-formed output. It belongs here because it needs a working `restore` and injection path.
+
+**Method — pre-registered detail recall, not judgement.** Before the session, plant a fixed list
+of details across categories (file path, decision, error→fix, command, open question, negative
+constraint). Record the list *before* the run. The score is a count, so it is recomputable by
+anyone rather than an impression.
+
+**Three arms**, and the control is essential:
+
+| Arm | Measured |
+|---|---|
+| A — built-in compaction | planted details surviving in the host's compacted context |
+| B — dcompact | planted details surviving in the injected pack |
+| C — control, neither | what the model still knows cold, with no compaction |
+
+Without C the test cannot distinguish "dcompact works" from "compaction never hurt here."
+
+**Three artifacts are needed, not one.** A raw transcript alone gives one side of a two-sided
+claim:
+
+| Artifact | Source |
+|---|---|
+| Raw transcript (ground truth) | agent JSONL via `transcript_path` |
+| Built-in compaction summary | **`PostCompact` receives `compact_summary`** — capture it there; not otherwise retrievable |
+| dcompact pack | `restore` |
+
+The `compact_summary` capture is what makes arm A scorable. Without it the comparison is a vibe.
+
+**Execution: Orca orchestration, not bare terminals.** Per ADR 004
+(`Omega-v3/knowledge/adr/004-orca-orchestration-standard.md`), which supersedes ADR 001,
+orchestration is the established standard for supervised fleet execution. It supplies exactly
+what this test needs:
+
+```
+orca orchestration run-create
+orca orchestration task-create --spec …
+orca orchestration worker-start --task <id> --agent codex --model gpt-5.6-luna --effort medium --worktree current
+orca orchestration worker-read --dispatch <id> --limit <n>
+orca orchestration worker-list          # liveness: hung vs slow
+```
+
+`--model`/`--effort` per worker makes the comparison reproducible rather than dependent on
+whatever a terminal happened to start with. Heartbeat distinguishes a stalled agent from a long
+compaction — without it a hung run looks slow and the result is uninterpretable. `worker-read
+--limit` gives bounded per-worker output, which makes the surviving-detail count automatable.
+ADR 001 rejected this approach and ADR 004 replaced it precisely because unstructured terminals
+produced unreadable results: no completion contract, no liveness signal, no attribution.
+
+**Scale, stated honestly.** Six terminals is anecdote, not evidence. Pick one and say so:
+
+1. **Directional only** — three runs per arm, reported as *"in these runs dcompact retained N
+   more planted details"*, with sample size named as a limitation.
+2. **Powered** — if a rate is the claim, size the sample first. The DS-3 experience is directly
+   relevant: a correlation at n=22 looked real, was not significant, and the fix was more data
+   rather than a friendlier test.
+
+Exit criteria for §7.1: planted list committed before the runs; all three arms run including the
+control; `compact_summary` captured; per-arm counts recomputed from committed artifacts; a
+written verdict — or an explicit statement that the sample was too small to tell. **If dcompact
+does not beat built-in compaction, that is the finding.** Do not tune the test around it.
+
+Scope note: this measures **retention of planted specifics**, not semantic correctness of the
+pack. Narrower, and it should be said in the verdict.
+
 ---
 
 ## P8 — Codex adapter
