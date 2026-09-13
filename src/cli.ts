@@ -20,7 +20,7 @@ import { parseClaudeTranscript, claudeExtractConfig, ClaudeTranscriptRefusal } f
 import type { ClaudeDiagnostic } from "./adapters/claude.js";
 import { extractPayloadWithHealth } from "./core/extract/index.js";
 import { payloadHash } from "./core/hash.js";
-import { formatDegradedStates, renderPack } from "./core/pack.js";
+import { DEFAULT_MAX_BYTES, formatDegradedStates, minimumPackBytes, renderPack } from "./core/pack.js";
 import type { DegradedState, PackOptions, Payload } from "./core/types.js";
 
 const EXIT_OK = 0;
@@ -82,7 +82,9 @@ function usage(): string {
     "",
     "Options:",
     "  --transcript <path>   Claude Code JSONL transcript to read. Required.",
-    "  --max-bytes <n>       Pack byte budget. Default 16384.",
+    `  --max-bytes <n>       Pack byte budget. Default ${DEFAULT_MAX_BYTES}. A value below the`,
+    "                        mandatory header plus elision notice is refused with the exact",
+    "                        minimum for that transcript (reported in the refusal message).",
     "  --max-facts <n>       Maximum number of facts in the pack.",
     "  --include-evidence    Append evidence line numbers to each fact.",
     "  --help, -h            Print this usage.",
@@ -180,6 +182,18 @@ export function preview(options: PreviewOptions): PreviewResult {
     ...(parse.diagnostics.length > 0 ? (["schema-drift"] as const) : []),
     ...extractionHealth,
   ])].sort();
+
+  // A budget below the floor cannot hold the mandatory header and elision notice. That is a bad
+  // value on the command line, not an internal failure: refuse with the exact minimum instead of
+  // letting `renderPack`'s RangeError reach the generic internal-error branch and print a stack.
+  const minimum = minimumPackBytes(payload, { degraded });
+  if (options.pack.maxBytes !== undefined && options.pack.maxBytes < minimum) {
+    throw new UsageError(
+      "max-bytes-too-small",
+      `--max-bytes must be at least ${minimum} for this transcript (the mandatory header plus the elision notice); received ${options.pack.maxBytes}. Pass --max-bytes ${minimum} or omit the flag for the default ${DEFAULT_MAX_BYTES}.`,
+    );
+  }
+
   const pack = renderPack(payload, {
     maxBytes: options.pack.maxBytes,
     maxFacts: options.pack.maxFacts,
