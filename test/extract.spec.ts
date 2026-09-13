@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { coveragePpm, extract, extractFacts, extractPayload } from "../src/core/extract/index.js";
-import { normalizePath } from "../src/core/canonical.js";
+import { canonicalize, normalizePath } from "../src/core/canonical.js";
 import type { ExtractConfig, NormalizedEvent } from "../src/core/types.js";
 
 const config: ExtractConfig = {
@@ -132,6 +132,23 @@ describe("pure extraction", () => {
     const facts = extractFacts([event], config);
     expect(facts).toHaveLength(1);
     expect(facts[0].key).toBe("We will use Vitest.");
+  });
+
+  it("truncates decisions by Unicode code point after path normalization", () => {
+    const event: NormalizedEvent = {
+      type: "user",
+      entry: 0,
+      line: 1,
+      rawLine: "decision",
+      timestamp: null,
+      text: `We will inspect /secret ${"😀".repeat(250)}`,
+    };
+    const payload = extractPayload([event], config);
+    const decision = payload.facts.find((fact) => fact.kind === "decision.stated");
+    expect(decision).toBeDefined();
+    expect(Array.from(decision?.key ?? "")).toHaveLength(200);
+    expect(decision?.key).not.toContain("\uFFFD");
+    expect(() => canonicalize(payload)).not.toThrow();
   });
 
   it("has explicit zero coverage for no tool calls", () => {

@@ -39,12 +39,18 @@ function makeFact(kind: FactKind, key: string, event: NormalizedEvent, attrs: Re
 
 function firstSentence(text: string): string {
   const match = text.match(/^[\s\S]*?(?:[.!?](?:\s|$)|$)/);
-  return (match?.[0] ?? text).replace(/[\t\r\n ]+/g, " ").trim().slice(0, 200);
+  return (match?.[0] ?? text).replace(/[\t\r\n ]+/g, " ").trim();
+}
+
+function truncateCodePoints(text: string, limit: number): string {
+  const characters = Array.from(text);
+  return characters.length <= limit ? text : characters.slice(0, limit).join("");
 }
 
 function decisionFact(event: Extract<NormalizedEvent, { type: "user" }>, config: ExtractConfig): Fact | null {
-  const sentence = sanitizeText(firstSentence(event.text), config);
-  if (sentence === null) return null;
+  const normalized = sanitizeText(firstSentence(event.text), config);
+  if (normalized === null) return null;
+  const sentence = truncateCodePoints(normalized, 200);
   const cue = config.decisionCues.find((candidate) => sentence.toLowerCase().includes(candidate.toLowerCase()));
   return cue === undefined ? null : makeFact("decision.stated", sentence, event, { cue }, sentence, undefined);
 }

@@ -560,7 +560,30 @@ function normalizeErrorMessage(message: string, options?: PathNormalizationOptio
     if (safe === null) return "<opaque>";
     value = safe;
   }
-  value = value.replace(/(?:[A-Za-z]:[\\/]|~[\\/]|\/(?:[^\s/]+[\\/])+)[^\s]*/g, "<path>");
+  else {
+    // Apply the same path-token boundaries as sanitizeText without requiring
+    // host state. Canonical non-file URI text (for example `ssh:/private/x`)
+    // is already safe and must not have its path mistaken for a host path.
+    let normalized = "";
+    let index = 0;
+    while (index < value.length) {
+      const candidate = pathCandidateAt(value, index);
+      if (candidate === null) {
+        normalized += value[index];
+        index += 1;
+        continue;
+      }
+      const parsed = parseUri(candidate.value);
+      const canonicalNonFileUri = parsed !== null && NON_FILE_URI_SCHEMES.has(parsed.scheme.toLowerCase()) &&
+        /^([A-Za-z][A-Za-z0-9+.-]*):\/(?!\/)/.test(candidate.value);
+      const authorityNonFileUri = parsed !== null && NON_FILE_URI_SCHEMES.has(parsed.scheme.toLowerCase()) &&
+        candidate.value.startsWith(`${parsed.scheme}://`);
+      const preserve = parsed !== null && (canonicalNonFileUri || authorityNonFileUri);
+      normalized += preserve ? nonFileUri(parsed) : "<path>";
+      index = candidate.end;
+    }
+    value = normalized;
+  }
   value = value.replace(/\b(?:0x)?[0-9a-f]{8,}\b/gi, "<hex>");
   value = value.replace(/(["'“”‘’])(?:(?!\1).)*\1/g, '"…"');
   value = value.replace(/\b(?:line|column|col)\s*[:#]?\s*\d+\b/gi, (part) => part.replace(/\d+/g, "N"));
