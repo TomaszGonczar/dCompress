@@ -1,0 +1,5 @@
+{"type":"tool","entry":0,"toolCallId":"merge-1","toolName":"write","path":"src/shared.ts","isError":false,"intent":"write shared file","timestamp":null}
+{"type":"tool","entry":0,"toolCallId":"merge-2","toolName":"edit","path":"src/shared.ts","isError":false,"intent":"edit shared file","timestamp":null}
+{"type":"tool","entry":0,"toolCallId":"merge-3","toolName":"save","path":"src/shared.ts","isError":false,"intent":"save shared file","timestamp":null}
+{"type":"tool","entry":0,"toolCallId":"merge-4","toolName":"write","path":"src/shared.ts","isError":false,"intent":"write shared file again","timestamp":null}
+{"type":"tool","entry":0,"toolCallId":"merge-5","toolName":"edit","path":"src/shared.ts","isError":false,"intent":"edit shared file again","timestamp":null}

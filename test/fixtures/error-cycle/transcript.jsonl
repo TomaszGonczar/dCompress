@@ -1,0 +1,2 @@
+{"type":"tool","entry":0,"toolCallId":"error-1","toolName":"bash","command":"npm test","isError":true,"errorMessage":"permission denied","timestamp":null}
+{"type":"tool","entry":1,"toolCallId":"error-2","toolName":"bash","command":" npm   test ","isError":false,"timestamp":null}

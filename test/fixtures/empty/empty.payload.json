@@ -1,0 +1,16 @@
+{
+  "facts": [],
+  "counters": {
+    "facts": 0,
+    "by_kind": {},
+    "source_entries": 0,
+    "source_tool_calls": 0,
+    "unmapped_tool_calls": 0,
+    "coverage_ppm": 0,
+    "external_path_count": 0
+  },
+  "git": null,
+  "plan": null,
+  "path_base": "repo",
+  "version": 1
+}
