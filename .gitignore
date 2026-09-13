@@ -1,0 +1,61 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+bun.lockb
+package-lock.json
+yarn.lock
+
+# Build output
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Test / coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# dcompact runtime state — never commit snapshots or local stores
+.dcompact/
+dcompact.local.json
+*.corrupt
+snapshots/
+manifest.json
+
+# Agent session artifacts (may contain private transcripts)
+sessions/
+*.jsonl
+transcripts/
+test/fixtures/**/*.real.jsonl
+
+# Install backups from `dcompact install`
+backups/
+*.backup
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/mcp.json
+!.vscode/extensions.json
+*.swp
+*~
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# Secrets (belt-and-braces; never rely on this alone)
+*.pem
+*.key
+!test/fixtures/**/*.key
+credentials.json
