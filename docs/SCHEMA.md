@@ -273,10 +273,27 @@ Rules, applied in order:
 3. No leading `./`; no trailing `/`; no `.` or `..` segments after normalization.
 4. Case is preserved as written. Case-insensitive filesystems do **not** cause case folding
    — folding would make macOS and Linux disagree.
-5. Paths outside the repo root are **excluded from the payload as text** and counted in
-   `payload.counters.external_path_count` (§3.2). No out-of-repo path string appears
-   anywhere in the payload — not as a fact key, not in evidence, not in a snippet. Only the
-   integer count is stored, and it is hashed.
+5. Facts are scoped to a **scope set** of roots, not a single repo root. The scope set is
+   discovered: every touched git worktree, the session cwd, and any directory explicitly
+   granted to the agent (`--add-dir` or equivalent).
+
+   A path outside every scope root is **retained as a fact**, tagged with its scope, and
+   counted in `payload.counters.external_path_count` (§3.2). It is excluded from the payload
+   as text only when the adapter is configured to exclude — never by default.
+
+   The path text of an out-of-scope file is retained in repo-relative form where a scope root
+   contains it, and otherwise as a basename plus an opaque scope id. Absolute home paths
+   never enter the payload (§4.0).
+
+   *Why this changed:* the earlier rule excluded anything outside one `repo_root`. Measured
+   against a real session, that discarded **93% of file facts** (124 of 133) while `coverage`
+   still read high, because coverage counts tool calls mapped rather than paths retained. The
+   loss was invisible in the pack header. Three compounding causes: a single root is the wrong
+   primitive for an agent that touches sibling workspaces; the `path_base: "cwd"` fallback only
+   applied when cwd was not a repo; and `xd://`-style targets are not filesystem paths at all.
+
+   Non-filesystem targets (`xd://`, `skill://`, and similar) are recorded as facts carrying a
+   URI scheme tag. They are not dropped and not treated as relative paths.
 6. Symlinks are not resolved. The literal path the tool was given is the fact's key.
 7. If `store.repo_root` is unknown (not a repo), paths are stored relative to
    `store.cwd`, and the payload records `"path_base": "cwd"` so the meaning is explicit.

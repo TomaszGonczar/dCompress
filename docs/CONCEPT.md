@@ -94,9 +94,9 @@ command, *what* error. That is the fact layer. dcompact reads it with rules.
 
 | Kind | Source signal | Determinism note |
 |---|---|---|
-| `file.modified` / `file.read` | tool calls `Write`, `Edit`, `MultiEdit`, `NotebookEdit`, `apply_patch`; `Read` | Path normalized per §SCHEMA |
-| `cmd.run` | `Bash` / `shell` tool input command, exit status from result | Command text normalized for whitespace only |
-| `error.raised` / `error.fixed` | `PostToolUseFailure` / failed tool result → later success on the same normalized error signature | Signature = normalized message + error class |
+| `file.modified` / `file.read` / `file.created` / `file.deleted` | **Per-adapter tool→kind map** — see §4.1.1 | Path normalized per SCHEMA §5.2 |
+| `cmd.run` | Shell tool input command; success/failure from the tool result's error flag, **not an exit code** — see §4.1.2 | Command text normalized per SCHEMA §5.4 |
+| `error.raised` / `error.fixed` | Failed tool result → later success on the same normalized error signature | Signature = normalized message + error class |
 | `decision.stated` | user turn first sentence under a decision cue lexicon (`use X instead`, `we will`, `don't`, `always`, `never`, `must`) | Cue match, not interpretation |
 | `todo.state` | agent todo/task tool payloads | Last-write-wins |
 | `git.state` | `git rev-parse HEAD`, `git status --porcelain`, `git diff --stat` executed by dcompact at snapshot time | Hash of porcelain output, not of the working tree |
@@ -104,6 +104,75 @@ command, *what* error. That is the fact layer. dcompact reads it with rules.
 
 Every extractor is a pure function `(entries, config) → Fact[]` with a golden fixture. No
 I/O inside an extractor. That constraint is what makes the hashes reproducible.
+
+#### 4.1.1 Tool names are per-adapter, never universal
+
+An earlier revision of this table named `Write`, `Edit`, `MultiEdit`, `NotebookEdit`,
+`Read`, `Bash`, `apply_patch`, `shell` as if they were the vocabulary. They are **Claude
+Code's**. Measured against a real OMP journal, the overlap is **zero**:
+
+| Adapter | Actually emitted (measured) |
+|---|---|
+| **OMP** | `bash` · `read` · `write` · `edit` · `eval` · `todo` · `hub` · `web_search` · `task` · `grep` |
+| **Claude Code** | `Bash` · `Read` · `Write` · `Edit` · `MultiEdit` · `NotebookEdit` |
+
+Not one name matches verbatim, and OMP is lowercase where Claude is capitalized. An extractor
+written against the table above would extract **zero file facts** on OMP.
+
+**Normative rule: the tool→fact-kind map lives in `adapters/<agent>.json`, per adapter.** The
+engine has no built-in vocabulary. A tool name the adapter does not map is a **counted miss**
+(`counters.unmapped_tool_calls`), never a silent drop.
+
+Each adapter's map must decide every name its agent can emit. For OMP that means deciding
+`eval`, `hub`, `task`, `todo`, `web_search`, `grep` explicitly — mapped to a kind, or declared
+ignored with a fixture asserting the ignore. Leaving them undecided is what makes extraction
+loss invisible.
+
+This is also why `degraded: extraction-empty` (§11.2) exists: the failure is detected rather
+than silent, but detection is not a substitute for the mapping.
+
+#### 4.1.2 There is no exit code — failure comes from the error flag
+
+An earlier revision said `cmd.run` takes "exit status from result". On OMP there is **no exit
+code in the transcript**. A bash `toolResult` carries exactly:
+
+```
+role · toolCallId · toolName · content · details · isError · timestamp
+details = { timeoutSeconds, wallTimeMs }
+```
+
+The only failure signal is `isError`, a genuine boolean (verified: every result in a 1,064-entry
+journal is `bool`, so there is no `"false"`-as-string trap to defend against). Therefore:
+
+- Success/failure is `isError`.
+- `last_error_class` is derived from `isError` **plus the error text**, never from an exit code.
+- `timeoutSeconds` / `wallTimeMs` in `details` are available for latency facts if useful.
+
+Claude Code and Codex may expose richer result metadata; that is what per-adapter maps are for.
+The engine must not assume any adapter exposes an exit code.
+
+#### 4.1.3 `snippet` comes from the agent, not from guesswork
+
+`snippet` is specified as a short human-readable description of the fact — e.g. *"Edit
+src/dispatch.ts — replace retry loop"*. On OMP this needs **no derivation**: the transcript
+already carries `toolCall.intent`, a per-call intent string written by the agent.
+
+Measured, verbatim from a live journal:
+
+```
+read  → "Listing archaeology output directory"
+bash  → "Checking size and file count"
+read  → "Reading morning start brief"
+```
+
+That is exactly the field's purpose, present deterministically, with no model involved.
+`toolCall.id` ↔ `toolResult.toolCallId` pair cleanly (measured 376/376, zero unmatched), so
+call/result correlation needs no heuristics either.
+
+Where an adapter exposes an intent field, the extractor **uses it verbatim** (whitespace-
+collapsed and capped per SCHEMA §5.4). Where it does not, the extractor synthesizes a minimal
+snippet from the fact itself. Adapters must not invent prose — a synthesized snippet is
+derived from the fact's own key and attrs, never from interpretation.
 
 ### 4.2 What is deliberately not extracted
 
@@ -359,9 +428,56 @@ registers:
 | `session_start` / `session_shutdown` | Load and flush state |
 
 Plus `pi.registerCommand("dcompact", …)` for `/dcompact` inside OMP, and the branch reader
-`ctx.sessionManager.getBranch()` for journal access. OMP's session-entry model
-(`message` / `custom_message` / `compaction` / `branch_summary`, with `role` in camelCase —
-`toolResult`, not `tool_result`) is the normalization target for this adapter.
+`ctx.sessionManager.getBranch()` for journal access.
+
+**OMP's real entry model (measured, not assumed).** An earlier revision declared the
+normalization target as `message` / `custom_message` / `compaction` / `branch_summary`. The
+actual journal contained:
+
+```
+message(672) · custom(376) · custom_message(5) · model_change(3)
+thinking_level_change(3) · title_change(2) · title(1) · session(1) · compaction(1)
+```
+
+Two consequences:
+
+- **`custom` is 35% of the journal** — all `customType: tool_execution_start` — and was
+  unaccounted for. It duplicates a `message` signal, so it is not fatal, but the adapter must
+  **declare it explicitly ignored** with a fixture asserting the ignore, rather than leaving
+  it undefined. The same applies to the five metadata types (`model_change`,
+  `thinking_level_change`, `title`, `title_change`, `session`).
+- **`branch_summary` does not exist by default** (`branchSummary.enabled = false`). It must be
+  handled defensively, not assumed present.
+
+Verified correct from the earlier revision: `role: "toolResult"` in camelCase, not
+`tool_result`. That detail is load-bearing — a filter comparing snake_case matches nothing and
+silently drops every tool result.
+
+#### 7.3.1 OMP can be a compaction method, not a post-compaction patch
+
+This is the highest-value adapter-specific upgrade available, and it is inconsistent with §8 as
+written. `§8` says *"Never inject on `PreCompact` (the payload would be summarized away)"* —
+that reasoning is **Claude-derived and does not generalize to OMP**, where the hook surface is
+richer:
+
+| OMP hook | Capability | What dcompact can do with it |
+|---|---|---|
+| `session_before_compact` | Supply a **full `{ compaction: CompactionResult }`**, or `{ cancel }` | Register as a first-class **`compaction.methodOrder` entry** — a deterministic compaction method |
+| `session.compacting` | Contribute `{ context: string[] }` **into** the summary | Facts land *inside* the summary the model actually reads |
+| `context` | Inject into the LLM message array | The §8 plan covers only this one |
+
+`session.compacting` is not injection *before* summarization — it is a **contribution to** the
+summary. That is strictly better than injecting after, and it means dcompact's continuity can
+be *through* compaction rather than *recovered after* it.
+
+**Adapter requirement:** the OMP adapter MUST register `session.compacting` to contribute the
+pack into the summary, and SHOULD offer the `{ compaction }` method registration behind a
+config flag (it changes the agent's compaction behaviour, so it is opt-in and reversible,
+consistent with invariant 5). For agents without this surface, §8's post-compaction injection
+remains the mechanism.
+
+`useless` also exists as a flag on OMP tool results — the same concept as OMP's own
+`dropUseless` elision, and a signal dcompact can use rather than derive.
 
 OMP also *imports* other agents' commands (`~/.claude/commands`, `~/.codex/commands`,
 `~/.config/opencode/commands`, `.agents/commands`), which means a single OMP setup can
@@ -502,8 +618,19 @@ Rules:
   `… (n facts elided, run dcompact show <id>)`.
 - Injection is idempotent: repeated injection of the same snapshot is detected by marker
   `[dcompact:<hash>]` in the injected text, and re-injection is skipped.
-- Never inject on `PreCompact` (the payload would be summarized away); inject on
-  `SessionStart(source=compact|resume)` and, for OMP, via the `context` hook.
+- Injection point is **adapter-specific, and the choice matters more than the payload**:
+
+  | Adapter | Injection point | Effect |
+  |---|---|---|
+  | **OMP** | `session.compacting` → contributes into the summary; optionally register as a `{ compaction }` method | Facts are inside what the model reads — continuity *through* compaction |
+  | **Claude Code** | `SessionStart(source=compact\|resume).additionalContext` | Injected after compaction |
+  | **Codex** | `SessionStart` (confirm in P4) | Injected after compaction |
+  | **agy** | `OnCompaction` if it injects (verify) | Unknown |
+
+  dcompact must **not** inject on Claude's `PreCompact`: the payload would be summarized away.
+  That reasoning does not transfer to OMP, where `session.compacting` contributes *into* the
+  summary rather than preceding it. Applying one agent's constraint to another is how a
+  design loses the better mechanism (CONCEPT §7.3.1).
 - Nothing is ever injected that the user has not had a chance to read: `restore` prints the
   exact bytes.
 
@@ -511,6 +638,45 @@ Rules:
 
 - **No network.** No HTTP client in the dependency tree for the runtime path. A CI check
   asserts it (dependency allowlist + no `net`/`http`/`fetch` imports in the core).
+- **No silent path loss — this was the worst defect found in review.** An earlier revision
+  scoped facts to a single `repo_root`: paths outside it were excluded, only *counted*. Measured
+  against a real OMP session (`repo_root = ~/Omega-v3`):
+
+  ```
+  file ops inside repo_root:    9
+  file ops OUTSIDE:           124   (93.2%)   ← excluded under the old rule
+    omega-component-prep  69 · other 38 · Desktop 9 · xd:// 4 · /tmp 3 · ~/.omp 1
+  ```
+
+  **93% of that session's file facts would have been dropped**, while `coverage` still read
+  high — because coverage counted *tool calls mapped*, not *paths retained*. The loss was
+  invisible in the pack header.
+
+  The old rule was wrong on three counts, each now fixed:
+
+  1. **`repo_root` is the wrong scoping primitive.** An agent that touches a sibling
+     workspace, a scratch directory, or a second repo loses most of its facts. Real agents do
+     this constantly.
+  2. **The `path_base: "cwd"` fallback did not help**, because it only triggered when cwd was
+     *not* a repo. Here it was, so the strict exclusion applied.
+  3. **`xd://` targets are not filesystem paths at all** (4 in that session) and no rule
+     covered them.
+
+  **New rule:** a snapshot has a **scope set** of roots, not one root. Out-of-scope paths are
+  retained as facts, tagged with their scope, and counted in `counters.external_path_count`.
+  A path is excluded from the payload *only* when it is outside every scope root **and** the
+  adapter is configured to exclude — never by default.
+
+  The scope set is discovered, not declared: repo roots for each touched git worktree, plus
+  the session cwd, plus any directory the agent was granted via `--add-dir` or equivalent.
+
+- **Counts are surfaced, not buried.** `external_path_count`, `unmapped_tool_calls`, and
+  `coverage_ppm` appear in the **pack header**, not only in `doctor`. A user must be able to
+  see at injection time that extraction lost something. A number visible only in a debug
+  command is a number nobody reads.
+- **Non-filesystem targets get a kind, not a drop.** `xd://`, `skill://`, and similar
+  internal device URIs are recorded as facts with a `uri` scheme tag rather than discarded or
+  mistaken for paths. They are evidence of work performed.
 - **No transcript written back into injected context.** Injection carries only normalized
   facts and short quoted snippets under a fixed character cap.
 - **Untrusted input.** Transcript content is data. dcompact never executes, evaluates,
@@ -611,17 +777,36 @@ disagrees with reality, and the rebuild is reported in `doctor`.
 ## 12. Non-goals for v0.1
 
 Session forking, multi-machine sync, a GUI, a TUI dashboard, agent-to-agent handoff,
-embedding-based search, snapshot compression/encryption, Windows-first support, agy hook
-install (impossible), any feature that calls a model.
+embedding-based search, snapshot compression/encryption, Windows-first support, any feature
+that calls a model.
 
-## 13. Open questions to resolve before P0 exit
+(The earlier list included "agy hook install (impossible)" — that was wrong. `agy` has
+lifecycle hooks including `OnCompaction`, verified in the binary and in live
+`settings.json`. See §7.4.)
 
-1. macOS storage location: follow XDG as documented, or use `~/Library/Application Support`
-   on Darwin and document the split?
-2. Redaction default: on by default, or off by default with a first-run prompt?
-3. `PreCompact` on Claude Code can block compaction. dcompact must never block — confirm
-   that a never-blocking policy is acceptable, since blocking would be the only way to
-   guarantee a pre-compaction snapshot.
-4. Project-scoped stores: is `.dcompact/` worth it in v0.1, or is user-scoped only enough?
-5. agy DB tier: worth the maintenance cost of an undocumented SQLite schema, or defer to
-   the wrapper tier only?
+## 13. Decisions taken and open questions
+
+### Resolved
+
+1. **macOS storage** → XDG on every platform with a `DCOMPACT_HOME` override. Settled in
+   [ADR 008](adr/008-storage-location.md) during OG-55.
+2. **`PreCompact` may block; dcompact never blocks** → **deliberate tradeoff, not an open
+   question.** Blocking would be the only way to *guarantee* a pre-compaction snapshot on
+   Claude Code. We accept the weaker guarantee because failing an agent's compaction is a
+   worse outcome than missing one snapshot — invariant 6 (a hook never fails its host)
+   outranks completeness of the record. The consequence is stated plainly: on Claude Code,
+   dcompact can miss a snapshot if compaction is triggered and the hook is unavailable; on
+   OMP, `session.compacting` closes this gap because it contributes into the summary rather
+   than racing it (§7.3.1). Recorded as an accepted limitation, and surfaced in `doctor` as
+   `degraded: no-pre-compaction-hook` where it applies.
+
+### Open
+
+3. **Redaction default:** on by default, or off with a first-run prompt?
+4. **Project-scoped stores:** is `.dcompact/` worth it in v0.1, or is user-scoped only enough?
+5. **agy hook schema:** the events exist and `OnCompaction` is present in the binary, but the
+   user-facing `settings.json` schema and whether hooks fire in `--print` (headless) mode are
+   unverified. Headless is the mode an autonomous run uses, so this decides push vs pull for agy.
+6. **Scope-set discovery:** how eagerly is the scope set built? Touching a new root mid-session
+   must add it, and a root that vanished must not invalidate the snapshot. Needs a rule, not an
+   implementation detail.
