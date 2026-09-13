@@ -2,8 +2,28 @@
 
 Normative. If code and this document disagree, code is wrong.
 
-`canonicalization: 2` — the version below. Any behavioural change to the rules in §3–§6
+`canonicalization: 3` — the version below. Any behavioural change to the rules in §3–§6
 bumps this value and is a breaking schema event.
+
+**Revision note (3, 2026-09-13).** A fifth contradiction, found by the implementer at the
+OG-56 gate and verified before ruling. Like the first four it was a defect in this document,
+and like the fourth it was **introduced by the fix for an earlier one** — §3.2 was written in
+revision 2's first pass, then §5.2 was rewritten during the OMP review without reconciling them.
+
+| # | Contradiction | Resolution |
+|---|---|---|
+| 5 | §3.2 forbade storing external path text; §5.2 required retaining the fact. Vector 5 sided with §3.2. | §5.2 rule 6 — facts are retained as **basename + opaque scope id** (no host text); §3.2 — the count is now **secondary**, because the facts themselves are present and hashed |
+
+Two further defects in revision 2's §5.2 were found while ruling, both mine:
+
+- **Scope roots were probed from the filesystem**, which breaks determinism. The same
+  transcript would scope differently on a machine where a directory is a git repo and one
+  where it is not, producing two different hashes from identical bytes. Scope roots are now
+  **derived from the transcript alone** (§5.2 rule 5) — no I/O, no ambient state.
+- **The proposed fix would have reintroduced the original bug.** "Keep the scope set, count
+  the rest" would still discard 56% of the measured loss, because the largest measured
+  contributor (`omega-component-prep`, 69 of 124 paths) is a plain directory, not a git
+  worktree, and so never joined a worktree-based scope set.
 
 **Revision note (2, 2026-09-13).** Version 1 contained four genuine internal contradictions,
 found during OG-56 implementation by Codex and verified independently before being ruled on.
@@ -127,12 +147,10 @@ Rounding, floating point, and division are the three ways to lose determinism in
 line. All three are avoided here by construction: integer arithmetic only, truncation only,
 explicit zero case.
 
-### 3.2 Paths that leave the repo: counted in the payload, never stored
+### 3.2 Paths outside the scope set: counted AND retained, never as host text
 
-`§5.2` rule 5 excludes out-of-repo paths from the payload. Those exclusions must still be
-**countable**, or an extraction that silently dropped half its evidence would look clean.
-
-`external_path_count` is therefore an integer inside `payload.counters`:
+Out-of-scope paths are **retained as facts** (§5.2 rule 6) and additionally counted in
+`payload.counters`:
 
 ```jsonc
 "counters": {
@@ -141,18 +159,31 @@ explicit zero case.
 }
 ```
 
-The rule is deliberately asymmetric, and the asymmetry is the point:
+The distinction is about **what the payload may contain**, not about whether the fact survives:
 
-| | Stored | Counted | Hashed |
-|---|---|---|---|
-| Repo-relative path | ✅ as a fact key | ✅ | ✅ |
-| Out-of-repo path | ❌ **never** | ✅ as a count | ✅ (the count only) |
+| | Fact retained | Counted | Hashed | Host path text |
+|---|---|---|---|---|
+| In-scope path | ✅ | — | ✅ | repo-relative only |
+| Out-of-scope path | ✅ **as basename + opaque scope id** | ✅ | ✅ | ❌ **never** |
+| Non-filesystem target (`xd://`) | ✅ with URI scheme tag | — | ✅ | scheme + path, no host |
 
-**No out-of-repo path text ever enters the payload.** Not as a fact key, not in `evidence`,
-not in a snippet. Only the integer count does. A path is host-specific data; a count is a
-property of the extraction. Putting the count in the payload keeps the extraction honest
-without leaking the machine — and because the count is hashed, two runs that disagreed about
-how many paths they dropped would produce different hashes, which is the behaviour we want.
+**No host path text ever enters the payload.** Not an absolute path, not a home directory, not
+a username, not a hostname. That prohibition is absolute (§4.0).
+
+What *is* stored is the fact's identity: its **basename** (the semantic content — `x.md` says
+what was touched and identifies no one) and an **opaque scope id** — a deterministic digest of
+the transcript-relative root, identical on every machine. A user can map an id back to their
+own directory locally; the payload cannot be reversed into a host path.
+
+**Why this is not the same as the original bug.** An earlier rule *discarded* out-of-scope
+facts, which measured **93% of file facts lost** (124 of 133) in a real session while `coverage`
+still read high — the loss was invisible. Under this rule the facts are present, hashed, and
+visible; only the host path text is withheld. The count is therefore a **secondary** signal,
+because it can no longer disagree with the fact list.
+
+An earlier revision of this section said out-of-scope paths were "never stored," which
+contradicted §5.2. That wording was wrong: it conflated *not storing host path text* with *not
+storing the fact*, and the two are different requirements.
 
 ## 4. Facts
 
@@ -273,29 +304,59 @@ Rules, applied in order:
 3. No leading `./`; no trailing `/`; no `.` or `..` segments after normalization.
 4. Case is preserved as written. Case-insensitive filesystems do **not** cause case folding
    — folding would make macOS and Linux disagree.
-5. Facts are scoped to a **scope set** of roots, not a single repo root. The scope set is
-   discovered: every touched git worktree, the session cwd, and any directory explicitly
-   granted to the agent (`--add-dir` or equivalent).
+5. **Scope roots are derived from the transcript, never probed from the filesystem.**
 
-   A path outside every scope root is **retained as a fact**, tagged with its scope, and
-   counted in `payload.counters.external_path_count` (§3.2). It is excluded from the payload
-   as text only when the adapter is configured to exclude — never by default.
+   The scope set is the set of *roots the transcript itself reveals*: repo roots named in
+   the agent's own commands and cwd changes, directories explicitly granted to the agent
+   (`--add-dir` or equivalent), and the session cwd as recorded in the transcript. **Whether
+   a directory happens to be a git repository at snapshot time is not consulted.**
 
-   The path text of an out-of-scope file is retained in repo-relative form where a scope root
-   contains it, and otherwise as a basename plus an opaque scope id. Absolute home paths
-   never enter the payload (§4.0).
+   *Why this is a determinism requirement, not a preference:* the same transcript bytes
+   snapshot on two machines must produce the same payload (§6.1). If the scope set were built
+   by probing the filesystem — "is this path inside a git worktree?" — then the same transcript
+   would scope differently on a machine where that directory is a repo and on one where it is
+   not, producing two different hashes from identical input. A filesystem probe inside
+   extraction is a determinism bug, and it is prohibited by §5.1's rule that all inputs are
+   declared.
 
-   *Why this changed:* the earlier rule excluded anything outside one `repo_root`. Measured
-   against a real session, that discarded **93% of file facts** (124 of 133) while `coverage`
-   still read high, because coverage counts tool calls mapped rather than paths retained. The
-   loss was invisible in the pack header. Three compounding causes: a single root is the wrong
-   primitive for an agent that touches sibling workspaces; the `path_base: "cwd"` fallback only
-   applied when cwd was not a repo; and `xd://`-style targets are not filesystem paths at all.
+   This also means scope discovery needs no I/O: it reads the transcript, which extractors
+   already do.
 
-   Non-filesystem targets (`xd://`, `skill://`, and similar) are recorded as facts carrying a
-   URI scheme tag. They are not dropped and not treated as relative paths.
-6. Symlinks are not resolved. The literal path the tool was given is the fact's key.
-7. If `store.repo_root` is unknown (not a repo), paths are stored relative to
+6. **Out-of-scope paths are retained as identity + opaque scope id. Never as raw host text.**
+
+   A path outside every scope root is still a fact — that file was touched, and losing it is
+   the defect this rule exists to prevent. What is retained:
+
+   ```jsonc
+   {
+     "kind": "file.modified",
+     "key": "b3f1c2a8e9d4:x.md",        // <opaque scope id>:<basename>
+     "scope": "external",               // vs "repo" | "cwd" | "granted"
+     "attrs": { "edits": 3 }
+   }
+   ```
+
+   - **Basename** is retained. It is the semantic content — `x.md` tells a reader what was
+     touched, and a basename alone identifies no person and no machine.
+   - **Directory components are replaced by an opaque scope id** — a deterministic digest of
+     the *transcript-relative* root string, computed the same way on every machine. The user
+     can map the id back to a directory locally (`dcompact scope <id>`); the payload never
+     contains the path.
+   - **No absolute path, no home directory, no username, no hostname** ever enters the payload.
+     Absolute home paths are prohibited outright (§4.0).
+
+   **This resolves an internal contradiction.** §3.2 forbids storing external path text; the
+   earlier wording of this rule required retaining it. Both intents are satisfied: the fact
+   survives at full semantic usefulness, and no host path is stored. §3.2's prohibition applies
+   to *host path text* — not to the fact's existence, its scope tag, or its basename.
+
+   `external_path_count` in `payload.counters` (§3.2) remains and is now a **secondary** signal:
+   it counts facts whose scope is `external`. Because those facts are also present and hashed,
+   the count can no longer disagree with the fact list, which was the failure mode where 93%
+   of file facts vanished while `coverage` still read high.
+
+7. Symlinks are not resolved. The literal path the tool was given is the fact's key.
+8. If `store.repo_root` is unknown (not a repo), paths are stored relative to
    `store.cwd`, and the payload records `"path_base": "cwd"` so the meaning is explicit.
    `path_base` values: `"repo"` (default) or `"cwd"`.
 
@@ -488,7 +549,7 @@ Two `.hash` files with different values would mean the suite is broken.
 | 2 | `single-edit.jsonl` | one `file.modified`; exactly one evidence entry `{line, sha256}`; no `path` key present |
 | 3 | `merge-order.jsonl` | the same five tool calls in three input orders → **one** hash, asserted across all three |
 | 4 | `unicode-nfc.jsonl` | a path written in NFD and again in NFC → merged into one fact; key is the NFC form |
-| 5 | `paths-outside.jsonl` | out-of-repo paths **never appear as text** in the payload; `counters.external_path_count` equals the expected integer |
+| 5 | `paths-outside.jsonl` | out-of-scope facts are **retained** as basename + opaque scope id, `scope: "external"`; **no host path text** anywhere in the payload; `counters.external_path_count` equals the number of such facts, so the count and the fact list cannot disagree |
 | 6 | `error-cycle.jsonl` | error raised then fixed → both facts, correct `fixed_by` |
 | 7 | `unknown-tool.jsonl` | unmapped call → `coverage_ppm < 1000000`, `unmapped_tool_calls >= 1`, `degraded: []` |
 | 8 | `crlf.jsonl` | line hashes differ from an LF twin (raw bytes), extracted **facts identical** |
