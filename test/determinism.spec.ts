@@ -161,6 +161,16 @@ describe("deterministic payload vectors", () => {
     expect(payloadHash(expected.payload)).toBe(expected.hash);
   });
 
+  it.each(ordinaryFixtureNames)("keeps vector %s stable under host perturbations", (name) => {
+    const fixture = readFixture(name, fixtureRoot);
+    const baseline = baselineFor(fixture);
+    const perturbation = perturbationFor(fixture);
+    const changed = withPerturbation(perturbation, () => snapshot(fixture, perturbation));
+
+    expect(changed.payloadBytes).toBe(baseline.payloadBytes);
+    expect(changed.hash).toBe(baseline.hash);
+  });
+
   it("proves vector 10 is vector 2 equivalence under host perturbations", () => {
     const perturbationFixture = readFixture("clock-env", fixtureRoot);
     const metadata = perturbationFixture.metadata as FixtureMetadata & {
