@@ -142,6 +142,12 @@ stream, and install/remove hook entries in that agent's config format.
 
 ```mermaid
 flowchart TD
+    subgraph User["User stays inside the agent"]
+        SC["/dcompact:restore<br/>slash command in TUI"]
+        TOOL["native / MCP tool<br/>model-callable"]
+        CLI["dcompact binary<br/>scripting + CI only"]
+    end
+
     subgraph Agents["Coding agents (host processes)"]
         CC["Claude Code"]
         CX["Codex"]
@@ -149,14 +155,20 @@ flowchart TD
         AGY["Antigravity CLI"]
     end
 
+    subgraph Identity["Session identity — supplied, never guessed"]
+        ENV["CLAUDE_CODE_SESSION_ID + CLAUDE_PROJECT_DIR<br/>measured: 106 vars"]
+        CTX["ctx.sessionManager.getSessionId()<br/>in-process only"]
+        EXPL["--session &lt;id&gt; / --transcript &lt;path&gt;<br/>explicit, required"]
+    end
+
     subgraph Adapters["Adapters — I/O only, no logic"]
         ACC["claude"]
         ACX["codex"]
         AOMP["omp"]
-        AAGY["agy (flag path only)"]
+        AAGY["agy"]
     end
 
-    ADAPTERDEF["adapters/<agent>.json<br/>event map · config paths · fixture hashes<br/>degraded state · last verified"]
+    ADAPTERDEF["adapters/&lt;agent&gt;.json<br/>event map · config paths · fixture hashes<br/>degraded state · last verified"]
 
     subgraph Core["Engine — pure, no I/O"]
         NORM["normalize → events"]
@@ -173,10 +185,21 @@ flowchart TD
 
     PACK["context pack renderer<br/>(size-budgeted, priority-ordered)"]
 
-    CC --> ACC
-    CX --> ACX
-    OMP --> AOMP
-    AGY --> AAGY
+    SC --> CC
+    TOOL --> CC
+    SC --> OMP
+    TOOL --> CX
+    SC --> AGY
+    CLI --> EXPL
+    CC --> ENV
+    OMP --> CTX
+    CX -.-> EXPL
+    AGY -.-> EXPL
+    ENV --> ACC
+    CTX --> AOMP
+    EXPL --> ACC
+    EXPL --> ACX
+    EXPL --> AAGY
     ACC --> NORM
     ACX --> NORM
     AOMP --> NORM
@@ -186,20 +209,65 @@ flowchart TD
     SNAP --> MAN
     LOCK --- SNAP
     SNAP --> PACK
-    PACK -->|SessionStart / session_start / PreCompact| Agents
+    PACK -->|slash command result · injected context| User
 ```
 
-### 6.1 Command surface
+Two things this diagram is asserting that earlier versions got wrong:
+
+1. **Invocation enters through the agent**, not through a terminal. The binary exists for CI
+   and for agents with no integration; it is last in priority, not first.
+2. **Identity is supplied by the agent or by the user, never inferred.** Dotted edges are the
+   degraded path: agents whose identity channel is still unverified (Codex, agy) currently
+   require an explicit session, and that is acceptable — guessing is not.
+
+### 6.1 Invocation surface — how the user reaches this
+
+**The user is inside their coding agent when they need this.** A bare terminal command is the
+worst affordance, not the primary one: it makes them leave the TUI, and it cannot know which
+session they mean. See [ADR 001](adr/001-invocation-surface-and-session-identity.md) for the
+full decision and the measurements behind it.
+
+Priority order of surfaces, per agent:
+
+| Tier | Surface | User experience | Session identity |
+|---|---|---|---|
+| **1** | Slash command inside the agent (`/dcompact:restore`) | Never leaves the TUI | From the agent |
+| **2** | Tool the model can call (MCP tool / native tool) | Agent invokes it, or user asks in prose | From the agent |
+| **3** | Terminal binary (`dcompact snapshot --session <id>`) | Scripting, CI, agents with no integration | Explicit, required |
+
+**`/compact` is never replaced.** dcompact adds a command beside it. The user's existing
+compaction behaviour is untouched.
+
+**dcompact never guesses a session.** No "most recent", no "all of them". Unknown session →
+exit 2 with the candidate list and the flag to disambiguate. A snapshot of the wrong session
+is a plausible-looking artifact about someone else's work, and the user cannot tell.
+
+Verified identity channels:
+
+| Agent | Channel | Identity | Status |
+|---|---|---|---|
+| Claude Code | MCP server (stdio) | `CLAUDE_CODE_SESSION_ID` → exact transcript path | ✅ measured |
+| Claude Code | `~/.claude/commands/*.md` | must be passed as `$ARGUMENTS` | ✅ mechanism verified |
+| OMP | in-process extension | `ctx.sessionManager.getSessionId()` | ✅ verified |
+| OMP | MCP | **not viable** — only 14 env vars, no session id | ✅ measured |
+| Codex | hooks / prompts | unknown | ⚠️ P4 |
+| agy | skills / hooks | unknown | ⚠️ P4 |
+
+### 6.2 Command surface
+
+Every command below is reachable three ways: the slash command, the tool, and the binary. The
+binary form is shown because it is the one that can be scripted.
 
 | Command | Purpose |
 |---|---|
-| `dcompact install --agent <name>` | Write hook entries between markers; back up touched files first |
+| `dcompact install --agent <name>` | Write hook entries and command files between markers; back up touched files first |
 | `dcompact uninstall --agent <name>` | Restore backups; remove markers and its own state |
-| `dcompact snapshot [--session <id>] [--full]` | Extract → canonicalize → hash → store; `--full` forces a non-incremental pass |
+| `dcompact snapshot [--session <id>] [--full]` | Extract → canonicalize → hash → store; refuses without a session |
 | `dcompact list [--json]` | Snapshots for the current session, newest first |
 | `dcompact show <id\|latest>` | One snapshot; `--json`, `--payload`, `--envelope`, `--provenance` |
 | `dcompact verify [--all\|<id>] [--provenance]` | Recompute hashes; with `--provenance`, re-check every fact against the transcript |
 | `dcompact restore [--latest\|<id>] [--format text\|md\|json] [--budget <bytes>]` | Render the context pack |
+| `dcompact preview --transcript <path>` | Thin slice: facts → pack on stdout, no store (P6a premise test) |
 | `dcompact pin <id>` / `unpin <id>` | Protect a snapshot from retention |
 | `dcompact prune [--dry-run]` | Apply the retention policy explicitly |
 | `dcompact diff <a> <b>` | Fact-level diff between two snapshots |
