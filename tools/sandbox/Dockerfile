@@ -19,7 +19,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # `--user <host-uid>` so that files written into the bind-mounted workspace are owned by the
 # host user rather than root; that UID has no passwd entry inside the image, so HOME must be
 # writable by any UID.
+#
+# .omp and .codex are pre-created here deliberately: Docker creates a missing mount parent as
+# root, which would leave these directories unwritable for the host UID and break both agents
+# with a confusing permission error.
 RUN mkdir -p /home/agent/work /home/agent/.npm /home/agent/.cache \
+             /home/agent/.omp/agent /home/agent/.omp/natives /home/agent/.codex \
  && chmod -R 0777 /home/agent
 
 # OMP ships as a standalone Linux binary from GitHub releases (not npm — the `oh-my-pi`
