@@ -269,3 +269,77 @@ holds**. Compaction is append-only — the compaction entry sat at index 980 of 
 prior entries survived on disk, including 617 pre-compaction messages the model can no longer
 see. Your determinism suite protects exactly that premise. It is why OG-57 is a gate and not a
 formality.
+
+---
+
+## 11. REVISION 3 — the fifth contradiction, and a ruling against your proposal (2026-09-13)
+
+**Your finding was correct.** §3.2 forbade storing external path text; §5.2 required retaining
+the fact. That was a real contradiction and mine — I wrote the two halves of the same rule in
+different rounds. `canonicalization` is now **3**.
+
+This is the fifth contradiction, and the third introduced *by the fix for an earlier one*. Twice
+now, stopping instead of resolving locally has caught a defect that would have shipped.
+
+### Your proposed fix was ruled against — here is why, recorded so you do not relitigate it
+
+You recommended: keep the discovered scope set, but for paths outside every authorized root
+retain only `external_path_count` and no path text.
+
+I tested whether that solves the problem. **It does not** — it would still discard most of the
+measured loss, because the largest contributor is not a git worktree and so never joins a
+worktree-based scope set:
+
+| Measured path | Git worktree? | Under "count only" |
+|---|---|---|
+| `omega-component-prep` — **69 of 124 paths (56%)** | **no** | still dropped |
+| `Desktop` — 9 | no | still dropped |
+| `~/.omp` — 1 | no | still dropped |
+
+**The ruling instead:**
+
+- **§5.2 rule 6** — out-of-scope facts are **retained** as `<opaque scope id>:<basename>` with
+  `scope: "external"`. Basename is the semantic content and identifies nobody; the scope id is a
+  deterministic digest of the *transcript-relative* root. No absolute path, home directory,
+  username, or hostname ever enters the payload. `external_path_count` survives but is now
+  **secondary**, because the facts are present and hashed — the count can no longer disagree with
+  the fact list.
+- **§5.2 rule 5** — scope roots are **derived from the transcript, never probed from the
+  filesystem**. Whether a directory is currently a git repo is not consulted. Reason: §6.1
+  requires identical payloads from identical bytes on any machine, and a filesystem probe makes
+  the scope set ambient. **Scope discovery takes no I/O.**
+- **Vector 5** restated to match.
+
+### Two implementation notes for OG-56
+
+1. If you find yourself wanting to `stat` a directory or ask whether something is a repo during
+   extraction, that is the determinism bug returning. Stop and report it.
+2. The opaque scope id must be deterministic across machines **for the same transcript-relative
+   root** — digest the root string as it appears in the transcript, not a resolved path.
+
+### A correction to my own reporting, flagged by the operator
+
+I reported the path-scoping loss as "93% of file facts," presented as a general property. Both
+halves were wrong:
+
+| Tool | In `repo_root` | Outside |
+|---|---|---|
+| `read` | 9 | 81 |
+| `write` | **0** | **35** |
+| `edit` | **0** | **35** |
+
+Reads and writes were lumped together — repo reads worked fine; **zero** of that session's writes
+and edits landed in the repo it ran in. And it was **one session, one workflow**, not a general
+rate. Corrected in `SCHEMA.md` and `CONCEPT.md`; the rule is unchanged.
+
+Carry the discipline, not just the fact: when data contradicts a claim, the claim changes.
+
+### Before you push
+
+Your clone's remote-tracking ref is stale (`5141e67` vs the remote's `7ce7197`). Run
+`git fetch origin` first, or the push will be rejected as non-fast-forward. The two extra commits
+are documentation only — no conflict with your code.
+
+### You are unblocked
+
+Continue **OG-56 → OG-57**. The OG-57 gate stands unchanged.
