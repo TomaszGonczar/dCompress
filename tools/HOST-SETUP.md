@@ -105,24 +105,47 @@ docker run --rm dcompact-sandbox:latest bash -lc \
 Expected: four `absent` lines. If anything shows `PRESENT`, stop — the mount is wrong and the
 agent could rewrite your live configuration.
 
-## 6. First run
+## 6. Prepare a task (this is the normal path)
+
+`tools/agent-run` **prepares** by default. It branches, writes the full task brief, updates
+Linear, and stops — printing the command to run. Nothing executes a model unless you pass
+`--execute`.
 
 ```bash
 cd ~/Projects/dcompact
-./tools/agent-run OG-55 --dry-run     # inspect the plan, change nothing
-./tools/agent-run OG-55               # the real thing
+./tools/agent-run OG-55 --dry-run     # inspect the plan, touch nothing
+./tools/agent-run OG-55               # prepare: branch + brief + Linear update
 ```
 
-The runner branches, moves the Linear issue to In Progress, runs the agent in the sandbox,
-then commits, pushes, and opens a PR. It never merges.
+That leaves you with:
 
-## 7. Review loop
+```
+.agent-task/prompt.md   the complete task brief (invariants, docs, issue body, rules)
+.agent-task/run.sh      the exact sandbox command, self-contained and readable
+```
+
+Either hand `run.sh` to a working agent with a stronger model, or run it yourself:
+
+```bash
+./.agent-task/run.sh                  # run the prepared command
+./tools/agent-run OG-55 --execute     # same, via the wrapper (adds commit/push/PR)
+```
+
+To abandon a prepared task:
+
+```bash
+git switch main && git branch -D issue/og-55-01-p0-foundation
+rm -rf .agent-task
+./tools/linear status OG-55           # reset to Backlog in Linear if needed
+```
+
+## 7. Review loop (after an --execute run)
 
 ```bash
 gh pr view --web                      # read the diff
 gh pr merge --squash --delete-branch  # when satisfied
 ./tools/linear done OG-55             # close the issue
-./tools/agent-run --next              # next issue in order
+./tools/agent-run --next              # prepare the next issue in order
 ```
 
 ## What the sandbox does and does not protect
@@ -130,12 +153,20 @@ gh pr merge --squash --delete-branch  # when satisfied
 **Protected:** host agent configs (`~/.claude`, `~/.codex`, `~/.omp`, `~/.gemini`); host
 filesystem outside the bind-mounted repo; host processes; other repositories.
 
-**Not protected:** the repository itself (that is the point — the agent edits it); the GitHub
-token you pass in (`repo` scope, so it can push branches); the Linear key (so it can update
-issues). The agent cannot merge, because branch protection is not available on private repos
-without GitHub Pro — **the process enforces it instead**: `agent-run` never merges, and you
-review every PR.
+**Credential scope — deliberate:** the container receives **no** `GH_TOKEN` and **no**
+`LINEAR_API_KEY`. The agent only edits files; the host performs the commit, push, PR and
+Linear updates afterwards. `GH_TOKEN` carries `repo` scope across every repository on the
+account, so passing it into the sandbox would defeat the isolation the sandbox exists for.
 
-**Note on `--network bridge`:** the sandbox has network access because it needs to reach
-npm, GitHub, and the model API. If you later want a no-network profile for pure-Python
-phases, your `Omega-v3/core/sandbox.py` gVisor pattern is the reference.
+The one exception is OMP, which needs its own model-provider key to run at all — mounted via
+`--env-file ~/.dcompact-agent/omp.env`. That key is provider-scoped and cannot reach GitHub
+or Linear. Codex needs no such key (it uses the mounted ChatGPT OAuth home).
+
+**Not protected:** the repository itself (that is the point — the agent edits it).
+
+**Enforcement note:** branch protection is unavailable on private repos without GitHub Pro.
+The gate is therefore procedural: `agent-run` never merges, and you review every PR.
+
+**Network:** the sandbox has network access because it must reach npm and the model API.
+For a no-network profile on pure-logic phases, your `Omega-v3/core/sandbox.py` gVisor pattern
+is the reference.
