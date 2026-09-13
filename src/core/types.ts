@@ -32,6 +32,7 @@ export type ToolKind =
   | "command"
   | "cmd.run"
   | "cmd.failed"
+  | "todo"
   | "ignored";
 
 export interface Evidence {
@@ -159,11 +160,30 @@ export interface NormalizedPath {
   readonly scope: FactScope;
 }
 
+/**
+ * A physical transcript line that contributes to a normalized event.
+ *
+ * A single logical event can span two physical lines — an assistant `tool_use` line and a user
+ * `tool_result` line — and the result line is often the only place the event's data exists: a
+ * failure's error text, or a created task's assigned id.
+ */
+export interface NormalizedEventSource {
+  readonly line: number;
+  readonly rawLine: string | Uint8Array;
+}
+
 interface NormalizedEventBase {
   readonly entry: number;
   readonly line: number;
   readonly rawLine: string | Uint8Array;
   readonly timestamp: string | null;
+  /**
+   * Every additional physical line this event was derived from, when it came from more than one.
+   *
+   * `line`/`rawLine` remain the primary source and are always included in the fact's evidence;
+   * this field adds the rest. Optional, so an event without it behaves exactly as before.
+   */
+  readonly sources?: readonly NormalizedEventSource[];
 }
 
 export interface NormalizedToolEvent extends NormalizedEventBase {
@@ -175,6 +195,17 @@ export interface NormalizedToolEvent extends NormalizedEventBase {
   readonly command?: string;
   readonly isError: boolean;
   readonly errorMessage?: string;
+  /**
+   * Whether a tool result was observed for this call.
+   *
+   * Absent means true, which is the existing contract: every Wave 1 fixture pairs its calls.
+   * `false` says the call was seen but its outcome never arrived, so the extractor must not
+   * claim the operation's effect — a command that may or may not have run is not a `cmd.run`,
+   * and a file that may or may not have changed is not a `file.modified`. The call still counts
+   * toward `source_tool_calls` and coverage, so an incomplete transcript is visible rather than
+   * silently shrinking the denominator.
+   */
+  readonly resultObserved?: boolean;
 }
 
 export interface NormalizedUserEvent extends NormalizedEventBase {
@@ -236,6 +267,15 @@ export interface PackOptions {
   readonly maxBytes?: number;
   readonly maxFacts?: number;
   readonly includeEvidence?: boolean;
+  /**
+   * Extraction health for the run that produced this payload, as finite `DegradedState` tokens.
+   *
+   * Health is a property of one extraction run, not of the extracted facts, so it is rendered
+   * but never enters `Payload`: the payload and its hash stay a function of the transcript and
+   * the declared extraction inputs alone. An empty array means `ok`. Absent means the header
+   * omits the field entirely, which keeps earlier callers' output byte-identical.
+   */
+  readonly degraded?: readonly DegradedState[];
 }
 
 export type ErrorClass =
