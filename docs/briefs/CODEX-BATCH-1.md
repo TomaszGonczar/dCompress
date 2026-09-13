@@ -199,3 +199,73 @@ issue comments, and this report are the record.
 Codex's output is reviewed by the Operator, then a handoff is generated for **OMP** to
 continue with the next wave. Write your report so it can serve as the input to that handoff:
 state what is true about the code that a subsequent agent could not infer by reading it.
+
+---
+
+## 10. REVISION 2 — read before continuing (2026-09-13)
+
+**Your OG-56 stop was correct.** The four contradictions were real, independently verified,
+and all four are now **fixed in SCHEMA**. `canonicalization` bumped 1 → 2.
+
+| Your finding | Ruling |
+|---|---|
+| `coverage` fraction vs integer-only payload | `coverage_ppm` — integer parts-per-million, truncated (never rounded), `= 0` when `source_tool_calls == 0` |
+| `counters` in payload vs `external_paths` in envelope | `external_path_count` is an integer **in `payload.counters`**; the envelope has no counters field |
+| `evidence.path` inside payload, contradicting §1/§2/§5.2 | `evidence[]` is `{line, sha256}` only; the path is `envelope.transcript_path`, once per snapshot (§4.0) |
+| "same transcript bytes → same snapshot bytes" vs §2's clock/host | Scope restated: same **canonical payload** bytes. Envelope divergence is expected (§6.1) |
+
+Also now specified, because you flagged them as underdetermined: merge tie-breaking on equal
+`at.entry` (§10.1), fixture encodings and vector 10 being an *equivalence assertion* rather
+than a separate hash (§10), `path_base` / cwd fallback (§10.2), and 1-based line numbering for
+provenance (§7).
+
+**You may now implement OG-56.** Do not change SCHEMA — if a fifth contradiction surfaces, stop
+and report again, exactly as you did. That call protected the build.
+
+### 10.1 A second review found five more defects — all fixed
+
+An external review tested the design against a **live OMP journal** (1,064 entries) instead of
+against assumptions. Every finding was independently re-verified before being applied; all five
+held. They do not block OG-56, but they change what you should build:
+
+1. **Tool names are per-adapter, never universal.** §4.1 previously named Claude's tools as if
+   they were the vocabulary. Measured overlap with OMP: **zero**. OMP emits
+   `bash` / `read` / `write` / `edit` / `eval` / `todo` / `hub` / `web_search` / `task` / `grep`
+   — lowercase, none matching. The tool→kind map must be **data** in `adapters/<agent>.json`,
+   and an unmapped name must be a **counted miss** (`counters.unmapped_tool_calls`), never a
+   silent drop.
+2. **Scope is a set of roots, not one `repo_root`.** Scoping to a single root discarded a
+   measured **93.2% of file facts** (124 of 133) in a real session, while `coverage` still read
+   high because it counts tool calls mapped rather than paths retained. A fact outside every
+   scope root is now **retained and tagged**, not dropped.
+3. **There is no exit code.** Failure is the `isError` boolean plus error text. `isError` is a
+   genuine `bool` across all 376 results — no string-`"false"` trap.
+4. **`snippet` uses `toolCall.intent`** where the adapter provides it. It is present
+   deterministically with no model, and it is exactly the field's purpose.
+5. **`custom` / `tool_execution_start` is 35% of an OMP journal** and must be declared ignored
+   with a fixture asserting the ignore, not left undefined.
+
+None of these expand your scope for OG-55/56/57. They are constraints on how the core is
+shaped so the adapters can be written against it later.
+
+### 10.2 Unblocking the push
+
+Your push failed on `.github/workflows/ci.yml` — the OAuth token lacks `workflow` scope. That
+is an environment fix, not a code fix:
+
+```bash
+gh auth refresh -h github.com -s workflow
+```
+
+Verified separately: **the workflow file is the only blocker.** Every other file pushes fine,
+so a scope problem must not stall the batch.
+
+### 10.3 What did not change
+
+The OG-55 → OG-56 → OG-57 order and the **OG-57 gate stand unchanged**.
+
+One result worth carrying forward: the review's strongest finding is that **the core premise
+holds**. Compaction is append-only — the compaction entry sat at index 980 of 1,064 and all 980
+prior entries survived on disk, including 617 pre-compaction messages the model can no longer
+see. Your determinism suite protects exactly that premise. It is why OG-57 is a gate and not a
+formality.
