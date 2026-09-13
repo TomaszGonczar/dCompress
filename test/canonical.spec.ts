@@ -173,4 +173,18 @@ describe("text normalization", () => {
     expect(errorSignature("Permission denied /Users/alice/project/file.txt at line 42:17")).toBe("permission:Permission denied <path> at line N:N");
     expect(errorSignature("connection refused request 12345 deadbeefcafebabe", "connection")).toBe("connection:connection refused request N <hex>");
   });
+
+  it("redacts every host-path shape in fallback normalization and preserves canonical URI text", () => {
+    const messages = [
+      "failed /secret",
+      "failed /Users/alice/private/file.txt",
+      "failed ~alice/private/file.txt",
+      "failed C:\\Users\\Ada\\private\\file.txt",
+      "failed \\\\secret-host\\share\\private\\file.txt",
+    ];
+    for (const message of messages) expect(errorSignature(message, "unknown")).toBe("unknown:failed <path>");
+    expect(errorSignature("failed ENOENT:/secret", "unknown")).toBe("unknown:failed <path>");
+    expect(errorSignature("failed ssh://alice@secret-host/private/file.txt", "unknown")).toBe("unknown:failed ssh:/private/file.txt");
+    expect(errorSignature("failed ssh:/private/file.txt", "unknown")).toBe("unknown:failed ssh:/private/file.txt");
+  });
 });
