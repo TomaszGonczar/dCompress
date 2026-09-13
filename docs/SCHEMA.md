@@ -176,10 +176,18 @@ the transcript-relative root, identical on every machine. A user can map an id b
 own directory locally; the payload cannot be reversed into a host path.
 
 **Why this is not the same as the original bug.** An earlier rule *discarded* out-of-scope
-facts, which measured **93% of file facts lost** (124 of 133) in a real session while `coverage`
-still read high — the loss was invisible. Under this rule the facts are present, hashed, and
-visible; only the host path text is withheld. The count is therefore a **secondary** signal,
-because it can no longer disagree with the fact list.
+facts. Measured against one real session: 90% of file operations were out of scope (124 of 133),
+and — the sharper fact — **zero of that session's writes and edits landed in the repo it ran
+in**. dcompact would have recorded nothing about what the session produced, while `coverage`
+still read high. Under this rule those facts are present, hashed, and visible; only the host
+path text is withheld. The count is therefore a **secondary** signal, because it can no longer
+disagree with the fact list.
+
+*Note on the measurement:* it is one session, exercising one workflow (a `cwd` in `Omega-v3`
+whose deliverable was written to a sibling directory passed by argument). A session that edits
+its own repo measures differently. The rule rests on the structural argument — a single root is
+the wrong primitive for an agent that touches sibling directories — with this session as one
+instance of the failure, not as a general rate.
 
 An earlier revision of this section said out-of-scope paths were "never stored," which
 contradicted §5.2. That wording was wrong: it conflated *not storing host path text* with *not
@@ -352,8 +360,8 @@ Rules, applied in order:
 
    `external_path_count` in `payload.counters` (§3.2) remains and is now a **secondary** signal:
    it counts facts whose scope is `external`. Because those facts are also present and hashed,
-   the count can no longer disagree with the fact list, which was the failure mode where 93%
-   of file facts vanished while `coverage` still read high.
+   the count can no longer disagree with the fact list — which was the failure mode where the
+   facts were discarded while `coverage` still read high.
 
 7. Symlinks are not resolved. The literal path the tool was given is the fact's key.
 8. If `store.repo_root` is unknown (not a repo), paths are stored relative to
