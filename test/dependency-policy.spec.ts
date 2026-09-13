@@ -4,9 +4,9 @@ import { describe, expect, it } from "vitest";
 
 const configFile = fileURLToPath(new URL("../eslint.config.js", import.meta.url));
 
-async function lintCore(source: string) {
+async function lintCore(source: string, filePath = "src/core/policy-fixture.ts") {
   const eslint = new ESLint({ overrideConfigFile: configFile });
-  return eslint.lintText(source, { filePath: "src/core/policy-fixture.ts" });
+  return eslint.lintText(source, { filePath });
 }
 
 describe("src/core dependency policy", () => {
@@ -32,6 +32,14 @@ describe("src/core dependency policy", () => {
     "const global = globalThis; global.process.env;",
     "const { process: host } = globalThis; host.env;",
     'const { ["process"]: host } = globalThis; host.env;',
+    'const load = require; load("node:fs");',
+    'const global = globalThis; const load = global.require; load("node:fs");',
+    'const { require: load } = globalThis; load("node:fs");',
+    'const { ["require"]: load } = globalThis; load("node:fs");',
+    'let load; load = require; load("node:fs");',
+    'let load; load = globalThis.require; load("node:fs");',
+    'let load; ({ require: load } = globalThis); load("node:fs");',
+    'let load; ({ ["require"]: load } = globalThis); load("node:fs");',
   ])("rejects %s", async (source) => {
     const [result] = await lintCore(source);
     expect(result.messages.some((message) => message.ruleId === "dcompact/core-purity")).toBe(true);
@@ -47,8 +55,55 @@ describe("src/core dependency policy", () => {
     "const globalThis = { process: { env: { TEST: true } } }; globalThis.process;",
     "const value = { process: 42 }; value.process;",
     'const require = (name: string) => name; require("process", "local");',
+    'const require = (name: string) => name; const load = require; load("node:fs");',
+    'const globalThis = { require: (name: string) => name }; const load = globalThis.require; load("node:fs");',
+    "const Date = { now: () => 1 }; Date.now();",
+    "const Date = { now: () => 1 }; const { now } = Date; now();",
+    "const globalThis = { Date: { now: () => 1 } }; const { now } = globalThis.Date; now();",
+    "const Date = () => 1; Date();",
+    "const Date = class {}; new Date();",
+    'const require = (name: string) => name; require("./clock.js");',
   ])("allows non-host lookalikes: %s", async (source) => {
     const [result] = await lintCore(source);
-    expect(result.messages.some((message) => message.ruleId === "dcompact/core-purity")).toBe(false);
+    expect(result.messages.filter((message) => message.ruleId?.startsWith("dcompact/"))).toEqual([]);
+  });
+
+  it("allows Date.now only in the clock boundary module", async () => {
+    const [result] = await lintCore("export const now = Date.now();", "src/core/clock.ts");
+    expect(result.messages.some((message) => message.ruleId === "dcompact/clock-boundary")).toBe(false);
+  });
+
+  it.each([
+    "const now = Date.now();",
+    'const now = Date["now"]();',
+    "Date();",
+    "new Date();",
+    "const host = globalThis; host.Date.now();",
+    "const Alias = Date; Alias.now();",
+    "const { Date: Alias } = globalThis; Alias.now();",
+    'const { ["Date"]: Alias } = globalThis; Alias.now();',
+    "const { Date } = globalThis; Date.now();",
+    'const host = globalThis; host["Date"].now();',
+    "const { now } = Date; now();",
+    "const { now: current } = globalThis.Date; current();",
+    'const { ["now"]: current } = Date; current();',
+    "const { now = fallback } = Date; now();",
+    "let now; ({ now } = Date); now();",
+    'let current; ({ ["now"]: current } = globalThis.Date); current();',
+  ])("rejects host clock reads outside the clock boundary module: %s", async (source) => {
+    const [result] = await lintCore(source);
+    expect(result.messages.some((message) => message.ruleId === "dcompact/clock-boundary")).toBe(true);
+  });
+
+  it.each([
+    'import { systemClock } from "./clock.js";',
+    'export * from "./clock.js";',
+    'export { systemClock } from "./clock.js";',
+    'await import("./clock.js");',
+    'require("./clock.js");',
+    'const load = require; load("./clock.js");',
+  ])("rejects canonical.ts loading the clock boundary: %s", async (source) => {
+    const [result] = await lintCore(source, "src/core/canonical.ts");
+    expect(result.messages.some((message) => message.ruleId === "dcompact/clock-boundary")).toBe(true);
   });
 });
