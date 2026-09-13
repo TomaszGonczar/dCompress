@@ -1,0 +1,248 @@
+#!/usr/bin/env bash
+# tools/agent-run — run one Linear issue through an autonomous agent inside a sandbox.
+#
+# Usage:
+#   tools/agent-run OG-55                    # named issue, default agent (codex)
+#   tools/agent-run --next                   # next unstarted issue in execution order
+#   tools/agent-run OG-55 --agent omp
+#   tools/agent-run OG-55 --dry-run          # print the plan, change nothing
+#   tools/agent-run OG-55 --keep             # keep the container for debugging
+#
+# Order of operations:
+#   1. resolve the issue (explicit key, or --next)
+#   2. refuse to start unless the tree is clean and on main
+#   3. branch issue/og-nn-<slug>
+#   4. move the issue to In Progress and leave a start comment
+#   5. build/refresh the sandbox image
+#   6. run the agent inside the container; repo bind-mounted at /home/agent/work
+#   7. commit, push, open a PR, link the PR on the issue
+#
+# It never merges. Human review is the gate (see AGENTS.md).
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_ROOT"
+
+AGENT="codex"
+ISSUE=""
+DRY_RUN=0
+KEEP=0
+TIMEOUT="${DCOMPACT_AGENT_TIMEOUT:-3600}"
+IMAGE="dcompact-sandbox:latest"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --agent)   AGENT="${2:?--agent needs a value}"; shift 2 ;;
+    --next)    ISSUE="--next"; shift ;;
+    --dry-run) DRY_RUN=1; shift ;;
+    --keep)    KEEP=1; shift ;;
+    --timeout) TIMEOUT="${2:?--timeout needs a value}"; shift 2 ;;
+    -*)        echo "unknown flag: $1" >&2; exit 2 ;;
+    *)         ISSUE="$1"; shift ;;
+  esac
+done
+
+[[ -z "$ISSUE" ]] && {
+  echo "usage: tools/agent-run OG-nn | --next [--agent codex|omp] [--dry-run] [--keep]" >&2
+  exit 2
+}
+
+info() { printf '\033[36m%s\033[0m\n' "$*"; }
+warn() { printf '\033[33m%s\033[0m\n' "$*"; }
+die()  { printf '\033[31merror: %s\033[0m\n' "$*" >&2; exit 1; }
+
+# ---------- 1. resolve the issue ----------
+if [[ "$ISSUE" == "--next" ]]; then
+  line="$(./tools/linear next)"
+  [[ -z "$line" ]] && die "no unstarted issue found in the project"
+  ISSUE="${line%%$'\t'*}"
+  info "next issue: $line"
+fi
+
+[[ "$ISSUE" =~ ^OG-[0-9]+$ ]] || die "expected an issue key like OG-55, got '$ISSUE'"
+
+ISSUE_TEXT="$(./tools/linear show "$ISSUE")"
+ISSUE_URL="$(printf '%s\n' "$ISSUE_TEXT" | grep -m1 '^https://' || true)"
+TITLE="$(printf '%s\n' "$ISSUE_TEXT" | head -1 | sed 's/^# [A-Z]*-[0-9]* [—-] //')"
+SLUG="$(printf '%s' "$TITLE" \
+  | tr '[:upper:]' '[:lower:]' \
+  | sed 's/[^a-z0-9][^a-z0-9]*/-/g; s/^-//; s/-$//' \
+  | cut -c1-40)"
+BRANCH="issue/$(printf '%s' "$ISSUE" | tr '[:upper:]' '[:lower:]')-${SLUG}"
+
+info "issue:  $ISSUE — $TITLE"
+info "branch: $BRANCH"
+info "agent:  $AGENT"
+
+if [[ $DRY_RUN -eq 1 ]]; then
+  cat <<PLAN
+
+--- plan (dry run, nothing executed) ---
+1. verify clean tree on main
+2. git switch -c $BRANCH
+3. ./tools/linear start $ISSUE  + start comment
+4. docker build -t $IMAGE tools/sandbox
+5. docker run → $AGENT executes the issue prompt inside the sandbox
+6. git commit, push -u origin $BRANCH, gh pr create
+7. ./tools/linear comment $ISSUE <pr-url>
+PLAN
+  exit 0
+fi
+
+# ---------- 2. clean-tree guard ----------
+BRANCH_NOW="$(git rev-parse --abbrev-ref HEAD)"
+[[ "$BRANCH_NOW" == "main" ]] || die "not on main (on '$BRANCH_NOW'); switch to main first"
+[[ -z "$(git status --porcelain)" ]] || die "working tree is dirty; commit or stash first"
+git fetch -q origin main 2>/dev/null && git merge -q --ff-only origin/main 2>/dev/null || true
+
+# ---------- 3. branch ----------
+git switch -q -c "$BRANCH"
+info "created $BRANCH"
+
+# ---------- 4. Linear: in progress ----------
+./tools/linear start "$ISSUE" >/dev/null
+./tools/linear comment "$ISSUE" "Started: branch \`$BRANCH\`, agent \`$AGENT\`, sandboxed." >/dev/null || true
+info "Linear: $ISSUE set to In Progress"
+
+# ---------- 5. sandbox image ----------
+if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
+  info "building sandbox image (first run only, a few minutes)…"
+  docker build -t "$IMAGE" tools/sandbox
+fi
+
+# ---------- 6. agent run ----------
+PROMPT_FILE="$(mktemp)"
+trap 'rm -f "$PROMPT_FILE"' EXIT
+
+{
+  echo "You are implementing one issue in the dcompact repository."
+  echo
+  echo "ISSUE: $ISSUE — $TITLE"
+  echo
+  echo "Read these first, in order:"
+  echo "  AGENTS.md                 - non-negotiable invariants and working rules"
+  echo "  docs/CONCEPT.md           - problem, architecture, integration matrix"
+  echo "  docs/SCHEMA.md            - NORMATIVE snapshot format; if code disagrees, code is wrong"
+  echo "  docs/DEVELOPMENT_PLAN.md  - phase detail and exit criteria"
+  echo
+  echo "Then read the full issue body:"
+  echo
+  printf '%s\n' "$ISSUE_TEXT"
+  echo
+  echo "Rules:"
+  echo "- Implement ONLY this issue. Do not start the next phase."
+  echo "- Respect every invariant in AGENTS.md: no model in the extraction path,"
+  echo "  determinism of the hashed payload, core purity, no network."
+  echo "- Every failure path you introduce needs a test in this same change."
+  echo "- Do not weaken, skip, or delete a test to get green."
+  echo "- Do not touch anything outside /home/agent/work."
+  echo "- Run the test suite before finishing. It must pass."
+  echo "- Commit using the repository commit format and reference $ISSUE in the body."
+  echo "- Finish with a short summary: what changed, what you verified, what is uncertain."
+  echo
+  echo "If the issue cannot be completed (missing dependency, blocked by a wave gate,"
+  echo "ambiguous requirement), stop and say precisely what blocks it. Do not invent scope."
+} > "$PROMPT_FILE"
+
+info "starting agent (timeout ${TIMEOUT}s)…"
+echo
+
+DOCKER_FLAGS=(--rm -i --network bridge
+  -v "$REPO_ROOT":/home/agent/work
+  -w /home/agent/work
+  --memory 4g --cpus 4)
+[[ $KEEP -eq 1 ]] && DOCKER_FLAGS=(--name dcompact-agent-run "${DOCKER_FLAGS[@]/--rm/}")
+[[ -n "${LINEAR_API_KEY:-}" ]] && DOCKER_FLAGS+=(-e "LINEAR_API_KEY=$LINEAR_API_KEY")
+[[ -n "${GH_TOKEN:-}" ]] && DOCKER_FLAGS+=(-e "GH_TOKEN=$GH_TOKEN")
+
+# Agent credentials. Mounted read-write for the agent's own home only; never the host's
+# ~/.claude, ~/.omp or ~/.gemini, which stay invisible inside the sandbox.
+AGENT_HOME="${DCOMPACT_AGENT_HOME:-$HOME/.dcompact-agent}"
+case "$AGENT" in
+  codex)
+    CODEX_HOME_DIR="$AGENT_HOME/codex-home"
+    if [[ ! -f "$CODEX_HOME_DIR/auth.json" ]]; then
+      "$AGENT_HOME/setup-codex-home.sh" >/dev/null 2>&1 \
+        || die "missing $CODEX_HOME_DIR/auth.json — run $AGENT_HOME/setup-codex-home.sh"
+    fi
+    DOCKER_FLAGS+=(-v "$CODEX_HOME_DIR":/home/agent/.codex)
+    ;;
+  omp)
+    OMP_ENV="$AGENT_HOME/omp.env"
+    [[ -f "$OMP_ENV" ]] || die "missing $OMP_ENV (see tools/HOST-SETUP.md)"
+    DOCKER_FLAGS+=(--env-file "$OMP_ENV")
+    ;;
+esac
+
+# Run as the host user so files land owned by you, not root.
+DOCKER_FLAGS+=(--user "$(id -u):$(id -g)")
+
+case "$AGENT" in
+  codex)
+    set +e
+    docker run "${DOCKER_FLAGS[@]}" "$IMAGE" \
+      bash -lc 'exec npx -y @openai/codex@latest exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox -' \
+      < "$PROMPT_FILE"
+    RC=$?
+    set -e
+    ;;
+  omp)
+    set +e
+    docker run "${DOCKER_FLAGS[@]}" "$IMAGE" \
+      bash -lc 'exec /usr/local/bin/omp -p --auto-approve -' \
+      < "$PROMPT_FILE"
+    RC=$?
+    set -e
+    ;;
+  *)
+    die "unknown agent: $AGENT (expected codex or omp)"
+    ;;
+esac
+
+echo
+info "agent exited with status $RC"
+
+# ---------- 7. collect, commit, push, PR ----------
+if [[ -z "$(git status --porcelain)" ]]; then
+  warn "agent produced no changes"
+  ./tools/linear comment "$ISSUE" "Agent run finished with no changes (exit $RC)." >/dev/null || true
+  exit "$RC"
+fi
+
+echo
+info "changed files:"
+git status --short
+
+git add -A
+git -c user.name="dcompact agent" -c user.email="agent@dcompact.local" \
+  commit -q -m "feat: $TITLE" \
+            -m "Autonomous run on $ISSUE (agent: $AGENT, sandboxed)." \
+            -m "Refs: $ISSUE"
+
+git push -q -u origin "$BRANCH"
+
+PR_BODY="$(mktemp)"
+{
+  echo "Linear: ${ISSUE_URL:-$ISSUE}"
+  echo
+  echo "Autonomous sandboxed run (\`$AGENT\`), exit status $RC."
+  echo
+  echo "**The agent does not merge.** Review the diff, then merge and run:"
+  echo
+  echo '```'
+  echo "./tools/linear done $ISSUE"
+  echo '```'
+  echo
+  echo "Refs: $ISSUE"
+} > "$PR_BODY"
+
+PR_URL="$(gh pr create --title "$ISSUE — $TITLE" --body-file "$PR_BODY" \
+  --base main --head "$BRANCH" 2>&1 | tail -1)"
+rm -f "$PR_BODY"
+
+info "PR: $PR_URL"
+./tools/linear comment "$ISSUE" "Agent run complete → $PR_URL" >/dev/null || true
+
+echo
+info "review the PR, merge it, then: ./tools/linear done $ISSUE"
+exit "$RC"
