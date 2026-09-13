@@ -58,7 +58,8 @@ These are the product. Breaking one is not a bug, it is a regression of the prem
   wrong fact is worse than a missing one, because it is injected with the same confidence as
   a right one.
 - **Prefer a refusal to a clever repair.** `install` refuses on an unparseable config;
-  `uninstall` refuses on an outside-edited file. Each refusal prints the exact next step.
+  `uninstall` refuses when dcompact's managed region was edited, while preserving edits
+  outside that region. Each refusal prints the exact next step.
 
 ## Commit format
 

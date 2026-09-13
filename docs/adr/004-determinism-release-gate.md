@@ -8,8 +8,9 @@
 
 ## Context
 
-The central promise is that the same transcript bytes produce the same snapshot payload
-bytes and the same payload hash on any supported machine. Without that property, `verify`
+The central promise is that the same transcript bytes and the same extraction inputs produce
+the same canonical snapshot payload bytes and the same payload hash on any supported machine.
+Without that property, `verify`
 cannot distinguish an input change from a sampler, clock, locale, host, or implementation
 accident. An unverifiable snapshot is just another summary, which is not a useful product
 boundary for dcompact.
@@ -24,11 +25,16 @@ Determinism is a release gate, not a quality goal to revisit after shipping. A r
 blocked when the determinism suite is not green on all supported CI platforms or when a
 fixture produces a different canonical payload or hash under the prescribed perturbations.
 
-The suite must exercise the fixture set with changed `TZ`, `LANG`, `LC_ALL`, `HOME`, cwd,
-clock, hostname, and OS inputs, and must test shuffled event order where merging is intended
-to be order-independent. Nondeterministic inputs are injected explicitly; they are not read
-from global state in the core. A deliberate nondeterminism is periodically introduced to
-prove the suite can fail, then reverted.
+The suite must exercise **every fixture** with changed `TZ`, `LANG`, `LC_ALL`, `HOME`, cwd,
+clock, hostname, and OS inputs, while holding transcript bytes and all extraction inputs
+constant. It must also test shuffled event order where merging is intended to be
+order-independent. Nondeterministic inputs are injected explicitly; they are not read from
+global state in the core. A deliberate nondeterminism is periodically introduced to prove
+the suite can fail, then reverted.
+
+Extraction inputs include the repo root, `path_base`, adapter and extractor configuration,
+extractor version, canonicalization version, and any explicit git state included in the
+payload. Environment perturbation must not silently change any of these inputs.
 
 The hash remains exactly `sha256(UTF-8(canonical(payload)))`. Envelope values such as clock,
 host, adapter version, and absolute locations stay outside the hashed payload. Any change to

@@ -111,7 +111,9 @@ export type DegradedState =
   | "extraction-empty"
   | "provenance-broken"
   | "budget-exceeded"
+  | "internal-error"
   | "unavailable:agent-not-installed"
+  | "unavailable:store"
   | "untrusted:hook-pending-review"
   | "no-pre-compaction-hook";
 
