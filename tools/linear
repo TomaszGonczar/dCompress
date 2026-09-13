@@ -31,6 +31,7 @@ if [[ -z "${LINEAR_API_KEY:-}" ]]; then
 fi
 
 PROJECT_ID="${DCOMPACT_LINEAR_PROJECT:-4d9f66f6-deff-474d-816e-a9d37cde10a2}"
+TEAM_KEY="${DCOMPACT_LINEAR_TEAM:-OG}"
 
 gql() {
   local query="$1" vars="${2:-{\}}"
@@ -41,17 +42,20 @@ gql() {
       --data-binary @-
 }
 
-# Resolve a state id by name, within the project's team.
+# Resolve a workflow state id by name, via any issue in the project's team.
 state_id() {
   local want="$1"
-  gql 'query($p:String!){project(id:$p){team{states{nodes{id name}}}}}' "$(jq -n --arg p "$PROJECT_ID" '{p:$p}')" |
-    jq -r --arg w "$want" '.data.project.team.states.nodes[] | select(.name==$w) | .id' | head -1
+  gql 'query($p:String!){project(id:$p){issues(first:1){nodes{team{states{nodes{id name}}}}}}}' \
+    "$(jq -n --arg p "$PROJECT_ID" '{p:$p}')" |
+    jq -r --arg w "$want" \
+      '.data.project.issues.nodes[0].team.states.nodes[] | select(.name==$w) | .id' | head -1
 }
 
 issue_id() {
   local ident="$1"
-  gql 'query($q:String!){issues(filter:{number:{eq:($q|sub("^[A-Za-z]+-";"")|tonumber)}}){nodes{id identifier}}}' \
-    "$(jq -n --arg q "$ident" '{q:$q}')" |
+  local num="${ident##*-}"
+  gql 'query($n:Float!){issues(filter:{number:{eq:$n}}, first:1){nodes{id identifier}}}' \
+    "$(jq -n --argjson n "$num" '{n:$n}')" |
     jq -r --arg i "$ident" '.data.issues.nodes[] | select(.identifier==$i) | .id' | head -1
 }
 
