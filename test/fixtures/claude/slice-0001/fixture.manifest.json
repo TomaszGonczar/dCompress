@@ -1,0 +1,64 @@
+{
+  "label": "slice-0001",
+  "adapter": "claude",
+  "observedCliVersion": "2.1.238",
+  "source": "one disposable Claude Code session, created for OG-61 with an explicit --session-id; every retained record was constructed from the observed shape and carries synthetic content only",
+  "transcriptBytes": 13666,
+  "transcriptLines": 20,
+  "sanitizedSha256": "sha256:f561627e32ec13de19b4bf5e27bf038741a8bcf71fa0612767aae4a8d3a009f4",
+  "lineEnding": "LF, no trailing newline (SCHEMA §10 fixture rule)",
+  "omittedRecordTypes": [
+    "attachment (hook payloads, tool/agent/skill listings, token reminders)",
+    "queue-operation (only a dequeue stub is retained as a recognized non-conversational record)",
+    "atis-latch",
+    "last-prompt",
+    "mode",
+    "permission-mode",
+    "file-history-snapshot",
+    "file-history-delta",
+    "thinking content blocks are retained as shapes only, with empty text",
+    "token usage, request ids, signatures, container/context metadata"
+  ],
+  "toolVocabulary": [
+    { "name": "Bash", "classification": "mapped", "kind": "command", "calls": 3 },
+    { "name": "Edit", "classification": "mapped", "kind": "file.modified", "calls": 1 },
+    { "name": "Read", "classification": "mapped", "kind": "file.read", "calls": 1 },
+    { "name": "Write", "classification": "mapped", "kind": "file.modified", "calls": 2 }
+  ],
+  "intentionalOmissions": [
+    "no TaskCreate/TaskUpdate call is retained",
+    "no mcp__ tool call is retained",
+    "no unknown/unmapped tool call is retained"
+  ],
+  "expected": {
+    "physicalLines": 20,
+    "conversationRecords": 18,
+    "recordsWithRecognizedBlocks": 17,
+    "toolCalls": 7,
+    "toolResults": 7,
+    "normalizedEvents": 8,
+    "parseDiagnostics": 0,
+    "degraded": [],
+    "pathBase": "cwd",
+    "sourceToolCalls": 7,
+    "unmappedToolCalls": 0,
+    "coveragePpm": 1000000,
+    "externalPathCount": 0,
+    "facts": 9,
+    "factsByKind": {
+      "decision.stated": 1,
+      "error.raised": 1,
+      "error.fixed": 1,
+      "file.modified": 2,
+      "cmd.failed": 1,
+      "cmd.run": 2,
+      "file.read": 1
+    }
+  },
+  "notes": [
+    "the session cwd is synthetic (/fixture/repo), so path_base is \"cwd\" with repoRoot null: the transcript proves no repository root",
+    "the failed Bash call and the later successful Bash call with the same normalized command are the error/fix cycle",
+    "the fixture proves non-adjacent pairing: attachment records sit between every call and its result",
+    "each tool fact cites both physical lines of its pair (tool_use line and tool_result line) via NormalizedToolEvent.sources; for the failed Bash call that is lines 12 and 13, and only line 13 carries is_error and the npm failure text"
+  ]
+}

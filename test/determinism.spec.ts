@@ -9,8 +9,8 @@ import { payloadHash } from "../src/core/hash.js";
 import type { Envelope, Payload } from "../src/core/types.js";
 import {
   configForFixture,
-  fixtureNames,
   readFixture,
+  vectorFixtureNames,
   type FixtureMetadata,
   type VectorFixture,
 } from "./helpers/vectors.js";
@@ -147,7 +147,7 @@ function perturbationFor(fixture: VectorFixture): HostPerturbation {
   };
 }
 
-const ordinaryFixtureNames = fixtureNames(fixtureRoot).filter((name) => name !== "clock-env");
+const ordinaryFixtureNames = vectorFixtureNames(fixtureRoot).filter((name) => name !== "clock-env");
 
 describe("deterministic payload vectors", () => {
   it.each(ordinaryFixtureNames)("matches committed vector %s", (name) => {
