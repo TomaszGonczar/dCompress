@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import { extract, extractPayload } from "../../src/core/extract/index.js";
@@ -78,6 +78,37 @@ export function fixtureNames(fixturesDirectory = resolve(process.cwd(), "test/fi
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort();
+}
+
+/**
+ * Fixture directories that are Claude Code transcript slices rather than normalized-event
+ * golden vectors (`test/fixtures/claude/slice-0001`, and any future adapter layout). Those
+ * vectors assert exact payload bytes and a committed hash, so a slice that ships a real
+ * transcript deliberately does not join that set.
+ */
+export function adapterFixtureRoots(fixturesDirectory = resolve(process.cwd(), "test/fixtures")): string[] {
+  const roots: string[] = [];
+  for (const entry of readdirSync(fixturesDirectory, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const directory = join(fixturesDirectory, entry.name);
+    if (existsSync(join(directory, "fixture.manifest.json"))) {
+      roots.push(entry.name);
+      continue;
+    }
+    for (const nested of readdirSync(directory, { withFileTypes: true })) {
+      if (nested.isDirectory() && existsSync(join(directory, nested.name, "fixture.manifest.json"))) {
+        roots.push(entry.name);
+        break;
+      }
+    }
+  }
+  return roots.sort();
+}
+
+/** The normalized-event golden vectors: every fixture directory that is not an adapter slice. */
+export function vectorFixtureNames(fixturesDirectory = resolve(process.cwd(), "test/fixtures")): string[] {
+  const adapters = new Set(adapterFixtureRoots(fixturesDirectory));
+  return fixtureNames(fixturesDirectory).filter((name) => !adapters.has(name));
 }
 
 export function readFixture(name: string, fixturesDirectory = resolve(process.cwd(), "test/fixtures")): VectorFixture {

@@ -3,11 +3,11 @@ import { resolve } from "node:path";
 
 import { canonicalize } from "../src/core/canonical.js";
 import { payloadHash } from "../src/core/hash.js";
-import { extractFixture, extractFixtureResult, fixtureNames, readFixture } from "../test/helpers/vectors.js";
+import { extractFixture, extractFixtureResult, readFixture, vectorFixtureNames } from "../test/helpers/vectors.js";
 import type { Fact, Payload } from "../src/core/types.js";
 
 const fixtureRoot = resolve(process.cwd(), "test/fixtures");
-const names = fixtureNames(fixtureRoot);
+const names = vectorFixtureNames(fixtureRoot);
 const expectedVectorNames = ["empty", "single-edit", "merge-order", "unicode-nfc", "paths-outside", "error-cycle", "unknown-tool", "crlf", "huge-command", "clock-env"];
 if (JSON.stringify(names) !== JSON.stringify([...expectedVectorNames].sort())) throw new Error(`Expected exactly the ten SCHEMA vectors, found: ${names.join(", ")}`);
 

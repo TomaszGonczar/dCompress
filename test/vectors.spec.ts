@@ -10,9 +10,9 @@ import type { Fact, Payload } from "../src/core/types.js";
 import {
   configForFixture,
   expectedHash,
-  fixtureNames,
   parseTranscript,
   readFixture,
+  vectorFixtureNames,
   type VectorFixture,
 } from "./helpers/vectors.js";
 
@@ -37,7 +37,7 @@ function factsWithoutEvidenceHashes(facts: readonly Fact[]) {
 
 describe("normative extraction vectors", () => {
   it("keeps every fixture and expected artifact in the declared format", () => {
-    const names = fixtureNames(fixtureRoot);
+    const names = vectorFixtureNames(fixtureRoot);
     expect(names).toHaveLength(10);
 
     for (const name of names) {
