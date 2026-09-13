@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# tools/linear — minimal Linear CLI over the GraphQL API.
+#
+# Works on the host and inside the sandbox container. Reads LINEAR_API_KEY from the
+# environment, or from .env in the repo root when running locally.
+#
+#   linear next                 next unstarted issue in execution order
+#   linear list [--all]         issues in execution order
+#   linear show OG-55           one issue, full description
+#   linear start OG-55          move to In Progress
+#   linear done OG-55           move to Done
+#   linear comment OG-55 "..."  add a comment
+#   linear status OG-55         current state
+set -euo pipefail
+
+API="https://api.linear.app/graphql"
+
+if [[ -z "${LINEAR_API_KEY:-}" ]]; then
+  for f in "$(dirname "$0")/../.env" "$HOME/.dcompact-agent.env"; do
+    if [[ -f "$f" ]]; then
+      # shellcheck disable=SC1090
+      LINEAR_API_KEY="$(grep -E '^LINEAR_API_KEY=' "$f" | head -1 | cut -d= -f2- | tr -d '"'"'"' ')"
+      [[ -n "$LINEAR_API_KEY" ]] && break
+    fi
+  done
+fi
+
+if [[ -z "${LINEAR_API_KEY:-}" ]]; then
+  echo "error: LINEAR_API_KEY not set (env, .env, or ~/.dcompact-agent.env)" >&2
+  exit 2
+fi
+
+PROJECT_ID="${DCOMPACT_LINEAR_PROJECT:-4d9f66f6-deff-474d-816e-a9d37cde10a2}"
+
+gql() {
+  local query="$1" vars="${2:-{\}}"
+  jq -n --arg q "$query" --argjson v "$vars" '{query:$q, variables:$v}' |
+    curl -sS -X POST "$API" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: $LINEAR_API_KEY" \
+      --data-binary @-
+}
+
+# Resolve a state id by name, within the project's team.
+state_id() {
+  local want="$1"
+  gql 'query($p:String!){project(id:$p){team{states{nodes{id name}}}}}' "$(jq -n --arg p "$PROJECT_ID" '{p:$p}')" |
+    jq -r --arg w "$want" '.data.project.team.states.nodes[] | select(.name==$w) | .id' | head -1
+}
+
+issue_id() {
+  local ident="$1"
+  gql 'query($q:String!){issues(filter:{number:{eq:($q|sub("^[A-Za-z]+-";"")|tonumber)}}){nodes{id identifier}}}' \
+    "$(jq -n --arg q "$ident" '{q:$q}')" |
+    jq -r --arg i "$ident" '.data.issues.nodes[] | select(.identifier==$i) | .id' | head -1
+}
+
+cmd="${1:-next}"; shift || true
+
+case "$cmd" in
+  list)
+    scope="${1:---active}"
+    filter='{"project":{"id":{"eq":"'"$PROJECT_ID"'"}}}'
+    [[ "$scope" != "--all" ]] && filter='{"project":{"id":{"eq":"'"$PROJECT_ID"'"}},"state":{"type":{"nin":["completed","canceled"]}}}'
+    gql 'query($f:IssueFilter){issues(filter:$f, first:50){nodes{identifier title state{name} priority sortOrder}}}' \
+      "$(jq -n --argjson f "$filter" '{f:$f}')" |
+      jq -r '.data.issues.nodes | sort_by(.sortOrder)[] | "\(.identifier)\t[\(.state.name)]\t\(.title)"'
+    ;;
+
+  next)
+    gql 'query($f:IssueFilter){issues(filter:$f, first:50){nodes{identifier title state{name} sortOrder}}}' \
+      "$(jq -n --argjson f '{"project":{"id":{"eq":"'"$PROJECT_ID"'"}},"state":{"type":{"in":["backlog","unstarted"]}}}' '{f:$f}')" |
+      jq -r '.data.issues.nodes | sort_by(.sortOrder) | .[0] | "\(.identifier)\t\(.title)"'
+    ;;
+
+  show)
+    ident="${1:?usage: linear show OG-nn}"
+    num="${ident##*-}"
+    gql 'query($n:Float!){issues(filter:{number:{eq:$n}}, first:1){nodes{identifier title description state{name} url}}}' \
+      "$(jq -n --argjson n "$num" '{n:$n}')" |
+      jq -r '.data.issues.nodes[0] | "# \(.identifier) — \(.title)\nstate: \(.state.name)\n\(.url)\n\n\(.description)"'
+    ;;
+
+  start)
+    ident="${1:?usage: linear start OG-nn}"
+    sid="$(state_id "In Progress")"
+    iid="$(issue_id "$ident")"
+    gql 'mutation($id:String!,$s:String!){issueUpdate(id:$id,input:{stateId:$s}){success}}' \
+      "$(jq -n --arg id "$iid" --arg s "$sid" '{id:$id,s:$s}')" |
+      jq -r 'if .data.issueUpdate.success then "ok: " + $i else "fail" end' --arg i "$ident"
+    ;;
+
+  done)
+    ident="${1:?usage: linear done OG-nn}"
+    sid="$(state_id "Done")"
+    iid="$(issue_id "$ident")"
+    gql 'mutation($id:String!,$s:String!){issueUpdate(id:$id,input:{stateId:$s}){success}}' \
+      "$(jq -n --arg id "$iid" --arg s "$sid" '{id:$id,s:$s}')" |
+      jq -r 'if .data.issueUpdate.success then "ok: " + $i else "fail" end' --arg i "$ident"
+    ;;
+
+  status)
+    ident="${1:?usage: linear status OG-nn}"
+    gql 'query($n:Float!){issues(filter:{number:{eq:$n}}, first:1){nodes{identifier state{name}}}}' \
+      "$(jq -n --argjson n "${ident##*-}" '{n:$n}')" |
+      jq -r '.data.issues.nodes[0] | "\(.identifier): \(.state.name)"'
+    ;;
+
+  comment)
+    ident="${1:?usage: linear comment OG-nn \"text\"}"
+    body="${2:?missing comment body}"
+    iid="$(issue_id "$ident")"
+    gql 'mutation($id:String!,$b:String!){commentCreate(input:{issueId:$id, body:$b}){success}}' \
+      "$(jq -n --arg id "$iid" --arg b "$body" '{id:$id,b:$b}')" |
+      jq -r 'if .data.commentCreate.success then "ok" else "fail" end'
+    ;;
+
+  *)
+    sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
+    exit 2
+    ;;
+esac
