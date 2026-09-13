@@ -2,8 +2,28 @@
 
 Normative. If code and this document disagree, code is wrong.
 
-`canonicalization: 1` — the version below. Any behavioural change to the rules in §3–§6
+`canonicalization: 2` — the version below. Any behavioural change to the rules in §3–§6
 bumps this value and is a breaking schema event.
+
+**Revision note (2, 2026-09-13).** Version 1 contained four genuine internal contradictions,
+found during OG-56 implementation by Codex and verified independently before being ruled on.
+They are recorded here because a spec that silently changes is worse than one that admits it
+changed:
+
+| # | Contradiction in v1 | Resolution |
+|---|---|---|
+| 1 | §3 `coverage` was a fraction (`0.9871`); §5.1 permits **integers only** in the payload. The zero-denominator case was undefined. | §3.1 — `coverage_ppm`, integer parts-per-million, truncated, explicit zero case |
+| 2 | §3 placed `counters` in the payload; §5.2 rule 5 put `external_paths` "in the envelope". The envelope has no `counters`. | §3.2 — `external_path_count` is an integer **in `payload.counters`**; no path text anywhere |
+| 3 | §1/§2 place provenance outside the hash; §4/§7 required `evidence.path` **inside** the payload. Normal transcript paths are outside the repo, which §5.2 excludes. | §4.0 — `evidence[]` is `{line, sha256}` only; the path is `envelope.transcript_path`, once per snapshot |
+| 4 | The invariant "same transcript bytes → same snapshot bytes" is literally false against §2, which deliberately puts clock/host/cwd in the envelope. | §6.1 — the claim is scoped to **canonical payload bytes**; envelope divergence is expected |
+
+Also specified, having been left ambiguous: merge-order tie-breaking (§10.1), fixture file
+encodings and the equivalence nature of vector 10 (§10), `path_base` and cwd fallback
+(§10.2), and 1-based line numbering for provenance (§7).
+
+The reviewer's note worth keeping: these were **not** the implementer's misreadings. They were
+defects in the normative document, and the correct behaviour was to stop rather than resolve
+them locally — which is what happened.
 
 ## 1. Why this document exists
 
@@ -66,7 +86,7 @@ Notes:
     "source_entries": 1204,
     "source_tool_calls": 311,
     "unmapped_tool_calls": 4,
-    "coverage": 0.9871                     // (source_tool_calls − unmapped) / source_tool_calls
+    "coverage_ppm": 987100                 // coverage in parts-per-million, integer
   },
   "git": {                                  // null when not a repo or git unavailable
     "head": "4f2a1c9d…",                    // full sha, or "unborn"
@@ -83,6 +103,57 @@ Notes:
 `counters` is derived, not authoritative — it exists so a human can eyeball coverage, and
 so `doctor` can detect an extraction regression.
 
+### 3.1 Coverage is an integer: parts-per-million
+
+`coverage_ppm` is the integer form of
+`(source_tool_calls − unmapped_tool_calls) / source_tool_calls`, scaled by 1,000,000 and
+**truncated toward zero** (never rounded — rounding can produce `1000000` for coverage that
+is not complete, which would hide a real miss).
+
+```
+coverage_ppm = floor(1_000_000 × (source_tool_calls − unmapped_tool_calls) / source_tool_calls)
+```
+
+This exists because §5.1 permits **integers only** in the payload (no floats in v1), so a
+fractional `coverage` could not be encoded. Parts-per-million was chosen over a percentage so
+that a single unmapped call out of ~300,000 is still visible.
+
+**Zero-denominator rule.** When `source_tool_calls == 0` there is no ratio to compute.
+Define `coverage_ppm = 0` and set `unmapped_tool_calls = 0`. The value `0` means "no tool
+calls were seen" — it does **not** mean "bad coverage". A tool reading this field must consult
+`source_tool_calls` before interpreting it. This is the case the empty-test-vector exercises.
+
+Rounding, floating point, and division are the three ways to lose determinism in a single
+line. All three are avoided here by construction: integer arithmetic only, truncation only,
+explicit zero case.
+
+### 3.2 Paths that leave the repo: counted in the payload, never stored
+
+`§5.2` rule 5 excludes out-of-repo paths from the payload. Those exclusions must still be
+**countable**, or an extraction that silently dropped half its evidence would look clean.
+
+`external_path_count` is therefore an integer inside `payload.counters`:
+
+```jsonc
+"counters": {
+  …,
+  "external_path_count": 0
+}
+```
+
+The rule is deliberately asymmetric, and the asymmetry is the point:
+
+| | Stored | Counted | Hashed |
+|---|---|---|---|
+| Repo-relative path | ✅ as a fact key | ✅ | ✅ |
+| Out-of-repo path | ❌ **never** | ✅ as a count | ✅ (the count only) |
+
+**No out-of-repo path text ever enters the payload.** Not as a fact key, not in `evidence`,
+not in a snippet. Only the integer count does. A path is host-specific data; a count is a
+property of the extraction. Putting the count in the payload keeps the extraction honest
+without leaking the machine — and because the count is hashed, two runs that disagreed about
+how many paths they dropped would produce different hashes, which is the behaviour we want.
+
 ## 4. Facts
 
 One fact = one atomic, transcript-derived statement.
@@ -94,12 +165,37 @@ One fact = one atomic, transcript-derived statement.
   "at": { "entry": 842, "ts": "2026-09-13T08:12:04Z" },
   "attrs": { "edits": 3, "tools": ["Edit", "Edit", "Write"] },
   "evidence": [
-    { "path": "~/.claude/projects/…/x.jsonl", "line": 901, "sha256": "…" }
+    { "line": 901, "sha256": "…" }
   ],
   "snippet": "Edit src/dispatch.ts — replace retry loop",
   "unbacked": false
 }
 ```
+
+### 4.0 Evidence carries no path
+
+`evidence[]` entries hold `{line, sha256}` and **nothing else**. The transcript path is a
+property of the whole snapshot, not of each fact, and it lives in the envelope as
+`transcript_path` (§2). This resolves a contradiction between §1 ("provenance lives outside
+the hash") and a fact shape that embedded a path inside the payload.
+
+Why this is the right shape rather than a compromise:
+
+- **Every fact in a snapshot has exactly one transcript.** `path` was constant across all
+  evidence entries and all facts, so storing it N times stored no information. It was
+  redundancy that happened to leak a host path.
+- **`line` + `sha256` is sufficient to verify.** Provenance is already defined per line
+  (§7). The path adds nothing to the check.
+- **One snapshot writes one transcript path**, so the envelope is the correct cardinality.
+
+An *imported* snapshot — one produced on another machine and verified locally — therefore
+reads the path from the envelope, and `verify --provenance` reports `unbacked` for every fact
+when that path is absent, which is precisely the honest answer.
+
+The `~/.claude/projects/…/x.jsonl` form in earlier revisions was a documentation example, not
+a wire value, and it contradicted §5.2 rule 5. Examples in this document are normative only
+where they define shape; where one disagrees with prose, the prose wins and the example is a
+bug.
 
 ### 4.1 Kind vocabulary (v1)
 
@@ -177,8 +273,10 @@ Rules, applied in order:
 3. No leading `./`; no trailing `/`; no `.` or `..` segments after normalization.
 4. Case is preserved as written. Case-insensitive filesystems do **not** cause case folding
    — folding would make macOS and Linux disagree.
-5. Paths outside the repo root are **excluded from `payload`** and counted in
-   `counters` under an `external_paths` key (in the envelope, not the payload).
+5. Paths outside the repo root are **excluded from the payload as text** and counted in
+   `payload.counters.external_path_count` (§3.2). No out-of-repo path string appears
+   anywhere in the payload — not as a fact key, not in evidence, not in a snippet. Only the
+   integer count is stored, and it is hashed.
 6. Symlinks are not resolved. The literal path the tool was given is the fact's key.
 7. If `store.repo_root` is unknown (not a repo), paths are stored relative to
    `store.cwd`, and the payload records `"path_base": "cwd"` so the meaning is explicit.
@@ -191,11 +289,17 @@ These arrays are sets and are sorted + deduped before hashing:
 - `payload.facts[].attrs.tools[]` — sorted code-point, deduped
 - `payload.facts[].evidence[]` — sorted by `(line, sha256)`, deduped
 - `payload.facts[]` — sorted by §4.2
-- `envelope.degraded[]` — sorted, deduped (not hashed, but still canonical for diffing)
-- `counters.by_kind` — keys sorted
+- `payload.counters.by_kind` — keys sorted (this is an object, not an array; "sorted" means
+  its keys are emitted in code-point order per §5.1, and it is hashed as part of the payload)
+- `envelope.degraded[]` — sorted, deduped (**not hashed** — the envelope is outside the hash
+  entirely; this ordering exists only so two envelopes are comparable when diffed)
 
 Nothing else is treated as a set. In particular, `plan.items` and `cmd` ordering keep their
 semantic order.
+
+Note the distinction the earlier revision blurred: everything under `payload` is hashed
+because the whole payload is hashed. Only `envelope.degraded[]` is sorted-but-unhashed, and
+that is a property of the envelope, not of the field's own nature.
 
 ### 5.4 Normalized command text
 
@@ -241,6 +345,29 @@ Where `canonical()` is §3–§5 applied in order. The hash covers `payload` and
 else** — not `envelope`, not the file's own formatting (a snapshot file is written pretty
 printed for humans; the hash is computed on the canonical form).
 
+### 6.1 What "identical output" means — precise wording
+
+The project invariant is written as *"same transcript bytes → same snapshot bytes."* Read
+literally against §2, that is **false and cannot be true**: the envelope deliberately carries
+`created_at`, `host`, `store.cwd`, transcript mtime, and duration. A snapshot *file* is
+host-specific by design, and should be.
+
+The precise claim — and the one the tests enforce — is:
+
+> **Same transcript bytes and the same extraction inputs produce the same `payload`, and
+> therefore the same `hash`. The envelope may differ; it is not part of the artifact's
+> identity.**
+
+"Same extraction inputs" is load-bearing and means: repo root, `path_base`, extractor
+version, canonicalization version, and (where applicable) the git state that `payload.git`
+records. These are inputs, not environment: the same code reading the same bytes with the
+same inputs must produce the same payload on any machine, at any time.
+
+So "snapshot bytes" in `AGENTS.md` and `CONCEPT.md` is shorthand for **canonical payload
+bytes**. Where this document and those disagree on the scope of determinism, this section is
+authoritative — and the shorthand should be corrected at the next edit of those files rather
+than left to be rediscovered.
+
 Consequences, stated as tests:
 
 - Re-serializing a snapshot file with different indentation does not change its hash.
@@ -249,19 +376,25 @@ Consequences, stated as tests:
 - Adding an envelope field never invalidates a stored hash.
 - Changing any canonicalization rule requires a `canonicalization` bump; `verify` on an
   older snapshot reports `schema-older`, not a mismatch.
+- **Two full snapshot files from two machines on the same transcript have equal `hash` and
+  unequal bytes.** This is expected and is asserted by the determinism suite.
 
 ## 7. Provenance
 
-Every fact carries `evidence[]` = `{path, line, sha256}` where `sha256` is the hash of the
+Every fact carries `evidence[]` = `{line, sha256}` where `sha256` is the hash of the
 **single transcript line** (raw bytes including trailing newline) that produced the fact.
 
-`dcompact verify --provenance <id>` re-reads the transcript and, for each evidence entry:
+The transcript path is **not** in `evidence[]`. It is `envelope.transcript_path`, one per
+snapshot (§4.0). Verification resolves it from the envelope, not from each fact.
 
+`dcompact verify --provenance <id>` reads `envelope.transcript_path`, re-reads that file, and
+for each evidence entry:
+
+- transcript path absent or not readable → every fact `unbacked`, state
+  `degraded: provenance-broken`
 - line exists and its hash matches → `backed`
 - line exists, hash differs → `drifted` (transcript edited/rotated)
 - line missing (file shorter) → `unbacked`
-- transcript missing entirely → `unbacked` for every fact, state
-  `degraded: provenance-broken`
 
 A fact is `backed` if ≥1 evidence entry is backed; `drifted` if none backed but ≥1 drifted;
 `unbacked` otherwise. `verify` reports counts per state and exits `3` when any fact is
@@ -269,6 +402,11 @@ A fact is `backed` if ≥1 evidence entry is backed; `drifted` if none backed bu
 
 Provenance is deliberately **line-and-hash**, not byte offsets: offsets are fragile to line
 ending and BOM changes, lines are not.
+
+**Line numbering is 1-based and counts physical lines**, where a line ends at `\n`. A CRLF
+transcript hashes the raw bytes *including* the `\r`, and a trailing final line without `\n`
+is still a line. This matters because vector 8 (`crlf.jsonl`) asserts facts are unchanged
+across line endings: the line *hash* differs by platform, the extracted *facts* do not.
 
 ## 8. Retention metadata
 
@@ -308,20 +446,59 @@ silently: it is skipped with a warning naming the file.
 
 ## 10. Test vectors (required in P2)
 
-Committed under `test/fixtures/`, each a transcript + expected canonical payload + expected
-hash:
+Committed under `test/fixtures/`, each a transcript plus its expected canonical payload and
+expected hash.
 
-1. `empty.jsonl` → zero facts, `degraded: ["extraction-empty"]`, stable hash.
-2. `single-edit.jsonl` → one `file.modified`, one evidence entry.
-3. `merge-order.jsonl` → the same five tool calls in three different input orders → one
-   hash.
-4. `unicode-nfc.jsonl` → a path written in NFD and again in NFC → merged into one fact.
-5. `paths-outside.jsonl` → facts outside the repo root are excluded and counted.
-6. `error-cycle.jsonl` → error raised then fixed → both facts, correct `fixed_by`.
-7. `unknown-tool.jsonl` → unmapped tool call → `coverage < 1`, `degraded: []`, counter set.
-8. `crlf.jsonl` → CRLF transcript → line hashes computed on raw bytes, facts unchanged.
-9. `huge-command.jsonl` → 2 KB command → truncated at 512 with `…`.
-10. `clock-env.jsonl` → run with perturbed `TZ`/`LANG`/`HOME`/clock → identical hash to
-    vector 2.
+**Fixture file rules** (these were underspecified and are now normative):
+
+| Artifact | Encoding | Notes |
+|---|---|---|
+| `*.jsonl` (transcript) | raw bytes, **no** trailing newline added | Vector 8 depends on exact bytes |
+| `*.payload.json` (expected) | UTF-8, **pretty-printed** for human review | The hash is computed on the *canonical* form, not this file |
+| `*.hash` | UTF-8, single line, `sha256:` + 64 lowercase hex, trailing `\n` | |
+
+The expected payload file being pretty-printed is deliberate: it must be reviewable in a
+diff, and the test recomputes canonical form from it. A test that compared raw file bytes
+would be testing the formatter, not the canonicalizer.
+
+**Vector 10 is an equivalence assertion, not a separate hash.** It runs vector 2's fixture
+under perturbed environment and asserts the resulting hash *equals vector 2's expected hash*.
+Two `.hash` files with different values would mean the suite is broken.
+
+| # | Vector | Asserted outcome |
+|---|---|---|
+| 1 | `empty.jsonl` | zero facts; `coverage_ppm: 0` with `source_tool_calls: 0` (§3.1 zero case); `degraded: ["extraction-empty"]`; stable hash |
+| 2 | `single-edit.jsonl` | one `file.modified`; exactly one evidence entry `{line, sha256}`; no `path` key present |
+| 3 | `merge-order.jsonl` | the same five tool calls in three input orders → **one** hash, asserted across all three |
+| 4 | `unicode-nfc.jsonl` | a path written in NFD and again in NFC → merged into one fact; key is the NFC form |
+| 5 | `paths-outside.jsonl` | out-of-repo paths **never appear as text** in the payload; `counters.external_path_count` equals the expected integer |
+| 6 | `error-cycle.jsonl` | error raised then fixed → both facts, correct `fixed_by` |
+| 7 | `unknown-tool.jsonl` | unmapped call → `coverage_ppm < 1000000`, `unmapped_tool_calls >= 1`, `degraded: []` |
+| 8 | `crlf.jsonl` | line hashes differ from an LF twin (raw bytes), extracted **facts identical** |
+| 9 | `huge-command.jsonl` | 2 KB command → truncated at 512 chars with `…`, truncated at a word boundary |
+| 10 | `clock-env.jsonl` | perturbed `TZ`/`LANG`/`LC_ALL`/`HOME`/cwd/clock/hostname → hash **equals vector 2's** |
+
+### 10.1 Merge-order provenance ties
+
+Vector 3 exercises merging, which raises a question the earlier revision left open: when two
+facts merge, `attrs` scalars keep the value from the **later** `at.entry` (§4.3), but the
+merged fact's `at` keeps the **earliest**. If two facts have the same `(kind, key)` and the
+same `at.entry`, the merge is order-dependent unless the rule is total.
+
+Normative rule: **when `at.entry` is equal, `attrs` scalars keep the value from the entry
+that is later in the source file order (higher `line`).** If `line` is also equal, the facts
+are identical by definition and the merge is a no-op. This makes the merge a total order over
+`(at.entry, evidence[0].line)` and removes the last nondeterminism from vector 3.
+
+### 10.2 cwd fallback and `path_base`
+
+Vector 5 runs in a non-repo directory for at least one case. When `store.repo_root` is
+unknown, §5.2 rule 7 applies: paths are stored relative to `store.cwd` and the payload records
+`"path_base": "cwd"`. **`path_base` is part of the payload and therefore part of the hash** —
+so the same transcript snapshotted with and without a repo root legitimately produces two
+different hashes. That is correct, not a bug: the extraction inputs differed (§6.1).
+
+Every fixture declares its expected `path_base` explicitly, so a test cannot pass by
+accident of where it ran.
 
 Every vector is asserted in CI on Linux and macOS. A vector failure blocks release.
