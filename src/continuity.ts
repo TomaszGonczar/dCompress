@@ -466,11 +466,43 @@ function markerFor(pack: string): string | null {
   return /^## dcompact context \[dcompact:[0-9a-f]{12}\]/m.exec(pack)?.[0] ?? null;
 }
 
+const BLOCK_BEGIN = "<!-- dcompact:context begin -->";
+const BLOCK_END = "<!-- dcompact:context end -->";
+
+/**
+ * Locate a previously injected block by its explicit sentinel comments rather than by
+ * scanning for `##` headings. The target may carry its own headings above or below the pack,
+ * so a heading-shaped boundary would either swallow surrounding user content or stop short of
+ * the pack's own end; the sentinel is unambiguous regardless of what surrounds it.
+ */
+function managedBlockBounds(existing: string): { readonly start: number; readonly end: number } | null {
+  const start = existing.indexOf(BLOCK_BEGIN);
+  if (start === -1) return null;
+  const end = existing.indexOf(BLOCK_END, start);
+  if (end === -1) return null; // Truncated sentinel: never guess its extent, treat as absent.
+  return { start, end: end + BLOCK_END.length };
+}
+
 export function injectPack(existing: string, pack: string): { readonly text: string; readonly injected: boolean } {
   const marker = markerFor(pack);
-  if (marker !== null && existing.includes(marker)) return { text: existing, injected: false };
-  if (existing.length === 0) return { text: pack, injected: true };
-  return { text: `${existing.replace(/\s+$/, "")}\n\n${pack}`, injected: true };
+  const block = `${BLOCK_BEGIN}\n${pack.replace(/\s+$/, "")}\n${BLOCK_END}`;
+  const bounds = managedBlockBounds(existing);
+  if (bounds === null) {
+    // Back-compat: a target already holding this exact pack without the sentinel — hand-authored,
+    // or written before the sentinel existed — is still recognized by its header marker so
+    // re-injection never duplicates it.
+    if (marker !== null && existing.includes(marker)) return { text: existing, injected: false };
+    if (existing.length === 0) return { text: `${block}\n`, injected: true };
+    return { text: `${existing.replace(/\s+$/, "")}\n\n${block}\n`, injected: true };
+  }
+  if (existing.slice(bounds.start, bounds.end) === block) return { text: existing, injected: false };
+  // A changed pack replaces the block in place: content before and after it is preserved
+  // exactly (modulo the separating blank line dcompact itself owns), never re-appended.
+  const before = existing.slice(0, bounds.start).replace(/\s+$/, "");
+  const after = existing.slice(bounds.end).replace(/^\s+/, "");
+  const prefix = before.length > 0 ? `${before}\n\n` : "";
+  const suffix = after.length > 0 ? `\n\n${after}` : "\n";
+  return { text: `${prefix}${block}${suffix}`, injected: true };
 }
 
 function injectionMarkerPath(root: string, sessionId: string): string {

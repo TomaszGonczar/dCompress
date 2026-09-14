@@ -606,7 +606,10 @@ Rules:
   `… (n facts elided, run dcompact show <id>)`; if no fact fits, report `degraded: budget-exceeded`
   whenever the health line itself fits the explicit budget.
 - Injection is idempotent: repeated injection of the same snapshot is detected by marker
-  `[dcompact:<hash>]` in the injected text, and re-injection is skipped.
+  `[dcompact:<hash>]` in the injected text, and re-injection is skipped. A pack whose payload
+  changed replaces the existing managed block in place — bounded by an explicit sentinel, not by
+  scanning for headings a target document may also contain — leaving surrounding content
+  untouched and exactly one managed block behind.
 - Injection point is **adapter-specific, and the choice matters more than the payload**:
 
   | Adapter | Injection point | Effect |
