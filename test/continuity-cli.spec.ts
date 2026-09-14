@@ -99,14 +99,14 @@ describe("continuity CLI", () => {
       const snapshot = io();
       expect(call(["snapshot", "--session", "fixture-session-0001", "--transcript", fixture, "--store", root], snapshot)).toBe(0);
       const restoreIo = io();
-      expect(call(["restore", "--session", "fixture-session-0001", "--store", root, "--max-bytes", "0"], restoreIo)).toBe(4);
+      expect(call(["restore", "--session", "fixture-session-0001", "--store", root, "--max-bytes", "0"], restoreIo)).toBe(1);
       expect(restoreIo.stderr.join("")).toContain("Pass --max-bytes");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
-  it("maps unreadable/non-directory state paths to exit 4 without an internal stack", () => {
+  it("maps unreadable/non-directory state paths to exit 1 without an internal stack", () => {
     const root = tempRoot();
     try {
       const statePath = join(root, "state");
@@ -116,7 +116,7 @@ describe("continuity CLI", () => {
         stdout: (text) => output.stdout.push(text),
         stderr: (text) => output.stderr.push(text),
       });
-      expect(status).toBe(4);
+      expect(status).toBe(1);
       expect(output.stderr.join("")).toContain("State path is not a directory");
       expect(output.stderr.join("")).not.toContain("Internal error");
 

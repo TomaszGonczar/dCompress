@@ -27,6 +27,9 @@ import { checkpoint, restore, runHook, ContinuityRefusal } from "./continuity.js
 import { payloadHash } from "./core/hash.js";
 import { DEFAULT_MAX_BYTES, formatDegradedStates, minimumPackBytes, renderPack } from "./core/pack.js";
 import type { AdapterId, DegradedState, PackOptions, Payload, Snapshot } from "./core/types.js";
+import { doctor, doctorExitCode, formatDoctorReport } from "./doctor.js";
+import type { DoctorReport } from "./doctor.js";
+import { EXIT_DEGRADED, EXIT_INTEGRITY_FAILURE, EXIT_OK, EXIT_OPERATIONAL_FAILURE, EXIT_USAGE } from "./exit-codes.js";
 import { readManifest, snapshotId } from "./store/manifest.js";
 import { sessionPaths } from "./store/paths.js";
 import { listSnapshots, shortHash } from "./store/snapshot.js";
@@ -34,15 +37,9 @@ import { StoreRefusal } from "./store/types.js";
 import type { ManifestSnapshotEntry, SessionPaths, SnapshotReadQuarantined } from "./store/types.js";
 import { checkPayloadHash, checkProvenance } from "./store/verify.js";
 
-/** The only adapter the store commands read today; `--adapter` is not a flag this slice adds. */
+/** The only adapter the store commands read today; `--adapter` for `doctor` is separate. */
 const STORE_ADAPTER: AdapterId = "claude";
 
-const EXIT_OK = 0;
-const EXIT_USAGE = 2;
-/** CONCEPT §6.2: integrity failure — an unreadable transcript, or (`verify`) a hash mismatch. */
-const EXIT_INTEGRITY = 3;
-const EXIT_REFUSED = 4;
-const EXIT_INTERNAL = 5;
 
 /** Diagnostics echoed to stderr are capped; the total count is always printed in full. */
 const MAX_REPORTED_DIAGNOSTICS = 20;
@@ -105,6 +102,7 @@ function usage(): string {
     "  dcompact list --session <id> [--store <dir>] [--json]",
     "  dcompact show --session <id> --snapshot <id> [--store <dir>] [--json]",
     "  dcompact verify --session <id> [--snapshot <id>] [--store <dir>] [--provenance] [--json]",
+    "  dcompact doctor --session <id> --store <dir> [--adapter <name>] [--json]",
     "",
     "Commands:",
     "  preview   Map a transcript to normalized events, extract facts, print the pack.",
@@ -115,6 +113,7 @@ function usage(): string {
     "  show      Print one stored snapshot's envelope, payload summary, and rendered pack.",
     "  verify    Recompute a snapshot's payload hash; --provenance re-checks it against the",
     "            transcript named in its envelope.",
+    "  doctor    Report store, manifest, lock, quarantine, and adapter health for one session.",
     "",
     "Options:",
     "  --transcript <path>   Claude Code JSONL transcript to read. Required for preview/snapshot.",
@@ -126,21 +125,26 @@ function usage(): string {
     "  --session <id>        Explicit session id. Required by every command below preview;",
     "                        never guessed, never the most recent (AGENTS invariant 8).",
     "  --store <dir>         Store root. list/show/verify default to the resolved XDG/",
-    "                        DCOMPACT_HOME store when omitted; snapshot/restore/hook require it.",
+    "                        DCOMPACT_HOME store when omitted; snapshot/restore/hook/doctor",
+    "                        require it explicitly.",
     "  --snapshot <id>       A snapshot's short hash or full id, as printed by `list --json`.",
     "                        Required for show; verify checks every snapshot when omitted.",
     "  --provenance          verify only: re-read the transcript and check each fact's evidence.",
-    "  --json                list/show/verify: print the documented JSON shape instead of text.",
+    "  --adapter <name>      Adapter id for doctor's session store. Default claude.",
+    "  --json                list/show/verify/doctor: print the documented JSON shape instead of text.",
     "  --help, -h            Print this usage.",
     "",
-    "Exit codes:",
+    "Exit codes (CONCEPT §6.2):",
     `  ${EXIT_OK}  success`,
-    `  ${EXIT_USAGE}  usage error (unknown command, missing --transcript/--session, bad value)`,
-    `  ${EXIT_INTEGRITY}  integrity failure: the transcript could not be read, or verify found a`,
-    "     payload whose hash does not match its envelope (quarantined, corrupt, or tampered)",
-    `  ${EXIT_REFUSED}  the operation refuses: a required extraction input is missing, the`,
-    "     session/store/snapshot id is invalid, or the named snapshot does not exist",
-    `  ${EXIT_INTERNAL}  unexpected internal error`,
+    `  ${EXIT_USAGE}  usage error (unknown command, missing required argument, bad value)`,
+    `  ${EXIT_OPERATIONAL_FAILURE}  operational failure: a refusal (a required extraction input`,
+    "     is missing, the session/store/snapshot id is invalid, the named snapshot does not",
+    "     exist, or the store itself is unavailable), or an unexpected internal error",
+    `  ${EXIT_INTEGRITY_FAILURE}  integrity failure: the transcript could not be read, a`,
+    "     payload's hash does not match its envelope (quarantined, corrupt, or tampered), or",
+    "     provenance is broken",
+    `  ${EXIT_DEGRADED}  the command produced usable output under a degraded (CONCEPT §11.2)`,
+    "     condition, such as a broken stale lock",
     "",
     "Identity is explicit: no command scans for sessions, snapshots, or stores, and none",
     "ever selects one for you.",
@@ -249,6 +253,45 @@ function parseStoreArgs(argv: readonly string[], command: "list" | "show" | "ver
   if (session === null) throw new UsageError("missing-session", `${command} requires an explicit --session <id>; no session is ever chosen for you.`);
   if (command === "show" && snapshot === undefined) throw new UsageError("missing-snapshot", "show requires an explicit --snapshot <id>.");
   return { session, store, snapshot, provenance, json };
+}
+
+interface DoctorArgs {
+  readonly session: string;
+  readonly adapter: string;
+  readonly store: string;
+  readonly json: boolean;
+  readonly maxBytes?: number;
+}
+
+function parseDoctorArgs(argv: readonly string[]): DoctorArgs | "help" {
+  let session: string | null = null;
+  let adapter = "claude";
+  let store: string | null = null;
+  let json = false;
+  let maxBytes: number | undefined;
+  for (let index = 0; index < argv.length; index += 1) {
+    const flag = argv[index];
+    if (flag === "--help" || flag === "-h") return "help";
+    if (flag === "--json") {
+      json = true;
+      continue;
+    }
+    const value = argv[index + 1];
+    if (flag === "--session" || flag === "--adapter" || flag === "--store" || flag === "--max-bytes") {
+      if (value === undefined) throw new UsageError("missing-value", `${flag} requires a value`);
+      if (flag === "--session") session = value;
+      else if (flag === "--adapter") adapter = value;
+      else if (flag === "--store") store = value;
+      else maxBytes = nonNegativeInteger(value, flag);
+      index += 1;
+      continue;
+    }
+    throw new UsageError("unknown-argument", `Unknown argument: ${JSON.stringify(flag)}`);
+  }
+  if (session === null) throw new UsageError("missing-session", "doctor requires an explicit --session <id>; no session is ever chosen for you.");
+  if (store === null) throw new UsageError("missing-store", "doctor requires a task-owned --store <dir>; live agent state is never selected.");
+  if (store.trim() === "") throw new UsageError("empty-store", "doctor requires a non-empty --store <dir>; pass an explicit disposable path.");
+  return { session, adapter, store, json, maxBytes };
 }
 
 function nonNegativeInteger(raw: string, flag: string): number {
@@ -521,7 +564,7 @@ function runVerify(args: StoreArgs, io: CliIo): number {
       quarantined: quarantined.map(describeQuarantine),
       integrityOk,
     })}\n`);
-    return integrityOk ? EXIT_OK : EXIT_INTEGRITY;
+    return integrityOk ? EXIT_OK : EXIT_INTEGRITY_FAILURE;
   }
 
   const lines: string[] = [];
@@ -542,7 +585,7 @@ function runVerify(args: StoreArgs, io: CliIo): number {
   }
   lines.push(`integrity: ${integrityOk ? "ok" : "FAILED"}`);
   io.stdout(`${lines.join("\n")}\n`);
-  return integrityOk ? EXIT_OK : EXIT_INTEGRITY;
+  return integrityOk ? EXIT_OK : EXIT_INTEGRITY_FAILURE;
 }
 
 /** Output sinks, injected so a test can assert the exact streams without spawning a process. */
@@ -586,7 +629,7 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
     io.stderr(`Unknown command: ${JSON.stringify(command)}\n\n${usage()}\n`);
     return EXIT_USAGE;
   }
-  if (command !== "preview" && command !== "snapshot" && command !== "restore" && command !== "hook" && command !== "list" && command !== "show" && command !== "verify") {
+  if (command !== "preview" && command !== "snapshot" && command !== "restore" && command !== "hook" && command !== "list" && command !== "show" && command !== "verify" && command !== "doctor") {
     io.stderr(`Unknown command: ${JSON.stringify(command)}\n\n${usage()}\n`);
     return EXIT_USAGE;
   }
@@ -642,6 +685,25 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
       if (command === "show") return runShow(parsed, io);
       return runVerify(parsed, io);
     }
+    if (command === "doctor") {
+      const parsed = parseDoctorArgs(argv.slice(1));
+      if (parsed === "help") {
+        io.stdout(`${usage()}\n`);
+        return EXIT_OK;
+      }
+      let report: DoctorReport;
+      try {
+        report = doctor({ adapter: parsed.adapter, sessionId: parsed.session, root: parsed.store, maxBytes: parsed.maxBytes });
+      } catch (error) {
+        // `doctor()` only throws for a malformed session/adapter id or store path (pure
+        // validation, no I/O); every store-availability failure is already a field in its
+        // report. That is a usage mistake, not a reduced-mode store.
+        if (error instanceof StoreRefusal) throw new UsageError(error.code, error.message);
+        throw error;
+      }
+      io.stdout(parsed.json ? `${JSON.stringify(report, null, 2)}\n` : `${formatDoctorReport(report)}\n`);
+      return doctorExitCode(report);
+    }
     const parsed = parsePreviewArgs(argv.slice(1));
     if (parsed === "help") {
       io.stdout(`${usage()}\n`);
@@ -654,7 +716,7 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
   } catch (error) {
     if (error instanceof UsageError) {
       io.stderr(`${error.message}\n`);
-      if (error.code === "transcript-unreadable") return EXIT_INTEGRITY;
+      if (error.code === "transcript-unreadable") return EXIT_INTEGRITY_FAILURE;
       io.stderr(`\n${usage()}\n`);
       return EXIT_USAGE;
     }
@@ -663,22 +725,24 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
     // problem instead of printing a stack.
     if (error instanceof ClaudeTranscriptRefusal || error instanceof AdapterDefinitionRefusal) {
       io.stderr(`Refusing to preview: ${error.message}\n`);
-      return EXIT_REFUSED;
+      return EXIT_OPERATIONAL_FAILURE;
     }
     if (error instanceof ContinuityRefusal) {
       io.stderr(`Refusing continuity operation: ${error.message}\n`);
-      return EXIT_REFUSED;
+      // CONCEPT §6.2: an unreadable transcript is an integrity failure regardless of which
+      // command tried to read it, not a generic refusal.
+      return error.code === "transcript-unreadable" ? EXIT_INTEGRITY_FAILURE : EXIT_OPERATIONAL_FAILURE;
     }
     if (error instanceof StoreRefusal) {
       io.stderr(`Refusing store operation: ${error.message}\n`);
       // A quarantined snapshot is corruption CONCEPT §11.3 already detected on read; asking to
       // `show`/`verify` it specifically surfaces that as the same integrity failure, not a
       // generic refusal, so both codes report the same class of problem the same way.
-      return error.code === "snapshot-quarantined" ? EXIT_INTEGRITY : EXIT_REFUSED;
+      return error.code === "snapshot-quarantined" ? EXIT_INTEGRITY_FAILURE : EXIT_OPERATIONAL_FAILURE;
     }
     const reason = error instanceof Error ? (error.stack ?? error.message) : String(error);
     io.stderr(`Internal error: ${reason}\n`);
-    return EXIT_INTERNAL;
+    return EXIT_OPERATIONAL_FAILURE;
   }
 }
 

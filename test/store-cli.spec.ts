@@ -173,7 +173,7 @@ describe("show", () => {
 
     const status = run(["show", "--session", "session-1", "--snapshot", "deadbeefcafe", "--store", root], callIo(output));
 
-    expect(status).toBe(4);
+    expect(status).toBe(1);
     expect(output.stderr.join("")).toContain('No snapshot "deadbeefcafe"');
     expect(output.stderr.join("")).toContain("dcompact list --session session-1");
   });
