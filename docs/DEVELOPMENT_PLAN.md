@@ -62,7 +62,32 @@ WAVE 5  Ship
         P11b generic fallback   ── transcript-from-file, SQLite, git-only tier
         P12 Hardening           ── fault injection, fuzz, property, budgets
         P13 Release             ── packaging, docs, demo, publish
+
+TIMEBOXED PORTFOLIO VALIDATION LANE  (2026-09-14 → 2026-09-16)
+        OG-84  Post-compact fix ── model Claude compact_boundary records explicitly
+        OG-85  Continuity slice ── explicit-session checkpoint, merge, pack, reinjection
+        OG-86  Benchmark v2    ── paired medium/large repeated-compaction runs
+        OG-83  Publication     ── refresh evidence, then pass the privacy/history gate
 ```
+
+The portfolio lane is a deliberate vertical slice through P3, P6b, and P7. It does **not**
+mark those production phases complete or weaken their exit criteria. It exists to answer the
+product question before Wednesday: can a real Claude session retain useful, verifiable facts
+through repeated native compactions when dcompact checkpoints and reinjects them? The slice
+uses an explicitly named session and a documented development integration; it does not add the
+general installer, production retention policy, MCP, or another adapter.
+
+Medium and large describe sustained workload size, never pack byte budgets. The primary
+comparison uses the existing 16 KiB pack budget: medium runs four compactions over roughly
+80–120 observed facts, while large runs seven or eight over roughly 180–300. Workloads,
+rubrics, scoring code, and schedules are frozen before execution. The paired arms use the same
+Claude Haiku 4.5 model and task: native `/compact` alone versus native `/compact` plus dcompact
+checkpoint/reinjection. OG-86 owns the exact acceptance and honesty rules.
+
+The automatic 66% watermark remains OG-81. It is not smuggled into the Wednesday slice: a
+generic threshold requires trustworthy per-adapter telemetry, epoch re-arming, install wiring,
+and doctor reporting. OG-85 may prove the continuity loop with explicit checkpoint timing,
+but it must not claim automatic watermark support.
 
 **P12a is not optional and is not a wrapper.** ADR 001 establishes that the user is inside
 their coding agent when they need this, and that a bare terminal command cannot know which
@@ -85,8 +110,10 @@ Wave gates, stated as stops rather than cautions:
 
 - **After Wave 1** — if determinism cannot be demonstrated on synthetic fixtures, stop. Real
   transcripts only add noise. (P2)
-- **After Wave 2** — if the preview pack is not visibly more useful than the agent's own
-  summary, stop and rethink the fact vocabulary. This is the cheap moment for it. (P6)
+- **After Wave 2** — if the preview facts are not useful enough to justify an injected
+  continuity experiment, stop and rethink the fact vocabulary. P6a established an extraction
+  substrate; it did not establish that a one-shot preview beats native compaction. The product
+  claim is tested only after checkpoint, merge, and reinjection exist. (P6/P7; OG-85/OG-86)
 - **After Wave 4** — if adding Codex or OMP required a change to `core/`, that change is the
   framework bug, not the adapter's. Record it. (P5)
 
