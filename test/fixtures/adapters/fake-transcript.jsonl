@@ -1,0 +1,8 @@
+{"type":"session","id":"fake-session","cwd":"/fake/repo"}
+{"type":"note","text":"We must keep the fake adapter free of new dependencies."}
+{"type":"tool_call","id":"f1","name":"Write","path":"fake/notes.md"}
+{"type":"tool_result","for":"f1","ok":true}
+{"type":"tool_call","id":"f2","name":"Bash","command":"npm run check"}
+{"type":"tool_result","for":"f2","ok":false,"error":"npm error code ENOENT"}
+{"type":"tool_call","id":"f3","name":"Read","path":"fake/notes.md"}
+{"type":"tool_result","for":"f3","ok":true}

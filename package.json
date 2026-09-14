@@ -12,7 +12,8 @@
     "dcompact": "dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "adapters"
   ],
   "repository": {
     "type": "git",
