@@ -17,10 +17,12 @@
 import { readFileSync, realpathSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { parseClaudeTranscript, claudeExtractConfig, ClaudeTranscriptRefusal } from "./adapters/claude.js";
+import { readClaudeTranscript } from "./adapters/mappers.js";
+import { ClaudeTranscriptRefusal } from "./adapters/claude.js";
 import type { ClaudeDiagnostic } from "./adapters/claude.js";
+import { AdapterDefinitionRefusal } from "./adapters/registry.js";
+import type { CoverageReport } from "./adapters/coverage.js";
 import { checkpoint, restore, runHook, ContinuityRefusal } from "./continuity.js";
-import { extractPayloadWithHealth } from "./core/extract/index.js";
 import { payloadHash } from "./core/hash.js";
 import { DEFAULT_MAX_BYTES, formatDegradedStates, minimumPackBytes, renderPack } from "./core/pack.js";
 import type { DegradedState, PackOptions, Payload } from "./core/types.js";
@@ -58,6 +60,14 @@ export interface PreviewResult {
   readonly payload: Payload;
   readonly diagnostics: readonly ClaudeDiagnostic[];
   readonly degraded: readonly DegradedState[];
+  /**
+   * Tool-call coverage with the per-tool-name histogram of missed calls.
+   *
+   * Not rendered into the pack or the report: health and counters describe the run, and the
+   * report's bytes are published evidence (see `docs/demo/`). It is here for the callers that
+   * need it as a value — `doctor --json` is the intended one.
+   */
+  readonly coverage: CoverageReport;
   readonly report: string;
 }
 
@@ -228,9 +238,10 @@ function physicalLineCount(bytes: Uint8Array): number {
 }
 
 /**
- * `preview` is the whole mapping path minus process concerns: one explicit read, map, extract,
- * render. It performs no I/O besides reading the named transcript, so a test can call it
- * directly and a caller can assert the returned bytes.
+ * `preview` is the whole mapping path minus process concerns: one explicit read, map, drift
+ * check, extract, render. It performs no I/O besides reading the named transcript and the
+ * shipped adapter definition, so a test can call it directly and a caller can assert the
+ * returned bytes.
  */
 export function preview(options: PreviewOptions): PreviewResult {
   let bytes: Uint8Array;
@@ -241,15 +252,8 @@ export function preview(options: PreviewOptions): PreviewResult {
     throw new UsageError("transcript-unreadable", `Cannot read transcript ${JSON.stringify(options.transcript)}: ${reason}`);
   }
 
-  const parse = parseClaudeTranscript(bytes);
-  const config = claudeExtractConfig(parse);
-  const { payload, degraded: extractionHealth } = extractPayloadWithHealth(parse.events, config);
-  // Health is the union of parser drift and core's own degraded states, in a fixed order so the
-  // header text is deterministic. It is display metadata only: it never enters the payload.
-  const degraded: DegradedState[] = [...new Set<DegradedState>([
-    ...(parse.diagnostics.length > 0 ? (["schema-drift"] as const) : []),
-    ...extractionHealth,
-  ])].sort();
+  const read = readClaudeTranscript(bytes);
+  const { parse, payload, degraded, coverage } = read;
 
   // A budget below the floor cannot hold the mandatory header and elision notice. That is a bad
   // value on the command line, not an internal failure: refuse with the exact minimum instead of
@@ -303,7 +307,7 @@ export function preview(options: PreviewOptions): PreviewResult {
     }
   }
 
-  return { pack, payload, diagnostics: parse.diagnostics, degraded, report: `${lines.join("\n")}\n` };
+  return { pack, payload, diagnostics: parse.diagnostics, degraded, coverage, report: `${lines.join("\n")}\n` };
 }
 
 /** Output sinks, injected so a test can assert the exact streams without spawning a process. */
@@ -409,7 +413,10 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
       io.stderr(`\n${usage()}\n`);
       return EXIT_USAGE;
     }
-    if (error instanceof ClaudeTranscriptRefusal) {
+    // Both refusals are configuration a user can repair — a transcript that cannot supply a
+    // required extraction input, or an adapter definition that cannot be read — so they name the
+    // problem instead of printing a stack.
+    if (error instanceof ClaudeTranscriptRefusal || error instanceof AdapterDefinitionRefusal) {
       io.stderr(`Refusing to preview: ${error.message}\n`);
       return EXIT_REFUSED;
     }

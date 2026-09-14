@@ -85,6 +85,14 @@ printf '%s\n' '<claude-hook-json>' | node dist/cli.js hook --event session-start
 The hook fails open with `{}` on malformed input or an unavailable checkpoint. This slice is
 Claude-only and task-owned; it does not edit live Claude configuration.
 
+[`docs/demo/claude-continuity-0001.md`](docs/demo/claude-continuity-0001.md) records the whole
+loop — checkpoint at the boundary, injection at `SessionStart`, checkpoint after the compaction,
+and the merged pack — against a synthetic two-epoch fixture, pinned byte-for-byte by
+`test/continuity-demo.spec.ts`. It also records what the pack loses, because that is the part a
+demo is tempted to hide: a next action stated in prose is extracted only when it matches the
+decision-cue lexicon, `todo.state` keeps a task's text but not whether it is open or done, and
+under a reduced byte budget the todo facts are the first the renderer drops.
+
 ## What it does today, and what it does not
 
 | Capability | Status |
@@ -170,6 +178,36 @@ Determinism is the point of the project, so it is enforced rather than asserted:
 > can still contain a token, a path, or a private note that the transcript happened to contain.
 > The bundled demo transcript is synthetic.
 
+### Publishing this repository
+
+Every change is scanned before it can be published — the working tree, and the commits the change
+adds — by `scripts/privacy-scan.mjs`, which CI runs as its own `privacy` job:
+
+```sh
+node scripts/privacy-scan.mjs --json
+node scripts/privacy-scan.mjs --history origin/main..HEAD --json
+```
+
+It reports host paths, session-id-shaped UUIDs, bearer tokens, API key prefixes, email addresses,
+and the user name and host name of the machine it runs on, read at run time so the scan means
+something on the machine that wrote the content. A report names the rule, the file, and the line,
+never the matched text: a scanner that echoes what it found into a public CI log has published it.
+`--history` reads the content commits *added*, because a file deleted in a later commit is still
+readable from the repository. `test/privacy-scan.spec.ts` proves that each class is detected, that
+the report carries no matched value, and that a secret added and then deleted is still found.
+
+What this gate is not:
+
+- **A pattern scanner, not a guarantee.** It finds the shapes it knows. A path, a credential, or a
+  sentence that matches none of its rules passes, and a clean run is not evidence that a transcript
+  is safe to publish. Binary files are counted and skipped, and a file the scan cannot read fails
+  the run rather than passing quietly.
+- **Not redaction.** Secret redaction inside packs is still unimplemented (the box above and
+  CONCEPT §9); this gate protects this repository's own commits, not the packs dcompact prints.
+- **Not a broad exemption list.** Each allowlist entry is one exact literal with the reason it is
+  not a leak — test placeholders, the development sandbox's own paths — and every run reports how
+  many occurrences each entry suppressed.
+
 Related design decisions:
 [ADR 003 — facts, not transcripts](docs/adr/003-facts-not-transcripts.md) (dcompact stores
 extracted facts, never conversations) and CONCEPT §9 for the full security model.
@@ -190,8 +228,9 @@ The limitations, stated as plainly as the verdict:
    is not a long real session.
 2. **Most of its file changes are git-visible**, so its advantage over `git status` is not yet
    demonstrated at scale.
-3. **No unfinished next action is exercised** — the open-work case a post-compaction resume
-   most needs.
+3. **No unfinished next action is exercised in the preview fixture** — the open-work case a
+   post-compaction resume most needs. The continuity demo does carry an unresolved task across a
+   compaction, and shows that the pack cannot say it is unresolved.
 4. OG-85 adds an **experimental**, task-owned Claude continuity slice with explicit snapshot,
    restore, and hook commands; it is not the general install/integration gate D2.
 5. It measures whether the pack is *useful*, not whether injection improves agent outcomes. The

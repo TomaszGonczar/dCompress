@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "adapter": "generic",
+  "display_name": "Framework test adapter",
+  "last_verified_version": "0.0.1",
+  "verified_at": "2026-09-14",
+  "evidence": {
+    "config_paths": "observed:<repo>/test/fixtures/adapters/fake.json",
+    "version_probe": "observed:<repo>/test/fixtures/adapters/fake.json",
+    "hooks": "observed:<repo>/test/fixtures/adapters/fake.json",
+    "event_map": "observed:<repo>/test/fixtures/adapters/fake.json",
+    "transcript": "observed:<repo>/test/fixtures/adapters/fake-transcript.jsonl",
+    "tools": "observed:<repo>/test/fixtures/adapters/fake-transcript.jsonl",
+    "fixtures": "observed:<repo>/test/fixtures/adapters/fake-transcript.jsonl"
+  },
+  "config_paths": {
+    "user_settings": "~/.fake/settings.json",
+    "project_settings": [".fake/settings.json"],
+    "config_dir_env": null,
+    "transcript_directory": "~/.fake/transcripts"
+  },
+  "version_probe": { "command": "fake", "args": ["--version"] },
+  "hooks": [],
+  "event_map": [],
+  "transcript": {
+    "format": "jsonl",
+    "records": {
+      "conversational": ["session", "note", "tool_call", "tool_result"],
+      "non_conversational": []
+    }
+  },
+  "tools": {
+    "exact": {
+      "Write": "file.modified",
+      "Read": "file.read",
+      "Bash": "command"
+    },
+    "prefixes": []
+  },
+  "decision_cues": ["we must", "never"],
+  "fixtures": [
+    {
+      "path": "test/fixtures/adapters/fake-transcript.jsonl",
+      "sha256": "sha256:48f02b91cdecd12da68e9754d0a03d6adea48d0fb813da547ad62350d23e98fc",
+      "shape": ["record:note", "record:session", "record:tool_call", "record:tool_result"]
+    }
+  ]
+}
