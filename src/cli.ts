@@ -24,6 +24,9 @@ import { extractPayloadWithHealth } from "./core/extract/index.js";
 import { payloadHash } from "./core/hash.js";
 import { DEFAULT_MAX_BYTES, formatDegradedStates, minimumPackBytes, renderPack } from "./core/pack.js";
 import type { DegradedState, PackOptions, Payload } from "./core/types.js";
+import { doctor, doctorExitCode, formatDoctorReport } from "./doctor.js";
+import type { DoctorReport } from "./doctor.js";
+import { StoreRefusal } from "./store/types.js";
 
 const EXIT_OK = 0;
 const EXIT_USAGE = 2;
@@ -81,28 +84,39 @@ function usage(): string {
     "  dcompact snapshot --session <id> --transcript <path> --store <dir>",
     "  dcompact restore --session <id> --store <dir> [options]",
     "  dcompact hook --event precompact|session-start --store <dir>",
+    "  dcompact doctor --session <id> --store <dir> [--adapter <name>] [--json]",
     "",
     "Commands:",
     "  preview   Map a transcript to normalized events, extract facts, print the pack.",
     "  snapshot  Checkpoint one explicitly named Claude session.",
     "  restore   Merge and render checkpoints for one explicitly named session.",
     "  hook      Fail-open Claude PreCompact/SessionStart bridge over stdin/stdout.",
+    "  doctor    Report store, manifest, lock, quarantine, and adapter health for one session.",
     "",
     "Options:",
-    "  --transcript <path>   Claude Code JSONL transcript to read. Required.",
+    "  --transcript <path>   Claude Code JSONL transcript to read. Required for snapshot/preview.",
     `  --max-bytes <n>       Pack byte budget. Default ${DEFAULT_MAX_BYTES}. A value below the`,
     "                        mandatory header plus elision notice is refused with the exact",
     "                        minimum for that transcript (reported in the refusal message).",
     "  --max-facts <n>       Maximum number of facts in the pack.",
     "  --include-evidence    Append evidence line numbers to each fact.",
+    "  --adapter <name>      Adapter id for doctor's session store. Default claude.",
+    "  --json                doctor only: print the machine-readable report instead of text.",
     "  --help, -h            Print this usage.",
     "",
-    "Exit codes:",
+    "Exit codes (preview/snapshot/restore/hook):",
     `  ${EXIT_OK}  pack written to stdout`,
     `  ${EXIT_USAGE}  usage error (unknown command, missing --transcript, bad value)`,
     `  ${EXIT_TRANSCRIPT_UNREADABLE}  the transcript could not be read`,
     `  ${EXIT_REFUSED}  the transcript cannot supply a required extraction input`,
     `  ${EXIT_INTERNAL}  unexpected internal error`,
+    "",
+    "Exit codes (doctor, CONCEPT §6.2):",
+    `  ${EXIT_OK}  ok — no degraded state, no quarantine, no lock contention`,
+    `  ${EXIT_USAGE}  usage error (missing --session/--store, malformed session/adapter id)`,
+    "  1  operational failure — the store itself is unavailable (degraded: unavailable:store)",
+    "  3  integrity failure — a quarantined snapshot or unbacked (provenance-broken) facts",
+    "  4  degraded but usable — any other CONCEPT §11.2 state, or a broken stale lock",
     "",
     "Identity is explicit: this command never scans for sessions and never selects one.",
   ].join("\n");
@@ -167,6 +181,45 @@ function parseHookArgs(argv: readonly string[]): { readonly event: "precompact" 
   if (event === null) throw new UsageError("missing-event", "hook requires --event precompact|session-start");
   if (store === null) throw new UsageError("missing-store", "hook requires a task-owned --store <dir>; live agent state is never selected.");
   return { event, store };
+}
+
+interface DoctorArgs {
+  readonly session: string;
+  readonly adapter: string;
+  readonly store: string;
+  readonly json: boolean;
+  readonly maxBytes?: number;
+}
+
+function parseDoctorArgs(argv: readonly string[]): DoctorArgs | "help" {
+  let session: string | null = null;
+  let adapter = "claude";
+  let store: string | null = null;
+  let json = false;
+  let maxBytes: number | undefined;
+  for (let index = 0; index < argv.length; index += 1) {
+    const flag = argv[index];
+    if (flag === "--help" || flag === "-h") return "help";
+    if (flag === "--json") {
+      json = true;
+      continue;
+    }
+    const value = argv[index + 1];
+    if (flag === "--session" || flag === "--adapter" || flag === "--store" || flag === "--max-bytes") {
+      if (value === undefined) throw new UsageError("missing-value", `${flag} requires a value`);
+      if (flag === "--session") session = value;
+      else if (flag === "--adapter") adapter = value;
+      else if (flag === "--store") store = value;
+      else maxBytes = nonNegativeInteger(value, flag);
+      index += 1;
+      continue;
+    }
+    throw new UsageError("unknown-argument", `Unknown argument: ${JSON.stringify(flag)}`);
+  }
+  if (session === null) throw new UsageError("missing-session", "doctor requires an explicit --session <id>; no session is ever chosen for you.");
+  if (store === null) throw new UsageError("missing-store", "doctor requires a task-owned --store <dir>; live agent state is never selected.");
+  if (store.trim() === "") throw new UsageError("empty-store", "doctor requires a non-empty --store <dir>; pass an explicit disposable path.");
+  return { session, adapter, store, json, maxBytes };
 }
 
 function nonNegativeInteger(raw: string, flag: string): number {
@@ -347,7 +400,7 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
     io.stderr(`Unknown command: ${JSON.stringify(command)}\n\n${usage()}\n`);
     return EXIT_USAGE;
   }
-  if (command !== "preview" && command !== "snapshot" && command !== "restore" && command !== "hook") {
+  if (command !== "preview" && command !== "snapshot" && command !== "restore" && command !== "hook" && command !== "doctor") {
     io.stderr(`Unknown command: ${JSON.stringify(command)}\n\n${usage()}\n`);
     return EXIT_USAGE;
   }
@@ -392,6 +445,25 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
       }
       io.stdout(`${runHook(input, parsed.event, { root: parsed.store })}\n`);
       return EXIT_OK;
+    }
+    if (command === "doctor") {
+      const parsed = parseDoctorArgs(argv.slice(1));
+      if (parsed === "help") {
+        io.stdout(`${usage()}\n`);
+        return EXIT_OK;
+      }
+      let report: DoctorReport;
+      try {
+        report = doctor({ adapter: parsed.adapter, sessionId: parsed.session, root: parsed.store, maxBytes: parsed.maxBytes });
+      } catch (error) {
+        // `doctor()` only throws for a malformed session/adapter id or store path (pure
+        // validation, no I/O); every store-availability failure is already a field in its
+        // report. That is a usage mistake, not a reduced-mode store.
+        if (error instanceof StoreRefusal) throw new UsageError(error.code, error.message);
+        throw error;
+      }
+      io.stdout(parsed.json ? `${JSON.stringify(report, null, 2)}\n` : `${formatDoctorReport(report)}\n`);
+      return doctorExitCode(report);
     }
     const parsed = parsePreviewArgs(argv.slice(1));
     if (parsed === "help") {
