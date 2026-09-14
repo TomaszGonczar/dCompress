@@ -178,6 +178,79 @@ describe("Claude continuity slice", () => {
     }
   });
 
+  it("enforces the byte budget at the restore boundary: exact fit, one byte short, and the header floor", () => {
+    const root = tempRoot();
+    try {
+      checkpoint({ root, sessionId: "fixture-session-0001", transcriptPath: fixture });
+      const full = restore({ root, sessionId: "fixture-session-0001" });
+      const exact = new TextEncoder().encode(full.pack).byteLength;
+
+      // Exact fit renders the complete pack, byte-identical to the unconstrained render.
+      expect(restore({ root, sessionId: "fixture-session-0001", maxBytes: exact }).pack).toBe(full.pack);
+
+      // One byte short must drop at least one fact and say so visibly.
+      const short = restore({ root, sessionId: "fixture-session-0001", maxBytes: exact - 1 });
+      expect(new TextEncoder().encode(short.pack).byteLength).toBeLessThanOrEqual(exact - 1);
+      expect(short.pack).toContain("[dcompact] elided");
+      expect(short.pack).not.toBe(full.pack);
+
+      // Below the mandatory header-plus-notice floor, restore refuses with the exact minimum
+      // rather than emitting a malformed pack; at that reported minimum it renders successfully.
+      let minimum = Number.NaN;
+      try {
+        restore({ root, sessionId: "fixture-session-0001", maxBytes: 0 });
+      } catch (error) {
+        minimum = Number(/at least (\d+)/.exec((error as Error).message)?.[1]);
+      }
+      expect(Number.isSafeInteger(minimum)).toBe(true);
+      expect(minimum).toBeGreaterThan(0);
+      expect(() => restore({ root, sessionId: "fixture-session-0001", maxBytes: minimum - 1 })).toThrow(ContinuityRefusal);
+      expect(() => restore({ root, sessionId: "fixture-session-0001", maxBytes: minimum - 1 })).toThrow(new RegExp(`at least ${minimum}`));
+      const atFloor = restore({ root, sessionId: "fixture-session-0001", maxBytes: minimum });
+      expect(atFloor.pack).toContain("## dcompact context [dcompact:");
+      expect(new TextEncoder().encode(atFloor.pack).byteLength).toBeLessThanOrEqual(minimum);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("injects a pack into a target file idempotently and replaces a changed pack in place", () => {
+    const root = tempRoot();
+    const target = join(root, "NOTES.md");
+    try {
+      writeFileSync(target, "# Project notes\n\nSome human-authored content.\n");
+      const packA = renderPack(payload([fact(0, "alpha decision")]));
+      const packB = renderPack(payload([fact(0, "beta decision")]));
+
+      const first = injectPack(readFileSync(target, "utf8"), packA);
+      expect(first.injected).toBe(true);
+      writeFileSync(target, first.text);
+
+      // Re-injecting the identical pack is a byte-for-byte no-op: exactly one managed block.
+      const repeated = injectPack(readFileSync(target, "utf8"), packA);
+      expect(repeated.injected).toBe(false);
+      expect(repeated.text).toBe(first.text);
+      writeFileSync(target, repeated.text);
+      expect(readFileSync(target, "utf8")).toBe(first.text);
+
+      // A changed pack replaces the block in place; surrounding content is untouched.
+      const replaced = injectPack(readFileSync(target, "utf8"), packB);
+      expect(replaced.injected).toBe(true);
+      expect(replaced.text).toContain("Some human-authored content.");
+      expect(replaced.text).toContain("beta decision");
+      expect(replaced.text).not.toContain("alpha decision");
+      expect(replaced.text.match(/## dcompact context \[dcompact:/g) ?? []).toHaveLength(1);
+      writeFileSync(target, replaced.text);
+
+      // The replacement is itself stable: injecting packB again changes nothing further.
+      const stable = injectPack(readFileSync(target, "utf8"), packB);
+      expect(stable.injected).toBe(false);
+      expect(stable.text).toBe(replaced.text);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("orders checkpoints by ancestry and refuses a broken chain", () => {
     const root = tempRoot();
     const transcript = join(root, "transcript.jsonl");
