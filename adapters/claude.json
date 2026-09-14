@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "adapter": "claude",
+  "display_name": "Claude Code",
+  "last_verified_version": "2.1.238",
+  "verified_at": "2026-09-13",
+  "evidence": {
+    "config_paths": "docs:https://code.claude.com/docs/en/settings",
+    "version_probe": "docs:https://code.claude.com/docs/en/cli-reference",
+    "hooks": "docs:https://code.claude.com/docs/en/hooks",
+    "event_map": "docs:https://code.claude.com/docs/en/hooks",
+    "transcript": "observed:<user>/.claude/projects/*.jsonl",
+    "tools": "observed:<user>/.claude/projects/*.jsonl",
+    "fixtures": "observed:<repo>/test/fixtures/claude"
+  },
+  "config_paths": {
+    "user_settings": "~/.claude/settings.json",
+    "project_settings": [".claude/settings.json", ".claude/settings.local.json"],
+    "config_dir_env": "CLAUDE_CONFIG_DIR",
+    "transcript_directory": "~/.claude/projects"
+  },
+  "version_probe": { "command": "claude", "args": ["--version", "-v"] },
+  "hooks": [
+    {
+      "event": "SessionStart",
+      "matcher": "resume|compact|startup",
+      "output": "hookSpecificOutput.additionalContext",
+      "evidence": "docs:https://code.claude.com/docs/en/hooks"
+    },
+    {
+      "event": "PostCompact",
+      "matcher": "manual|auto",
+      "output": null,
+      "evidence": "docs:https://code.claude.com/docs/en/hooks"
+    }
+  ],
+  "event_map": [
+    {
+      "hook": "PreCompact",
+      "match": ["manual", "auto"],
+      "action": "checkpoint",
+      "injects": false,
+      "registered": false,
+      "evidence": "observed:<repo>/src/continuity.ts"
+    },
+    {
+      "hook": "PostCompact",
+      "match": ["manual", "auto"],
+      "action": "record-compaction-summary",
+      "injects": false,
+      "registered": true,
+      "evidence": "docs:https://code.claude.com/docs/en/hooks"
+    },
+    {
+      "hook": "SessionStart",
+      "match": ["compact", "resume"],
+      "action": "restore",
+      "injects": true,
+      "registered": true,
+      "evidence": "docs:https://code.claude.com/docs/en/hooks"
+    }
+  ],
+  "transcript": {
+    "format": "jsonl",
+    "records": {
+      "conversational": ["user", "assistant", "system"],
+      "non_conversational": [
+        "attachment",
+        "queue-operation",
+        "mode",
+        "permission-mode",
+        "last-prompt",
+        "custom-title",
+        "ai-title",
+        "file-history-snapshot",
+        "file-history-delta",
+        "atis-latch",
+        "summary",
+        "compact-boundary"
+      ]
+    }
+  },
+  "tools": {
+    "exact": {
+      "Bash": "command",
+      "Read": "file.read",
+      "Write": "file.modified",
+      "Edit": "file.modified",
+      "TaskCreate": "todo",
+      "TaskUpdate": "todo",
+      "AskUserQuestion": "ignored",
+      "ToolSearch": "ignored",
+      "Agent": "ignored",
+      "WebFetch": "ignored",
+      "ListAgents": "ignored",
+      "Artifact": "ignored",
+      "TaskList": "ignored",
+      "Skill": "ignored",
+      "ScheduleWakeup": "ignored",
+      "ExitPlanMode": "ignored"
+    },
+    "prefixes": [{ "prefix": "mcp__", "kind": "ignored" }]
+  },
+  "decision_cues": ["we will", "we must", "must", "always", "never", "don't", "do not", "instead"],
+  "fixtures": [
+    {
+      "path": "test/fixtures/claude/slice-0001/transcript.jsonl",
+      "sha256": "sha256:f561627e32ec13de19b4bf5e27bf038741a8bcf71fa0612767aae4a8d3a009f4",
+      "shape": ["record:assistant", "record:attachment", "record:queue-operation", "record:user"]
+    },
+    {
+      "path": "test/fixtures/claude/post-compact-0001/transcript.jsonl",
+      "sha256": "sha256:158b91050152cbc07d0aaa7929aa3c6a82ffbe433f0db7f27ef12faf70734189",
+      "shape": ["record:assistant", "record:system", "record:user"]
+    }
+  ]
+}

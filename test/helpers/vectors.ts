@@ -73,42 +73,20 @@ export function parseTranscript(bytes: Uint8Array): NormalizedEvent[] {
   });
 }
 
-export function fixtureNames(fixturesDirectory = resolve(process.cwd(), "test/fixtures")): string[] {
+/**
+ * The normalized-event golden vectors: every top-level fixture directory that declares
+ * `fixture.json`.
+ *
+ * The declaration is what makes a directory a vector. A fixture directory that ships something
+ * else — an adapter transcript slice with `fixture.manifest.json`, the framework's adapter
+ * definitions under `adapters/` — has no transcript/config pair to extract and must not be
+ * enumerated as one: `readFixture` would fail on it, and a vector count would be wrong.
+ */
+export function vectorFixtureNames(fixturesDirectory = resolve(process.cwd(), "test/fixtures")): string[] {
   return readdirSync(fixturesDirectory, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
+    .filter((entry) => entry.isDirectory() && existsSync(join(fixturesDirectory, entry.name, "fixture.json")))
     .map((entry) => entry.name)
     .sort();
-}
-
-/**
- * Fixture directories that are Claude Code transcript slices rather than normalized-event
- * golden vectors (`test/fixtures/claude/slice-0001`, and any future adapter layout). Those
- * vectors assert exact payload bytes and a committed hash, so a slice that ships a real
- * transcript deliberately does not join that set.
- */
-export function adapterFixtureRoots(fixturesDirectory = resolve(process.cwd(), "test/fixtures")): string[] {
-  const roots: string[] = [];
-  for (const entry of readdirSync(fixturesDirectory, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
-    const directory = join(fixturesDirectory, entry.name);
-    if (existsSync(join(directory, "fixture.manifest.json"))) {
-      roots.push(entry.name);
-      continue;
-    }
-    for (const nested of readdirSync(directory, { withFileTypes: true })) {
-      if (nested.isDirectory() && existsSync(join(directory, nested.name, "fixture.manifest.json"))) {
-        roots.push(entry.name);
-        break;
-      }
-    }
-  }
-  return roots.sort();
-}
-
-/** The normalized-event golden vectors: every fixture directory that is not an adapter slice. */
-export function vectorFixtureNames(fixturesDirectory = resolve(process.cwd(), "test/fixtures")): string[] {
-  const adapters = new Set(adapterFixtureRoots(fixturesDirectory));
-  return fixtureNames(fixturesDirectory).filter((name) => !adapters.has(name));
 }
 
 export function readFixture(name: string, fixturesDirectory = resolve(process.cwd(), "test/fixtures")): VectorFixture {

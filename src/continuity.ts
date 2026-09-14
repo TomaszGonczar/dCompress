@@ -1,10 +1,11 @@
 import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 
-import { parseClaudeTranscript, claudeExtractConfig, ClaudeTranscriptRefusal } from "./adapters/claude.js";
+import { ClaudeTranscriptRefusal } from "./adapters/claude.js";
+import type { ClaudeParseResult } from "./adapters/claude.js";
+import { readClaudeTranscript } from "./adapters/mappers.js";
 import { mergeCheckpointPayloads } from "./core/continuity.js";
 import { canonicalize } from "./core/canonical.js";
-import { extractPayloadWithHealth } from "./core/extract/index.js";
 import { payloadHash } from "./core/hash.js";
 import { DEFAULT_MAX_BYTES, minimumPackBytes, renderPack } from "./core/pack.js";
 import type { DegradedState, Envelope, PackOptions, Payload, Snapshot } from "./core/types.js";
@@ -198,7 +199,7 @@ function readTranscript(path: string): Uint8Array {
   }
 }
 
-function assertSession(parse: ReturnType<typeof parseClaudeTranscript>, sessionId: string): void {
+function assertSession(parse: ClaudeParseResult, sessionId: string): void {
   if (parse.session.sessionId === null) {
     throw new ClaudeTranscriptRefusal("missing-session-id", "the explicitly supplied transcript contains no session id");
   }
@@ -208,15 +209,10 @@ function assertSession(parse: ReturnType<typeof parseClaudeTranscript>, sessionI
 }
 
 function snapshotFrom(options: CheckpointOptions, bytes: Uint8Array, previousHash: string | null): Snapshot {
-  const parse = parseClaudeTranscript(bytes);
+  const read = readClaudeTranscript(bytes);
+  const parse = read.parse;
   assertSession(parse, options.sessionId);
-  const config = claudeExtractConfig(parse);
-  const extracted = extractPayloadWithHealth(parse.events, config);
-  const degraded: DegradedState[] = [...new Set<DegradedState>([
-    ...(parse.diagnostics.length > 0 ? ["schema-drift" as const] : []),
-    ...extracted.degraded,
-  ])].sort();
-  const hash = payloadHash(extracted.payload);
+  const hash = payloadHash(read.payload);
   ensureStoreDirectories(options.root, options.sessionId);
   const now = options.now ?? Date.now;
   const envelope: Envelope = {
@@ -233,12 +229,12 @@ function snapshotFrom(options: CheckpointOptions, bytes: Uint8Array, previousHas
     transcript_mtime: null,
     host: { os: process.platform, arch: process.arch, node: process.version },
     store: { cwd: parse.session.cwd ?? "", repo_root: null },
-    degraded,
+    degraded: [...read.degraded],
     previous_hash: previousHash,
     duration_ms: 0,
     hash,
   };
-  return { envelope, payload: extracted.payload };
+  return { envelope, payload: read.payload };
 }
 
 function objectRecord(value: unknown): Record<string, unknown> | null {

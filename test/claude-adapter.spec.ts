@@ -7,19 +7,27 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-  CLAUDE_OBSERVED_VERSION,
-  CLAUDE_TOOL_KINDS,
   ClaudeTranscriptRefusal,
   claudeExtractConfig,
   claudeToolKinds,
   parseClaudeTranscript,
 } from "../src/adapters/claude.js";
+import { claudeDefinition } from "../src/adapters/mappers.js";
 import { parsePreviewArgs, preview, run, UsageError, type CliIo } from "../src/cli.js";
 import { canonicalize } from "../src/core/canonical.js";
 import { extractPayload } from "../src/core/extract/index.js";
 import { lineHash, payloadHash } from "../src/core/hash.js";
 import { renderPack } from "../src/core/pack.js";
 import type { DegradedState, NormalizedToolEvent, PackOptions } from "../src/core/types.js";
+
+/**
+ * The shipped adapter definition, as the whole suite must see it: version, tool vocabulary, and
+ * record vocabulary are all data now, so these assertions are about `adapters/claude.json`
+ * driving the mapper rather than about constants in the mapper's source.
+ */
+const definition = claudeDefinition();
+const CLAUDE_OBSERVED_VERSION = definition.last_verified_version;
+const CLAUDE_TOOL_KINDS = definition.tools.exact;
 
 const fixtureDirectory = join(process.cwd(), "test", "fixtures", "claude", "slice-0001");
 const fixturePath = join(fixtureDirectory, "transcript.jsonl");
@@ -79,7 +87,7 @@ function pair(
 }
 
 function eventsFor(bytes: Uint8Array) {
-  return parseClaudeTranscript(bytes);
+  return parseClaudeTranscript(bytes, definition);
 }
 
 const textDecoder = new TextDecoder("utf-8");
@@ -145,7 +153,7 @@ describe("claude transcript fixture", () => {
 
   it("extracts the fixture into the declared payload", () => {
     const parse = eventsFor(fixtureBytes);
-    const payload = extractPayload(parse.events, claudeExtractConfig(parse));
+    const payload = extractPayload(parse.events, claudeExtractConfig(parse, definition));
 
     expect(payload.path_base).toBe("cwd");
     // Fact order is core's; assert the set and the anchored keys rather than inventing an order.
@@ -194,7 +202,7 @@ describe("claude transcript fixture", () => {
 
   it("keeps evidence 1-based, raw, and path-free", () => {
     const parse = eventsFor(fixtureBytes);
-    const payload = extractPayload(parse.events, claudeExtractConfig(parse));
+    const payload = extractPayload(parse.events, claudeExtractConfig(parse, definition));
     const modified = payload.facts.find((fact) => fact.kind === "file.modified" && fact.key === "src/util.ts");
 
     // The Write call (line 10) and its result (line 11), then the Edit call (line 18) and its
@@ -212,7 +220,7 @@ describe("claude transcript fixture", () => {
 
   it("backs a non-adjacent call with the exact bytes of both its physical lines", () => {
     const parse = eventsFor(fixtureBytes);
-    const payload = extractPayload(parse.events, claudeExtractConfig(parse));
+    const payload = extractPayload(parse.events, claudeExtractConfig(parse, definition));
     const lines = physicalLines(fixtureBytes);
     const failed = payload.facts.find((fact) => fact.kind === "cmd.failed");
     const raised = payload.facts.find((fact) => fact.kind === "error.raised");
@@ -235,7 +243,7 @@ describe("claude transcript fixture", () => {
 
   it("merges a written-then-edited file into one fact with both tools and both evidence lines", () => {
     const parse = eventsFor(fixtureBytes);
-    const payload = extractPayload(parse.events, claudeExtractConfig(parse));
+    const payload = extractPayload(parse.events, claudeExtractConfig(parse, definition));
     const modified = payload.facts.find((fact) => fact.kind === "file.modified" && fact.key === "src/util.ts");
 
     expect(modified?.attrs).toEqual({ edits: 2, tools: ["Edit", "Write"] });
@@ -245,7 +253,7 @@ describe("claude transcript fixture", () => {
 
   it("reports the error cycle raised and fixed with the fixing command", () => {
     const parse = eventsFor(fixtureBytes);
-    const payload = extractPayload(parse.events, claudeExtractConfig(parse));
+    const payload = extractPayload(parse.events, claudeExtractConfig(parse, definition));
     const raised = payload.facts.find((fact) => fact.kind === "error.raised");
     const fixed = payload.facts.find((fact) => fact.kind === "error.fixed");
 
@@ -256,7 +264,7 @@ describe("claude transcript fixture", () => {
 
   it("surfaces the decision cue from the user turn only", () => {
     const parse = eventsFor(fixtureBytes);
-    const payload = extractPayload(parse.events, claudeExtractConfig(parse));
+    const payload = extractPayload(parse.events, claudeExtractConfig(parse, definition));
     const decision = payload.facts.find((fact) => fact.kind === "decision.stated");
 
     expect(decision?.attrs.cue).toBe("we must");
@@ -283,7 +291,7 @@ describe("claude post-compaction fixture", () => {
     expect(parse.toolResults).toBe(2);
     expect(parse.events.filter((event) => event.type === "tool")).toHaveLength(2);
 
-    const payload = extractPayload(parse.events, claudeExtractConfig(parse));
+    const payload = extractPayload(parse.events, claudeExtractConfig(parse, definition));
     const eventText = JSON.stringify(parse.events);
     expect(eventText).not.toContain(POST_COMPACT_BOUNDARY_SENTINEL);
     expect(eventText).not.toContain(POST_COMPACT_SUMMARY_SENTINEL);
@@ -322,7 +330,7 @@ describe("claude mapper edge cases", () => {
     ]);
     const parse = eventsFor(bytes);
 
-    expect(() => claudeExtractConfig(parse)).toThrow(ClaudeTranscriptRefusal);
+    expect(() => claudeExtractConfig(parse, definition)).toThrow(ClaudeTranscriptRefusal);
     expect(parse.session.cwd).toBeNull();
   });
 
@@ -358,7 +366,7 @@ describe("claude mapper edge cases", () => {
 
     expect(parse.session).toEqual({ sessionId: "s", cwd: "/fixture/repo", version: "2.1.270" });
     expect(parse.recordCount).toBe(2);
-    expect(() => claudeExtractConfig(parse)).not.toThrow();
+    expect(() => claudeExtractConfig(parse, definition)).not.toThrow();
     expect(parse.diagnostics).toEqual([{ line: 1, code: "conversational-content-not-text", detail: "system" }]);
     expect(parse.events).toEqual([]);
   });
@@ -372,7 +380,7 @@ describe("claude mapper edge cases", () => {
     expect(parse.session).toEqual({ sessionId: "boundary-only", cwd: "/fixture/repo", version: "2.1.270" });
     expect(parse.recordCount).toBe(1);
     expect(parse.events).toEqual([]);
-    expect(() => claudeExtractConfig(parse)).not.toThrow();
+    expect(() => claudeExtractConfig(parse, definition)).not.toThrow();
     expect(JSON.stringify(parse.events)).not.toContain(POST_COMPACT_BOUNDARY_SENTINEL);
 
     const directory = mkdtempSync(join(tmpdir(), "dcompact-compact-boundary-"));
@@ -397,7 +405,7 @@ describe("claude mapper edge cases", () => {
     expect(parse.session).toEqual({ sessionId: "summary-only", cwd: "/fixture/repo", version: "2.1.270" });
     expect(parse.recordCount).toBe(1);
     expect(parse.events).toEqual([]);
-    expect(() => claudeExtractConfig(parse)).not.toThrow();
+    expect(() => claudeExtractConfig(parse, definition)).not.toThrow();
     expect(JSON.stringify(parse.events)).not.toContain(POST_COMPACT_SUMMARY_SENTINEL);
   });
 
@@ -424,7 +432,7 @@ describe("claude mapper edge cases", () => {
     // first call's data, which would invent a second call that never happened.
     expect(parse.events.filter((event) => event.type === "tool")).toHaveLength(1);
     expect(parse.toolCalls).toBe(1);
-    const parsePayload = extractPayload(parse.events, claudeExtractConfig(parse));
+    const parsePayload = extractPayload(parse.events, claudeExtractConfig(parse, definition));
     // No result was observed, so no file fact is claimed even though the call is counted.
     expect(parsePayload.facts).toEqual([]);
     expect(parsePayload.counters.source_tool_calls).toBe(1);
@@ -475,7 +483,7 @@ describe("claude mapper edge cases", () => {
       { type: "assistant", uuid: "d", parentUuid: "c", timestamp: null, cwd: "/fixture/repo", sessionId: "s", message: { role: "assistant", content: [{ type: "tool_use", id: "c3", name: "TaskCreate", input: { subject: "Half a call" }, caller: { type: "direct" } }] } },
     ]);
     const parse = eventsFor(bytes);
-    const payload = extractPayload(parse.events, claudeExtractConfig(parse));
+    const payload = extractPayload(parse.events, claudeExtractConfig(parse, definition));
 
     // The calls are seen and counted, but nothing is asserted about their effects.
     expect(payload.facts).toEqual([]);
@@ -496,7 +504,7 @@ describe("claude mapper edge cases", () => {
       { type: "assistant", uuid: "a", timestamp: null, cwd: "/fixture/repo", sessionId: "s", message: { role: "assistant", content: [] } },
       ...pair("c1", "Bash", { command: "npm run check" }, { stdout: "ok" }),
     ]);
-    const payload = extractPayload(eventsFor(bytes).events, claudeExtractConfig(eventsFor(bytes)));
+    const payload = extractPayload(eventsFor(bytes).events, claudeExtractConfig(eventsFor(bytes), definition));
 
     expect(payload.facts.map((fact) => `${fact.kind} ${fact.key}`)).toEqual(["cmd.run npm run check"]);
     expect(payload.counters.source_tool_calls).toBe(1);
@@ -508,7 +516,7 @@ describe("claude mapper edge cases", () => {
       { type: "assistant", uuid: "b", parentUuid: "a", timestamp: null, cwd: "/fixture/repo", sessionId: "s", message: { role: "assistant", content: [{ type: "tool_use", id: "c1", name: "TaskUpdate", input: { taskId: "1", status: "completed" }, caller: { type: "direct" } }] } },
     ]);
     const parse = eventsFor(bytes);
-    const payload = extractPayload(parse.events, claudeExtractConfig(parse));
+    const payload = extractPayload(parse.events, claudeExtractConfig(parse, definition));
 
     expect(parse.events.filter((event) => event.type === "todo")).toEqual([]);
     expect(payload.facts).toEqual([]);
@@ -524,7 +532,7 @@ describe("claude mapper edge cases", () => {
       { type: "assistant", uuid: "d", parentUuid: "c", timestamp: null, cwd: "/fixture/repo", sessionId: "s", message: { role: "assistant", content: [{ type: "tool_use", id: "c1", name: "Bash", input: { command: "rm -rf /" }, caller: { type: "direct" } }] } },
     ]);
     const parse = eventsFor(bytes);
-    const payload = extractPayload(parse.events, claudeExtractConfig(parse));
+    const payload = extractPayload(parse.events, claudeExtractConfig(parse, definition));
 
     expect(parse.diagnostics).toEqual([{ line: 4, code: "tool-input-shape", detail: "duplicate-call-id" }]);
     expect(parse.events.filter((event) => event.type === "tool")).toHaveLength(1);
@@ -540,10 +548,10 @@ describe("claude mapper edge cases", () => {
       ...pair("c1", "QuantumRefactor", { target: "everything" }, { content: "done" }),
     ]);
     const parse = eventsFor(bytes);
-    const payload = extractPayload(parse.events, claudeExtractConfig(parse));
+    const payload = extractPayload(parse.events, claudeExtractConfig(parse, definition));
 
     expect(parse.diagnostics).toEqual([]);
-    expect(claudeToolKinds(parse.toolNames)).toEqual({});
+    expect(claudeToolKinds(parse.toolNames, definition)).toEqual({});
     expect(payload.counters.source_tool_calls).toBe(1);
     expect(payload.counters.unmapped_tool_calls).toBe(1);
     expect(payload.counters.coverage_ppm).toBe(0);
@@ -578,7 +586,7 @@ describe("claude mapper edge cases", () => {
     }
     // A decided name is never counted as unmapped by core, and the derived map matches.
     const names = observed.map(([name]) => name);
-    expect(Object.keys(claudeToolKinds(names)).sort()).toEqual([...names].sort());
+    expect(Object.keys(claudeToolKinds(names, definition)).sort()).toEqual([...names].sort());
     // MCP names are the documented prefix rule, not table entries.
     expect(observed.some(([name]) => name.startsWith("mcp__"))).toBe(false);
     expect(CLAUDE_TOOL_KINDS["mcp__linear__linear_list_projects"]).toBeUndefined();
@@ -589,7 +597,7 @@ describe("claude mapper edge cases", () => {
   });
 
   it("ignores MCP tools by the documented prefix rule", () => {
-    const kinds = claudeToolKinds(["mcp__linear__list_projects", "mcp__whatever__tool", "Bash"]);
+    const kinds = claudeToolKinds(["mcp__linear__list_projects", "mcp__whatever__tool", "Bash"], definition);
 
     expect(kinds).toEqual({
       "mcp__linear__list_projects": "ignored",
@@ -603,7 +611,7 @@ describe("claude mapper edge cases", () => {
       { type: "assistant", uuid: "a", timestamp: null, cwd: "/fixture/repo", sessionId: "s", message: { role: "assistant", content: [] } },
       ...pair("c1", "Write", { file_path: "/outside/private/report.md", content: "x" }, { type: "create" }),
     ]);
-    const payload = extractPayload(eventsFor(bytes).events, claudeExtractConfig(eventsFor(bytes)));
+    const payload = extractPayload(eventsFor(bytes).events, claudeExtractConfig(eventsFor(bytes), definition));
     const serialized = canonicalize(payload);
 
     expect(payload.facts[0].key).toMatch(/^[0-9a-f]{12}:report\.md$/);
@@ -620,7 +628,7 @@ describe("claude mapper edge cases", () => {
       ...pair("c1", "Write", { file_path: "/fixture/repo", content: "x" }, { type: "create" }),
     ]);
     const parse = eventsFor(bytes);
-    const payload = extractPayload(parse.events, claudeExtractConfig(parse));
+    const payload = extractPayload(parse.events, claudeExtractConfig(parse, definition));
 
     expect(parse.diagnostics).toEqual([{ line: 2, code: "path-unrepresentable", detail: "scope-root" }]);
     expect(payload.facts).toEqual([]);
@@ -634,7 +642,7 @@ describe("claude mapper edge cases", () => {
       ...pair("c2", "TaskUpdate", { taskId: "1", status: "completed" }, { success: true, taskId: "1" }),
     ]);
     const parse = eventsFor(bytes);
-    const payload = extractPayload(parse.events, claudeExtractConfig(parse));
+    const payload = extractPayload(parse.events, claudeExtractConfig(parse, definition));
 
     expect(parse.diagnostics).toEqual([]);
     // Last-write-wins on `text`: the update's status replaces the create's subject.
@@ -653,7 +661,7 @@ describe("claude mapper edge cases", () => {
       ...pair("c1", "TaskCreate", { subject: "Audit mapper", description: "d" }, { task: { id: "7", subject: "Audit mapper" } }),
     ]);
     const parse = eventsFor(bytes);
-    const payload = extractPayload(parse.events, claudeExtractConfig(parse));
+    const payload = extractPayload(parse.events, claudeExtractConfig(parse, definition));
     const lines = physicalLines(bytes);
     const fact = payload.facts.find((item) => item.kind === "todo.state");
 
@@ -676,7 +684,7 @@ describe("claude mapper edge cases", () => {
       ...pair("c1", "TaskUpdate", { taskId: "3", status: "completed" }, { success: true, taskId: "3" }),
     ]);
     const parse = eventsFor(bytes);
-    const payload = extractPayload(parse.events, claudeExtractConfig(parse));
+    const payload = extractPayload(parse.events, claudeExtractConfig(parse, definition));
     const lines = physicalLines(bytes);
     const fact = payload.facts.find((item) => item.kind === "todo.state");
 
@@ -724,8 +732,8 @@ describe("determinism", () => {
   it("produces byte-identical payload and hash across repeated runs", () => {
     const first = eventsFor(fixtureBytes);
     const second = eventsFor(fixtureBytes.slice());
-    const firstPayload = extractPayload(first.events, claudeExtractConfig(first));
-    const secondPayload = extractPayload(second.events, claudeExtractConfig(second));
+    const firstPayload = extractPayload(first.events, claudeExtractConfig(first, definition));
+    const secondPayload = extractPayload(second.events, claudeExtractConfig(second, definition));
 
     expect(canonicalize(firstPayload)).toBe(canonicalize(secondPayload));
     expect(payloadHash(firstPayload)).toBe(payloadHash(secondPayload));
@@ -800,8 +808,8 @@ describe("preview CLI", () => {
   });
 
   it("stays byte-identical when health is not supplied", () => {
-    const parse = parseClaudeTranscript(fixtureBytes);
-    const payload = extractPayload(parse.events, claudeExtractConfig(parse));
+    const parse = parseClaudeTranscript(fixtureBytes, definition);
+    const payload = extractPayload(parse.events, claudeExtractConfig(parse, definition));
     const withoutHealth = renderPack(payload);
     const okHealth = renderPack(payload, { degraded: [] });
 
@@ -810,7 +818,7 @@ describe("preview CLI", () => {
     // Health is display-only: the status-free pack is the same document minus that one line.
     const stripped = okHealth.split("\n").filter((line) => line !== "Status: ok").join("\n");
     expect(stripped).toBe(withoutHealth);
-    expect(payloadHash(payload)).toBe(payloadHash(extractPayload(parse.events, claudeExtractConfig(parse))));
+    expect(payloadHash(payload)).toBe(payloadHash(extractPayload(parse.events, claudeExtractConfig(parse, definition))));
     // Neither the payload nor any of its members carries health.
     expect(Object.keys(payload)).not.toContain("status");
     expect(Object.keys(payload)).not.toContain("degraded");
@@ -819,8 +827,8 @@ describe("preview CLI", () => {
   });
 
   it("renders health from finite tokens only, never from caller text", () => {
-    const parse = parseClaudeTranscript(fixtureBytes);
-    const payload = extractPayload(parse.events, claudeExtractConfig(parse));
+    const parse = parseClaudeTranscript(fixtureBytes, definition);
+    const payload = extractPayload(parse.events, claudeExtractConfig(parse, definition));
 
     // `ok` is the absence-of-degradation token, not a state to combine.
     expect(renderPack(payload, { degraded: ["ok"] })).toContain("Status: ok");
@@ -841,8 +849,8 @@ describe("preview CLI", () => {
   });
 
   it("keeps each degraded state in its documented family", () => {
-    const parse = parseClaudeTranscript(fixtureBytes);
-    const payload = extractPayload(parse.events, claudeExtractConfig(parse));
+    const parse = parseClaudeTranscript(fixtureBytes, definition);
+    const payload = extractPayload(parse.events, claudeExtractConfig(parse, definition));
     const statusOf = (degraded: DegradedState[]): string =>
       renderPack(payload, { degraded }).split("\n").find((line) => line.startsWith("Status: ")) ?? "<missing>";
 
@@ -1122,6 +1130,11 @@ describe("packaging", () => {
   // so a naive `import.meta.url === pathToFileURL(process.argv[1])` guard makes the installed
   // command exit 0 having printed nothing. This compiles the real entry with the real build
   // config into a temp directory, links it the way npm does, and requires real pack output.
+  //
+  // The compiled CLI resolves its adapter definitions from `adapters/` beside the package root,
+  // never from the cwd (P5: where a process started must not decide which vocabulary extraction
+  // uses). A build emitted outside the package tree therefore needs that directory beside it,
+  // which is what this symlink reproduces — the same layout the published package ships.
   it("runs the compiled entry through a bin symlink without going silent", () => {
     const directory = mkdtempSync(join(tmpdir(), "dcompact-bin-"));
     try {
@@ -1130,6 +1143,7 @@ describe("packaging", () => {
         cwd: process.cwd(),
         stdio: "ignore",
       });
+      symlinkSync(join(process.cwd(), "adapters"), join(directory, "adapters"));
       const entry = join(outDir, "cli.js");
       const link = join(directory, "dcompact");
       symlinkSync(entry, link);
