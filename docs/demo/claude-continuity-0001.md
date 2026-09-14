@@ -413,8 +413,9 @@ injection epoch is the delivery ledger, and it is the reason steps 4 and 7 are e
 
 ## What this demo does not show
 
-- **Injection into a live agent.** The hook output above is what Claude Code receives; this repository
-  never installs itself, never edits live Claude configuration, and has no `install`/`uninstall`.
+- **Injection into a live agent.** The hook output above is what Claude Code receives, produced here
+  by piping hook JSON to the command directly. `install` can write these hook entries into a named
+  Claude settings file, but this walkthrough never runs it and never touches live configuration.
 - **A large or repeated-compaction session.** Two epochs, 8 tool calls, one file. Retention across
   many cycles is not measured here, and nothing in
   [`docs/benchmark/native-compaction-retention.md`](../benchmark/native-compaction-retention.md)

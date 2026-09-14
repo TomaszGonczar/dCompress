@@ -3,8 +3,8 @@
  * `dcompact` CLI — deterministic preview plus the OG-85 explicit-session continuity slice.
  *
  * `preview` reads one transcript, maps it, extracts facts, and prints the pack. The continuity
- * commands use an explicit session and task-owned store; there is no install or session
- * discovery.
+ * and store commands use an explicit session and an explicit store; `install`/`uninstall` edit
+ * one named Claude settings file inside a managed region and never discover a session.
  *
  * Identity rule (AGENTS §"Non-negotiable invariants" 8): a session is never guessed. This
  * command requires an explicit `--transcript <path>`; it does not scan `~/.claude/projects`,
