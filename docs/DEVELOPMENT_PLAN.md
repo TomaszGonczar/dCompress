@@ -78,16 +78,32 @@ uses an explicitly named session and a documented development integration; it do
 general installer, production retention policy, MCP, or another adapter.
 
 Medium and large describe sustained workload size, never pack byte budgets. The primary
-comparison uses the existing 16 KiB pack budget: medium runs four compactions over roughly
-80–120 observed facts, while large runs seven or eight over roughly 180–300. Workloads,
-rubrics, scoring code, and schedules are frozen before execution. The paired arms use the same
-Claude Haiku 4.5 model and task: native `/compact` alone versus native `/compact` plus dcompact
-checkpoint/reinjection. OG-86 owns the exact acceptance and honesty rules.
+comparison uses the existing 16 KiB pack budget. Medium is the Wednesday gate: four manually
+scheduled compactions over roughly 80–120 observed facts. Large is the staged follow-on: seven
+or eight compactions over roughly 180–300, attempted only after the medium evidence and the
+publication surface are safe. An unfinished large run may not hold the portfolio gate hostage.
+
+Workloads, rubrics, scoring code, schedules, and cost/time stop conditions are frozen before
+execution. All arms use Claude Haiku 4.5 on the same task. The design distinguishes three
+effects: native `/compact` alone; native `/compact` with its own summary deliberately
+re-surfaced at the same checkpoint (a salience control); and native `/compact` plus dcompact
+checkpoint/reinjection. Without the salience control, a dcompact win could mean only that its
+pack was newer, not that its representation preserved more. The coding work is organic; the
+compaction timing is controlled and manual, and must be described that way. OG-86 owns the
+exact acceptance and honesty rules.
 
 The automatic 66% watermark remains OG-81. It is not smuggled into the Wednesday slice: a
 generic threshold requires trustworthy per-adapter telemetry, epoch re-arming, install wiring,
-and doctor reporting. OG-85 may prove the continuity loop with explicit checkpoint timing,
-but it must not claim automatic watermark support.
+and doctor reporting. OG-85 proves the continuity loop with a task-owned Claude configuration
+and development hook integration, so the user stays inside the agent without touching live
+configuration; it must not claim automatic watermark or polished installer support.
+
+Every lane PR must scan both its diff and the reachable history it adds for real session ids,
+host paths, usernames, project identifiers, and transcript prose. Fixtures use synthetic
+records only. Because GitHub-owned pull refs retain old commits, the current private repository
+is not the publication target: after the evidence is final, OG-83 exports the sanitized HEAD
+into a fresh public repository and verifies it while logged out. Normal one-issue-per-PR review
+continues privately without making the publication rewrite harder.
 
 **P12a is not optional and is not a wrapper.** ADR 001 establishes that the user is inside
 their coding agent when they need this, and that a bare terminal command cannot know which
