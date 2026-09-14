@@ -391,10 +391,10 @@ describe("continuity demo document", () => {
     expect(demo).not.toMatch(/\.claude\/projects\/(?!<)/);
   });
 
-  it("refuses a budget below the floor with a next step, and exits 4", () => {
+  it("refuses a budget below the floor with a next step, and exits 1", () => {
     const record = rendered.get("restore-too-small");
     if (record === undefined) throw new TypeError("restore-too-small was never run");
-    expect(record.status).toBe(4);
+    expect(record.status).toBe(1);
     expect(record.stdout).toBe("");
     expect(record.stderr).toContain("Pass --max-bytes");
   });

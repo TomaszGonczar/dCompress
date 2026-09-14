@@ -56,7 +56,7 @@ node dist/cli.js restore --session "$SID" --store "$STORE" --max-bytes 200
 ```
 
 The last command is expected to refuse: it asks for a budget smaller than the header plus the elision
-notice, so it exits `4` without writing to stdout.
+notice, so it exits `1` without writing to stdout.
 
 ## The fixture
 
@@ -358,7 +358,7 @@ Refusing continuity operation: --max-bytes must be at least 203 for this restore
 ```
 <!-- demo:restore-too-small:end -->
 
-The refusal prints the floor for this payload (203 bytes) and the exact next step, and exits `4`
+The refusal prints the floor for this payload (203 bytes) and the exact next step, and exits `1`
 rather than falling back to a silent default.
 
 ## What the loop leaves in the store

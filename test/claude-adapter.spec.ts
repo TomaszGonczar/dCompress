@@ -1021,7 +1021,7 @@ describe("preview CLI", () => {
       );
 
       const result = capture(["preview", "--transcript", noCwd]);
-      expect(result.status).toBe(4);
+      expect(result.status).toBe(1);
       expect(result.stdout).toBe("");
       expect(result.stderr).toContain("Refusing to preview");
       expect(result.stderr).toContain("cwd");
