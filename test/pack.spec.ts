@@ -60,19 +60,30 @@ describe("context pack", () => {
     expect(pack.indexOf("src/new.ts")).toBeLessThan(pack.indexOf("src/old.ts"));
   });
 
-  it("does not slice a fact group for maxFacts and retains a zero-notice fit", () => {
+  it("retains ordered facts up to maxFacts and retains a zero-notice fit", () => {
     const events: NormalizedEvent[] = [
       { type: "tool", entry: 0, line: 1, rawLine: "a", timestamp: null, toolCallId: "a", toolName: "write", path: "src/a.ts", isError: false },
       { type: "tool", entry: 1, line: 2, rawLine: "b", timestamp: null, toolCallId: "b", toolName: "write", path: "src/b.ts", isError: false },
     ];
     const payload = extractPayload(events, config);
     const limited = renderPack(payload, { maxFacts: 1 });
-    expect(limited).toContain("elided 2 facts");
+    expect(limited).toContain("elided 1 fact");
+    expect(limited).toContain("src/b.ts");
     expect(limited).not.toContain("src/a.ts");
-    expect(limited).not.toContain("src/b.ts");
     const empty = extractPayload([], config);
     const complete = renderPack(empty);
     const bytes = new TextEncoder().encode(complete).byteLength;
     expect(renderPack(empty, { maxBytes: bytes })).toBe(complete);
+  });
+
+  it.each([80, 180])("retains facts from the %i-fact budget arm", (count) => {
+    const events: NormalizedEvent[] = Array.from({ length: count }, (_, entry) => ({
+      type: "tool", entry, line: entry + 1, rawLine: `line-${entry}`, timestamp: null,
+      toolCallId: String(entry), toolName: "write", path: `src/${entry}.ts`, isError: false,
+    } as NormalizedEvent));
+    const pack = renderPack(extractPayload(events, config));
+    const retained = pack.split("\n").filter((line) => line.startsWith("- **")).length;
+    expect(retained).toBeGreaterThan(0);
+    expect(retained).toBeLessThanOrEqual(count);
   });
 });

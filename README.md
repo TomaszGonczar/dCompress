@@ -10,12 +10,12 @@ agent's own transcript with deterministic rules and turns what actually happened
 touched, commands run, errors raised and fixed, decisions stated — into a bounded,
 hash-addressed fact pack that can be verified against the transcript line by line.
 
-> **Status: work in progress — deterministic core plus Claude Code transcript preview.**
-> Implemented and tested today: `dcompact preview --transcript <path>`, which maps a Claude
-> Code JSONL transcript to facts and prints a bounded pack with a payload hash. **Not
-> implemented:** any durable store, hooks, install/uninstall, restore or injection, MCP, and
-> the Codex/OMP adapters. Those are the roadmap in
-> [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md), not features of this checkout.
+> **Status: work in progress — deterministic core plus an experimental Claude Code continuity
+> slice.** Implemented and tested today: `preview`, plus explicit-session `snapshot`, `restore`,
+> and `hook` commands backed by a task-owned store. The continuity slice never scans for or
+> guesses a session and is not the general installer/integration. **Not implemented:**
+> `install`/`uninstall`, MCP, and the Codex/OMP adapters. Those remain on the roadmap in
+> [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md).
 
 ## Try it in 60 seconds
 
@@ -67,6 +67,24 @@ To run it against your own session, pass the `transcript_path` that Claude Code 
 hooks, under `~/.claude/projects/<slug>/<session>.jsonl`. The command **never** scans for a
 session or picks the most recent one: if you do not name a transcript, it refuses.
 
+The experimental continuity slice uses the same explicit identity rule and a disposable,
+task-owned store. After a Claude `PreCompact` payload is available, checkpoint and restore it:
+
+```sh
+node dist/cli.js snapshot --session <session-id> --transcript <path> --store <dir>
+node dist/cli.js restore --session <session-id> --store <dir>
+```
+
+For a development hook bridge, pipe the Claude hook JSON to the matching command:
+
+```sh
+printf '%s\n' '<claude-hook-json>' | node dist/cli.js hook --event precompact --store <dir>
+printf '%s\n' '<claude-hook-json>' | node dist/cli.js hook --event session-start --store <dir>
+```
+
+The hook fails open with `{}` on malformed input or an unavailable checkpoint. This slice is
+Claude-only and task-owned; it does not edit live Claude configuration.
+
 ## What it does today, and what it does not
 
 | Capability | Status |
@@ -78,19 +96,28 @@ session or picks the most recent one: if you do not name a transcript, it refuse
 | Deterministic payload and payload hash | **Works** — the same transcript bytes *plus the same extraction inputs* yield the same canonical payload and the same hash, on any machine |
 | Refuse rather than guess (no session scanning, no invented `cwd`) | **Works** |
 | Byte/fact-budgeted pack with an elision notice | **Works** |
-| Durable snapshot store, manifest, lock, retention, prune, pin | **Not implemented** |
-| `restore` / injection into any agent after compaction | **Not implemented** |
-| Hooks (`PreCompact`, `SessionStart`, …) | **Not implemented** |
+| Explicit-session durable checkpoint store | **Works — experimental Claude-only slice** |
+| `restore` / bounded pack for the named session | **Works — experimental Claude-only slice** |
+| Claude `PreCompact` / `SessionStart` hook bridge | **Works — task-owned development integration** |
+| Manifest, lock, retention, prune, pin | **Not implemented** |
 | `install` / `uninstall` / reversible byte-identical restore | **Not implemented** |
 | MCP server | **Not implemented** |
 | Codex, OMP, Pi, or any second adapter | **Not implemented** |
-| `verify`, `list`, `show`, `diff`, `doctor`, `init` | **Not implemented** |
+| `verify`, `show`, `diff`, `doctor`, `init` | **Not implemented** |
 | `git.state` facts for Claude | **Not implemented** — the core supports them, the Claude adapter does not emit them |
 | Secret redaction | **Not implemented** — planned for the hardening phase |
 | npm publish / `npm i -g dcompact` / `npx dcompact` | **Not available** — the package is `private: true` |
 | Windows | **Not tested** — CI covers Ubuntu and macOS only |
 
-Only `preview` is implemented. Every other command name belongs to the design documents.
+The continuity commands are intentionally narrow: they require an explicit session, transcript
+and/or store path, and support Claude only. A PreCompact starts a new injection epoch even when
+the payload hash is unchanged; repeated SessionStart(compact) delivery in that epoch is suppressed,
+while every SessionStart(resume) injects because resume is a fresh context. Restore unions degraded
+states from the whole verified chain. Facts from earlier checkpoints remain historical and are marked
+`unbacked` unless they are present in the newest checkpoint; source counters always describe the
+newest input tuple. Since checkpoints are cumulative, continuity merges same-identity numeric attrs
+with deterministic max rather than summing them across epochs. General installation and agent
+discovery belong to later phases.
 
 ## How it works
 
@@ -115,7 +142,7 @@ flowchart LR
   envelope that is not part of the artifact's identity — see
   [`docs/SCHEMA.md`](docs/SCHEMA.md) §6.1.
 - The pack orders facts by priority (decisions, then errors and their fixes, then files, then
-  commands) and drops whole groups from the bottom when over budget, with a visible notice.
+  commands), retains as many ordered facts as fit, and emits a visible elision notice.
 
 ## Determinism
 
@@ -164,7 +191,8 @@ The limitations, stated as plainly as the verdict:
    demonstrated at scale.
 3. **No unfinished next action is exercised** — the open-work case a post-compaction resume
    most needs.
-4. It claims **no** end-to-end integration and **not** gate D2: there are no hooks and no store.
+4. OG-85 adds an **experimental**, task-owned Claude continuity slice with explicit snapshot,
+   restore, and hook commands; it is not the general install/integration gate D2.
 5. It measures whether the pack is *useful*, not whether injection improves agent outcomes. The
    three-arm continuity-fidelity test is reserved for a later phase
    ([`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md) §7.1).
@@ -172,12 +200,14 @@ The limitations, stated as plainly as the verdict:
 ## Roadmap
 
 The design targets a tool that installs into an agent, snapshots automatically at compaction,
-and restores a verified pack. None of that exists in this checkout. In wave order:
+and restores a verified pack. This checkout has only the experimental explicit-session Claude
+slice; general installation and the other adapters remain future work. In wave order:
 
 1. **Wave 1 — done.** Core engine, canonicalization, hashing, 10 golden vectors.
 2. **Wave 2 — partially done.** Adapter recon is complete; the Claude thin slice (`preview`) is
    implemented and judged above. The store is next.
-3. **Wave 3.** Install/uninstall with reversible, byte-identical restore; restore and injection.
+3. **Wave 3.** The experimental Claude continuity slice is in place; general install/uninstall
+   with reversible, byte-identical restore remains next.
 4. **Wave 4.** Adapter framework, then the Codex and OMP adapters, each validated against the
    framework rather than the engine.
 5. **Wave 5.** MCP server, generic fallback tier, hardening, release.

@@ -290,6 +290,16 @@ Two facts with the same `(kind, key)` merge:
 Merging is applied repeatedly until the fact list is a fixed point. This guarantees that
 feeding the same facts in a different input order yields the same output.
 
+### 4.4 Continuity-chain merge boundary
+
+The rule above applies to one extracted fact stream. The Claude continuity slice stores
+cumulative checkpoints, so it does not re-sum aggregate attributes that were already present in an
+earlier checkpoint: for each `(kind, key)`, same-identity numeric attrs use the deterministic
+maximum across the chain. Historical facts retained only from earlier checkpoints are marked
+`unbacked`; a fact present in the newest checkpoint keeps the newest checkpoint's provenance.
+Merged facts are therefore historical, while `source_entries`, `source_tool_calls`,
+`unmapped_tool_calls`, and `coverage_ppm` are copied as one coherent tuple from the newest input.
+
 ## 5. Canonicalization rules
 
 ### 5.1 JSON encoding
