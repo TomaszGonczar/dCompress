@@ -74,3 +74,24 @@ jobs:
           fi
           echo "privacy scan range: ${range}"
           node scripts/privacy-scan.mjs --history "${range}" --json
+
+  clean-clone:
+    # Publication gate: proves the README's "Try it in 60 seconds" claim from a stranger's
+    # position rather than from a developer checkout that already has node_modules and dist.
+    # The gate script has no dependency of its own — it clones this checkout locally, then
+    # installs and builds only inside that temporary clone — so this job needs nothing installed
+    # beyond Node and git, both already on the runner image.
+    name: Clean-clone reproduction
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Run the clean-clone reproduction gate
+        run: node scripts/clean-clone-check.mjs --json
