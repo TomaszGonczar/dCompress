@@ -1,0 +1,91 @@
+{
+  "label": "continuity-0001",
+  "adapter": "claude",
+  "observedCliVersion": "2.1.270",
+  "source": "invented for OG-83 to carry two checkpoint-worthy epochs across a compaction boundary; every record is synthesized from the observed shape and carries synthetic content only",
+  "transcriptBytes": 15649,
+  "transcriptLines": 23,
+  "sanitizedSha256": "sha256:8b5d92e4a23579eac0176b923cacfe8e4b3752f351ab03fee059177f32bd6fdb",
+  "lineEnding": "LF, no trailing newline (SCHEMA §10 fixture rule)",
+  "companionTranscript": {
+    "path": "precompact.jsonl",
+    "role": "the same transcript as it stood when the first PreCompact fired: a byte-for-byte prefix of transcript.jsonl, which is what makes the two checkpoints a cumulative chain rather than two unrelated inputs",
+    "bytes": 9118,
+    "lines": 13,
+    "sanitizedSha256": "sha256:8599563c1203f2ec3834a5838657224970f5d97cea70aac6815298a259940813"
+  },
+  "omittedRecordTypes": [
+    "attachment (hook payloads, tool/agent/skill listings, token reminders)",
+    "thinking content blocks are retained as shapes only, with empty text",
+    "token usage, request ids, signatures, container/context metadata"
+  ],
+  "toolVocabulary": [
+    { "name": "Bash", "classification": "mapped", "kind": "command", "calls": 2 },
+    { "name": "Edit", "classification": "mapped", "kind": "file.modified", "calls": 2 },
+    { "name": "Read", "classification": "mapped", "kind": "file.read", "calls": 1 },
+    { "name": "TaskCreate", "classification": "mapped", "kind": "todo", "calls": 2 },
+    { "name": "TaskUpdate", "classification": "mapped", "kind": "todo", "calls": 1 }
+  ],
+  "intentionalOmissions": [
+    "no mcp__ tool call is retained",
+    "no unknown/unmapped tool call is retained",
+    "the only user instruction after the boundary (line 18) carries no decision cue, so it yields no fact: the pack's miss is deliberate and is recorded in the demo"
+  ],
+  "expected": {
+    "physicalLines": 23,
+    "conversationRecords": 22,
+    "recordsWithRecognizedBlocks": 18,
+    "toolCalls": 8,
+    "toolResults": 8,
+    "normalizedEvents": 13,
+    "parseDiagnostics": 0,
+    "degraded": [],
+    "pathBase": "cwd",
+    "sourceToolCalls": 8,
+    "unmappedToolCalls": 0,
+    "coveragePpm": 1000000,
+    "externalPathCount": 0,
+    "facts": 9,
+    "factsByKind": {
+      "decision.stated": 1,
+      "error.raised": 1,
+      "error.fixed": 1,
+      "file.modified": 1,
+      "cmd.failed": 1,
+      "cmd.run": 1,
+      "file.read": 1,
+      "todo.state": 2
+    }
+  },
+  "expectedPreCompact": {
+    "physicalLines": 13,
+    "conversationRecords": 12,
+    "recordsWithRecognizedBlocks": 11,
+    "toolCalls": 5,
+    "toolResults": 5,
+    "normalizedEvents": 8,
+    "parseDiagnostics": 0,
+    "degraded": [],
+    "pathBase": "cwd",
+    "sourceToolCalls": 5,
+    "unmappedToolCalls": 0,
+    "coveragePpm": 1000000,
+    "externalPathCount": 0,
+    "facts": 7,
+    "factsByKind": {
+      "decision.stated": 1,
+      "error.raised": 1,
+      "file.modified": 1,
+      "cmd.failed": 1,
+      "file.read": 1,
+      "todo.state": 2
+    }
+  },
+  "notes": [
+    "line 14 is the system/compact_boundary record and line 15 is the isCompactSummary follow-up; both are recognized and skipped, so neither the boundary content nor the summary prose reaches the payload",
+    "line 9 fails and line 19 succeeds on the same normalized command, which is the error/fix cycle; the fix is only visible after the boundary, so it is the fact a post-compaction pack gains",
+    "src/export.ts is edited at line 5 (epoch 1) and line 16 (epoch 2): one fact identity backed by both epochs, which is what the merged evidence lines show",
+    "the failed check raises the task at line 7 and the next action at line 11; only item:1 stays open, item:2 is completed at line 21 after the boundary",
+    "the session cwd is synthetic (/fixture/repo), so path_base is \"cwd\" with repoRoot null: the transcript proves no repository root"
+  ]
+}
