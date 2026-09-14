@@ -47,6 +47,11 @@ const GIT_FIELDS: Record<string, true> = { branch: true, diff_stat: true, dirty:
 const DIFF_STAT_FIELDS: Record<string, true> = { added: true, files: true, removed: true };
 const PLAN_FIELDS: Record<string, true> = { done: true, items: true, todos: true };
 
+/** The display form SCHEMA §2 names: the twelve hex characters `snapshotFileName` embeds. */
+export function shortHash(hash: string): string {
+  return hash.slice(7, 19);
+}
+
 /** Filename: `<created_at>-<hash12>.json`, the derivation CONCEPT §6.3 names. */
 export function snapshotFileName(envelope: Pick<Snapshot["envelope"], "created_at" | "hash">): string {
   if (!isUtcInstant(envelope.created_at)) {
@@ -55,7 +60,7 @@ export function snapshotFileName(envelope: Pick<Snapshot["envelope"], "created_a
   if (!isHash(envelope.hash)) {
     throw new StoreRefusal("invalid-snapshot", `Refusing to name a snapshot with envelope.hash ${describeValue(envelope.hash)}: sha256:<64 lowercase hex characters> is required.`);
   }
-  return `${envelope.created_at}-${envelope.hash.slice(7, 19)}.json`;
+  return `${envelope.created_at}-${shortHash(envelope.hash)}.json`;
 }
 
 /** Reject keys the v1 shape does not define; a missing field is caught by its own type check. */
