@@ -27,6 +27,7 @@ import { payloadHash } from "./core/hash.js";
 import { DEFAULT_MAX_BYTES, formatDegradedStates, minimumPackBytes, renderPack } from "./core/pack.js";
 import type { DegradedState, PackOptions, Payload } from "./core/types.js";
 import { installClaude } from "./install/apply.js";
+import { uninstallClaude } from "./install/uninstall-apply.js";
 import { InstallRefusal } from "./install/refusal.js";
 
 const EXIT_OK = 0;
@@ -86,6 +87,7 @@ function usage(): string {
     "  dcompact restore --session <id> --store <dir> [options]",
     "  dcompact hook --event precompact|session-start --store <dir>",
     "  dcompact install --agent claude --store <dir> [--settings <path>] [--dry-run]",
+    "  dcompact uninstall --agent claude --store <dir> [--settings <path>] [--dry-run]",
     "",
     "Commands:",
     "  preview   Map a transcript to normalized events, extract facts, print the pack.",
@@ -95,6 +97,8 @@ function usage(): string {
     "  install   Write dcompact's Claude hook entries into a settings file, after copying",
     "            every file it edits to a byte backup under <store>/backups/.",
     "",
+    "  uninstall Remove dcompact's Claude hook entries from a settings file, restoring",
+    "            byte-identical pre-install files or removing files dcompact created.",
     "Options:",
     "  --transcript <path>   Claude Code JSONL transcript to read. Required.",
     "  --agent <name>        Agent to install for. Only \"claude\" is supported.",
@@ -243,6 +247,42 @@ function parseInstallArgs(argv: readonly string[]): InstallArgs | "help" {
     throw new UsageError("empty-settings", "install requires a non-empty --settings <path>; omit the flag for the default Claude user settings file.");
   }
   return { agent, settingsPath: settings ?? defaultClaudeSettingsPath(), storeRoot: store, executable, dryRun };
+}
+
+function parseUninstallArgs(argv: readonly string[]): InstallArgs | "help" {
+  let agent: string | null = null;
+  let settings: string | null = null;
+  let store: string | null = null;
+  let dryRun = false;
+  for (let index = 0; index < argv.length; index += 1) {
+    const flag = argv[index];
+    if (flag === "--help" || flag === "-h") return "help";
+    if (flag === "--dry-run") {
+      dryRun = true;
+      continue;
+    }
+    const value = argv[index + 1];
+    if (flag === "--agent" || flag === "--settings" || flag === "--store") {
+      if (value === undefined) throw new UsageError("missing-value", `${flag} requires a value`);
+      if (flag === "--agent") agent = value;
+      else if (flag === "--settings") settings = value;
+      else store = value;
+      index += 1;
+      continue;
+    }
+    throw new UsageError("unknown-argument", `Unknown argument: ${JSON.stringify(flag)}`);
+  }
+  if (agent === null) throw new UsageError("missing-agent", 'uninstall requires --agent <name>; only "claude" is supported.');
+  if (agent !== "claude") {
+    throw new UsageError("unsupported-agent", `uninstall supports agent "claude" only; received ${JSON.stringify(agent)}.`);
+  }
+  if (store === null || store.trim() === "") {
+    throw new UsageError("missing-store", "uninstall requires a non-empty task-owned --store <dir>; live agent state is never selected.");
+  }
+  if (settings !== null && settings.trim() === "") {
+    throw new UsageError("empty-settings", "uninstall requires a non-empty --settings <path>; omit the flag for the default Claude user settings file.");
+  }
+  return { agent, settingsPath: settings ?? defaultClaudeSettingsPath(), storeRoot: store, dryRun };
 }
 
 export function parsePreviewArgs(argv: readonly string[]): PreviewOptions | "help" {
@@ -416,7 +456,7 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
     io.stderr(`Unknown command: ${JSON.stringify(command)}\n\n${usage()}\n`);
     return EXIT_USAGE;
   }
-  if (command !== "preview" && command !== "snapshot" && command !== "restore" && command !== "hook" && command !== "install") {
+  if (command !== "preview" && command !== "snapshot" && command !== "restore" && command !== "hook" && command !== "install" && command !== "uninstall") {
     io.stderr(`Unknown command: ${JSON.stringify(command)}\n\n${usage()}\n`);
     return EXIT_USAGE;
   }
@@ -429,6 +469,15 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
         return EXIT_OK;
       }
       io.stdout(installClaude(parsed).report);
+      return EXIT_OK;
+    }
+    if (command === "uninstall") {
+      const parsed = parseUninstallArgs(argv.slice(1));
+      if (parsed === "help") {
+        io.stdout(`${usage()}\n`);
+        return EXIT_OK;
+      }
+      io.stdout(uninstallClaude(parsed).report);
       return EXIT_OK;
     }
     if (command === "snapshot" || command === "restore") {
