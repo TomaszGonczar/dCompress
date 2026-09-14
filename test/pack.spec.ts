@@ -1,11 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { extractPayload } from "../src/core/extract/index.js";
-import { renderPack } from "../src/core/pack.js";
-import type { ExtractConfig, NormalizedEvent } from "../src/core/types.js";
+import { minimumPackBytes, renderPack } from "../src/core/pack.js";
+import type { ExtractConfig, Fact, NormalizedEvent, Payload } from "../src/core/types.js";
 
 const config: ExtractConfig = {
   adapterId: "generic", toolKinds: { write: "file.modified" }, scopeRoots: [{ root: "/repo", scope: "repo" }], cwd: "/repo", repoRoot: "/repo", pathBase: "repo", decisionCues: [],
 };
+
+function rawPayload(facts: Fact[]): Payload {
+  const byKind: Record<string, number> = {};
+  for (const item of facts) byKind[item.kind] = (byKind[item.kind] ?? 0) + 1;
+  return {
+    facts,
+    counters: { facts: facts.length, by_kind: byKind, source_entries: facts.length, source_tool_calls: 0, unmapped_tool_calls: 0, coverage_ppm: 0, external_path_count: 0 },
+    git: null,
+    plan: null,
+    path_base: "cwd",
+    version: 1,
+  };
+}
 
 describe("context pack", () => {
   it("contains deterministic marker, counters, and no controls", () => {
@@ -85,5 +98,59 @@ describe("context pack", () => {
     const retained = pack.split("\n").filter((line) => line.startsWith("- **")).length;
     expect(retained).toBeGreaterThan(0);
     expect(retained).toBeLessThanOrEqual(count);
+  });
+
+  it("drops the lowest-priority group first as the byte budget shrinks", () => {
+    const built = rawPayload([
+      { kind: "decision.stated", key: "decision", at: { entry: 0, ts: null }, attrs: { cue: "must" }, evidence: [], snippet: "keep the retry bound", unbacked: false },
+      { kind: "note", key: "note", at: { entry: 1, ts: null }, attrs: { text: "note" }, evidence: [], snippet: "a low priority note", unbacked: false },
+    ]);
+    const full = renderPack(built);
+    expect(full).toContain("a low priority note");
+    expect(full).toContain("keep the retry bound");
+    expect(full).not.toContain("elided");
+
+    // Shrink one byte at a time: the lower-priority Notes group must go before Decisions does.
+    let bytes = new TextEncoder().encode(full).byteLength;
+    let noNote = full;
+    while (noNote.includes("a low priority note")) {
+      bytes -= 1;
+      noNote = renderPack(built, { maxBytes: bytes });
+    }
+    expect(noNote).toContain("keep the retry bound");
+    expect(noNote).not.toContain("### Notes");
+    expect(noNote).toContain("elided 1 fact");
+  });
+
+  it("truncates by documented priority order, not arrival order, when maxFacts forces a cut", () => {
+    const built = rawPayload([
+      { kind: "note", key: "note", at: { entry: 0, ts: null }, attrs: { text: "note" }, evidence: [], snippet: "a low priority note", unbacked: false },
+      { kind: "cmd.run", key: "npm test", at: { entry: 1, ts: null }, attrs: { runs: 1, failed: false }, evidence: [], snippet: "ran the suite", unbacked: false },
+      { kind: "decision.stated", key: "decision", at: { entry: 2, ts: null }, attrs: { cue: "must" }, evidence: [], snippet: "keep the retry bound", unbacked: false },
+    ]);
+    // maxFacts slices the priority-ordered list before any byte fitting, so this isolates pure
+    // priority order (decisions, then commands, then notes) from the byte-driven backfill above.
+    const two = renderPack(built, { maxFacts: 2 });
+    expect(two).toContain("keep the retry bound");
+    expect(two).toContain("ran the suite");
+    expect(two).not.toContain("a low priority note");
+    expect(two).toContain("elided 1 fact");
+
+    const one = renderPack(built, { maxFacts: 1 });
+    expect(one).toContain("keep the retry bound");
+    expect(one).not.toContain("ran the suite");
+    expect(one).not.toContain("a low priority note");
+    expect(one).toContain("elided 2 facts");
+  });
+
+  it("reports degraded: budget-exceeded when the header fits but no single fact does", () => {
+    const built = rawPayload([
+      { kind: "note", key: "big", at: { entry: 0, ts: null }, attrs: {}, evidence: [], snippet: "x".repeat(4000), unbacked: false },
+    ]);
+    const floor = minimumPackBytes(built, { degraded: ["budget-exceeded"] });
+    const pack = renderPack(built, { maxBytes: floor });
+    expect(new TextEncoder().encode(pack).byteLength).toBeLessThanOrEqual(floor);
+    expect(pack).toContain("Status: degraded: budget-exceeded");
+    expect(pack).toContain("elided 1 fact");
   });
 });
