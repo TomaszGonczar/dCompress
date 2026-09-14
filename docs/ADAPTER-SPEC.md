@@ -169,6 +169,14 @@ Tool calls are nested assistant `content` blocks with `{type:"tool_use", id, nam
 caller}`; results are user `content` blocks with `{type:"tool_result", tool_use_id, content,
 is_error?}`. [observed:<user>/.claude/projects/*.jsonl]
 
+Post-compaction transcripts also contain a `system` record with
+`subtype:"compact_boundary"` and an object-valued `compactMetadata`, followed by a user-shaped
+record marked `isCompactSummary:true` (often also `isVisibleInTranscriptOnly:true`). These are
+recognized transcript shapes and skipped as summary metadata: compact-summary prose and boundary
+metadata do not become normalized events, facts, or hashed payload values. The committed
+sanitized fixture covers this pair; a malformed boundary shape remains schema drift rather than
+being guessed. [observed:<repo>/test/fixtures/claude/post-compact-0001]
+
 Call/result pairing uses `tool_use.id` ↔ `tool_result.tool_use_id`, not line adjacency; raw-byte
 line numbers and byte offsets are measured before JSON parsing. [observed:<user>/.claude/projects/*.jsonl]
 Asynchronous transcript lag may omit the newest hook-event messages. [docs:https://code.claude.com/docs/en/hooks]
