@@ -91,7 +91,8 @@ function groups(facts: readonly Fact[]): Array<{ priority: number; facts: Fact[]
 function factLine(fact: Fact, includeEvidence: boolean): string {
   const attrs = Object.keys(fact.attrs).sort().map((key) => `${markdown(key)}=${valueText(fact.attrs[key])}`).join(" ");
   const evidence = includeEvidence ? fact.evidence.map((item) => `line ${item.line}`).join(", ") : "";
-  const suffix = [attrs, markdown(fact.snippet), evidence].filter(Boolean).join(" — ");
+  const provenance = fact.unbacked ? "unbacked" : "";
+  const suffix = [attrs, markdown(fact.snippet), evidence, provenance].filter(Boolean).join(" — ");
   return `- **${markdown(fact.kind)}** \`${markdown(fact.key)}\`${suffix ? `: ${suffix}` : ""}`;
 }
 
@@ -164,15 +165,8 @@ export function renderPack(payload: Payload, options?: PackOptions): string {
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 0) throw new RangeError("maxBytes must be a non-negative integer");
   if (!Number.isSafeInteger(maxFacts) || maxFacts < 0) throw new RangeError("maxFacts must be a non-negative integer");
 
-  const allGroups = groups(payload.facts);
-  const selectedGroups: Array<{ priority: number; facts: Fact[] }> = [];
-  let selectedCount = 0;
-  for (const group of allGroups) {
-    if (selectedCount + group.facts.length > maxFacts) break;
-    selectedGroups.push(group);
-    selectedCount += group.facts.length;
-  }
-  const omittedByMaxFacts = payload.facts.length - selectedCount;
+  const orderedFacts = groups(payload.facts).flatMap((group) => group.facts);
+  const eligibleFacts = orderedFacts.slice(0, maxFacts);
   const base = header(payload, options?.degraded);
   const includeEvidence = options?.includeEvidence === true;
   const notice = (count: number): string => `> [dcompact] elided ${count} fact${count === 1 ? "" : "s"} to fit ${maxBytes} UTF-8 bytes.`;
@@ -180,19 +174,32 @@ export function renderPack(payload: Payload, options?: PackOptions): string {
   const baseResult = `${base.join("\n")}\n`;
   if (byteLength(baseResult) > maxBytes) throw new RangeError("maxBytes cannot contain the mandatory dcompact header");
 
-  let groupsToRender = selectedGroups;
-  let omittedCount = omittedByMaxFacts;
-  while (true) {
-    const body = renderGroups(groupsToRender, includeEvidence);
+  if (payload.facts.length > 0 && byteLength(mandatory(payload.facts.length)) > maxBytes) throw new RangeError("maxBytes cannot contain the mandatory dcompact header and elision notice");
+  // Select individual facts in the canonical display order. This keeps the best ordered prefix
+  // while backfilling around an unusually large fact instead of dropping its entire group.
+  const selectedFacts: Fact[] = [];
+  for (const fact of eligibleFacts) {
+    const candidate = [...selectedFacts, fact];
+    const omittedCount = payload.facts.length - candidate.length;
+    const candidateGroups = groups(candidate);
+    const body = renderGroups(candidateGroups, includeEvidence);
     const result = `${[...base, ...body, ...(omittedCount > 0 ? [notice(omittedCount)] : [])].join("\n").replace(/\n+$/, "")}\n`;
-    if (byteLength(result) <= maxBytes) return result;
-    if (omittedCount > 0 && byteLength(mandatory(omittedCount)) > maxBytes) throw new RangeError("maxBytes cannot contain the mandatory dcompact header and elision notice");
-    const last = groupsToRender.at(-1);
-    if (last === undefined) throw new RangeError("maxBytes cannot contain the mandatory dcompact header and elision notice");
-    omittedCount += last.facts.length;
-    groupsToRender = groupsToRender.slice(0, -1);
-    if (byteLength(mandatory(omittedCount)) > maxBytes) throw new RangeError("maxBytes cannot contain the mandatory dcompact header and elision notice");
+    if (byteLength(result) <= maxBytes) selectedFacts.push(fact);
   }
+  if (selectedFacts.length === 0 && eligibleFacts.length > 0 && !(options?.degraded ?? []).includes("budget-exceeded")) {
+    const degraded = [...(options?.degraded ?? []), "budget-exceeded"] as DegradedState[];
+    // A tiny caller-supplied budget may not have room for an extra Status line. Keep the
+    // truthful elision notice in that case; restore/preview already enforce the header floor.
+    if (minimumPackBytes(payload, { degraded }) <= maxBytes) {
+      return renderPack(payload, { ...options, maxBytes, degraded });
+    }
+  }
+  const omittedCount = payload.facts.length - selectedFacts.length;
+  const groupsToRender = groups(selectedFacts);
+  const body = renderGroups(groupsToRender, includeEvidence);
+  const result = `${[...base, ...body, ...(omittedCount > 0 ? [notice(omittedCount)] : [])].join("\n").replace(/\n+$/, "")}\n`;
+  if (byteLength(result) > maxBytes) throw new RangeError("maxBytes cannot contain the mandatory dcompact header and elision notice");
+  return result;
 }
 
 export default renderPack;
