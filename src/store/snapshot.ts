@@ -17,7 +17,7 @@ import { join } from "node:path";
 
 import { payloadHash } from "../core/hash.js";
 import type { Snapshot } from "../core/types.js";
-import { errnoCode, lstatOrNull, refuseSymlinkedPath, stateRefusal, writeFileAtomic } from "./fs.js";
+import { errnoCode, freeSiblingPath, refuseSymlinkedPath, stateRefusal, writeFileAtomic } from "./fs.js";
 import { manifestEntryFromSnapshot, readManifest, snapshotId, withSnapshot, writeManifest } from "./manifest.js";
 import { ensureSessionDirectories } from "./paths.js";
 import { StoreRefusal, compareText, describeValue, isDegradedList, isHash, isInteger, isRecord, isUtcInstant } from "./types.js";
@@ -194,13 +194,11 @@ function validateSnapshotShape(value: unknown): string | null {
 }
 
 function quarantineTarget(path: string): string {
-  const base = `${path}.corrupt`;
-  if (lstatOrNull(base, "quarantine file") === null) return base;
-  for (let index = 1; index < 1000; index += 1) {
-    const candidate = `${path}.corrupt.${index}`;
-    if (lstatOrNull(candidate, "quarantine file") === null) return candidate;
+  const target = freeSiblingPath(path, ".corrupt", 999, "quarantine file");
+  if (target === null) {
+    throw new StoreRefusal("quarantine-unavailable", `Refusing to quarantine ${JSON.stringify(path)}: 999 quarantine files already sit beside it. Move or delete the *.corrupt files and retry.`);
   }
-  throw new StoreRefusal("quarantine-unavailable", `Refusing to quarantine ${JSON.stringify(path)}: 999 quarantine files already sit beside it. Move or delete the *.corrupt files and retry.`);
+  return target;
 }
 
 /** Move a file that cannot be returned as usable out of the way, keeping its bytes for repair. */
