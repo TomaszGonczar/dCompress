@@ -37,3 +37,40 @@ jobs:
         run: npm run typecheck
       - name: Build
         run: npm run build
+
+  privacy:
+    # Publication gate. It runs on one runner because it reads text and git objects, not the
+    # platform, and it installs nothing: the scanner is dependency-free so a leak blocks the merge
+    # even when the dependency job is broken.
+    name: Privacy scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # History mode reads the commits this change adds; a shallow clone has none of them.
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - name: Scan the working tree
+        run: node scripts/privacy-scan.mjs --json
+      - name: Scan the history this change adds
+        env:
+          PULL_REQUEST_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          set -eu
+          # A pull request is scanned from its base commit; a push from the commit it replaced. A
+          # first push has no usable parent, so the tip commit is scanned on its own.
+          if [ -n "${PULL_REQUEST_BASE}" ]; then
+            range="${PULL_REQUEST_BASE}..HEAD"
+          elif [ -n "${PUSH_BEFORE}" ] && git cat-file -e "${PUSH_BEFORE}^{commit}" 2>/dev/null; then
+            range="${PUSH_BEFORE}..HEAD"
+          else
+            range="HEAD^..HEAD"
+          fi
+          echo "privacy scan range: ${range}"
+          node scripts/privacy-scan.mjs --history "${range}" --json
