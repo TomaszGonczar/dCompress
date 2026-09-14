@@ -15,6 +15,8 @@
  */
 
 import { readFileSync, realpathSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { parseClaudeTranscript, claudeExtractConfig, ClaudeTranscriptRefusal } from "./adapters/claude.js";
@@ -24,6 +26,8 @@ import { extractPayloadWithHealth } from "./core/extract/index.js";
 import { payloadHash } from "./core/hash.js";
 import { DEFAULT_MAX_BYTES, formatDegradedStates, minimumPackBytes, renderPack } from "./core/pack.js";
 import type { DegradedState, PackOptions, Payload } from "./core/types.js";
+import { installClaude } from "./install/apply.js";
+import { InstallRefusal } from "./install/refusal.js";
 
 const EXIT_OK = 0;
 const EXIT_USAGE = 2;
@@ -81,15 +85,24 @@ function usage(): string {
     "  dcompact snapshot --session <id> --transcript <path> --store <dir>",
     "  dcompact restore --session <id> --store <dir> [options]",
     "  dcompact hook --event precompact|session-start --store <dir>",
+    "  dcompact install --agent claude --store <dir> [--settings <path>] [--dry-run]",
     "",
     "Commands:",
     "  preview   Map a transcript to normalized events, extract facts, print the pack.",
     "  snapshot  Checkpoint one explicitly named Claude session.",
     "  restore   Merge and render checkpoints for one explicitly named session.",
     "  hook      Fail-open Claude PreCompact/SessionStart bridge over stdin/stdout.",
+    "  install   Write dcompact's Claude hook entries into a settings file, after copying",
+    "            every file it edits to a byte backup under <store>/backups/.",
     "",
     "Options:",
     "  --transcript <path>   Claude Code JSONL transcript to read. Required.",
+    "  --agent <name>        Agent to install for. Only \"claude\" is supported.",
+    "  --settings <path>     Claude settings file to edit. Default: $CLAUDE_CONFIG_DIR/settings.json,",
+    "                        else ~/.claude/settings.json.",
+    "  --store <dir>         dcompact state root; backups are written under <dir>/backups/.",
+    "  --command <exec>      Executable Claude runs for a hook. Default: dcompact.",
+    "  --dry-run             Print the install plan and write nothing.",
     `  --max-bytes <n>       Pack byte budget. Default ${DEFAULT_MAX_BYTES}. A value below the`,
     "                        mandatory header plus elision notice is refused with the exact",
     "                        minimum for that transcript (reported in the refusal message).",
@@ -98,10 +111,10 @@ function usage(): string {
     "  --help, -h            Print this usage.",
     "",
     "Exit codes:",
-    `  ${EXIT_OK}  pack written to stdout`,
-    `  ${EXIT_USAGE}  usage error (unknown command, missing --transcript, bad value)`,
+    `  ${EXIT_OK}  the command succeeded`,
+    `  ${EXIT_USAGE}  usage error (unknown command, missing or bad argument)`,
     `  ${EXIT_TRANSCRIPT_UNREADABLE}  the transcript could not be read`,
-    `  ${EXIT_REFUSED}  the transcript cannot supply a required extraction input`,
+    `  ${EXIT_REFUSED}  refused: the input or the target configuration cannot be used safely`,
     `  ${EXIT_INTERNAL}  unexpected internal error`,
     "",
     "Identity is explicit: this command never scans for sessions and never selects one.",
@@ -174,6 +187,62 @@ function nonNegativeInteger(raw: string, flag: string): number {
     throw new UsageError("invalid-number", `${flag} requires a non-negative integer, received: ${JSON.stringify(raw)}`);
   }
   return Number(raw);
+}
+
+interface InstallArgs {
+  readonly agent: "claude";
+  readonly settingsPath: string;
+  readonly storeRoot: string;
+  readonly executable?: string;
+  readonly dryRun: boolean;
+}
+
+/**
+ * Claude's user settings file. `CLAUDE_CONFIG_DIR` relocates the whole Claude data directory
+ * including settings (ADAPTER-SPEC §2), so it is honoured rather than assumed absent.
+ */
+function defaultClaudeSettingsPath(): string {
+  const configured = process.env.CLAUDE_CONFIG_DIR;
+  const configDir = configured !== undefined && configured.trim() !== "" ? configured : join(homedir(), ".claude");
+  return join(configDir, "settings.json");
+}
+
+function parseInstallArgs(argv: readonly string[]): InstallArgs | "help" {
+  let agent: string | null = null;
+  let settings: string | null = null;
+  let store: string | null = null;
+  let executable: string | undefined;
+  let dryRun = false;
+  for (let index = 0; index < argv.length; index += 1) {
+    const flag = argv[index];
+    if (flag === "--help" || flag === "-h") return "help";
+    if (flag === "--dry-run") {
+      dryRun = true;
+      continue;
+    }
+    const value = argv[index + 1];
+    if (flag === "--agent" || flag === "--settings" || flag === "--store" || flag === "--command") {
+      if (value === undefined) throw new UsageError("missing-value", `${flag} requires a value`);
+      if (flag === "--agent") agent = value;
+      else if (flag === "--settings") settings = value;
+      else if (flag === "--store") store = value;
+      else executable = value;
+      index += 1;
+      continue;
+    }
+    throw new UsageError("unknown-argument", `Unknown argument: ${JSON.stringify(flag)}`);
+  }
+  if (agent === null) throw new UsageError("missing-agent", 'install requires --agent <name>; only "claude" is supported.');
+  if (agent !== "claude") {
+    throw new UsageError("unsupported-agent", `install supports agent "claude" only; received ${JSON.stringify(agent)}.`);
+  }
+  if (store === null || store.trim() === "") {
+    throw new UsageError("missing-store", "install requires a non-empty task-owned --store <dir>; live agent state is never selected.");
+  }
+  if (settings !== null && settings.trim() === "") {
+    throw new UsageError("empty-settings", "install requires a non-empty --settings <path>; omit the flag for the default Claude user settings file.");
+  }
+  return { agent, settingsPath: settings ?? defaultClaudeSettingsPath(), storeRoot: store, executable, dryRun };
 }
 
 export function parsePreviewArgs(argv: readonly string[]): PreviewOptions | "help" {
@@ -347,12 +416,21 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
     io.stderr(`Unknown command: ${JSON.stringify(command)}\n\n${usage()}\n`);
     return EXIT_USAGE;
   }
-  if (command !== "preview" && command !== "snapshot" && command !== "restore" && command !== "hook") {
+  if (command !== "preview" && command !== "snapshot" && command !== "restore" && command !== "hook" && command !== "install") {
     io.stderr(`Unknown command: ${JSON.stringify(command)}\n\n${usage()}\n`);
     return EXIT_USAGE;
   }
 
   try {
+    if (command === "install") {
+      const parsed = parseInstallArgs(argv.slice(1));
+      if (parsed === "help") {
+        io.stdout(`${usage()}\n`);
+        return EXIT_OK;
+      }
+      io.stdout(installClaude(parsed).report);
+      return EXIT_OK;
+    }
     if (command === "snapshot" || command === "restore") {
       const parsed = parseContinuityArgs(argv.slice(1), command);
       if (parsed === "help") {
@@ -415,6 +493,10 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
     }
     if (error instanceof ContinuityRefusal) {
       io.stderr(`Refusing continuity operation: ${error.message}\n`);
+      return EXIT_REFUSED;
+    }
+    if (error instanceof InstallRefusal) {
+      io.stderr(`Refusing install: ${error.message}\n`);
       return EXIT_REFUSED;
     }
     const reason = error instanceof Error ? (error.stack ?? error.message) : String(error);
