@@ -1,0 +1,26 @@
+{
+  "series": "OG86-medium-v1",
+  "phases": 4,
+  "manualCompactions": 4,
+  "sequencePerPhase": [
+    "send frozen phase prompt to source session",
+    "run npm test and verify phase acceptance",
+    "invoke native /compact once",
+    "wait for PostCompact capture",
+    "explicitly resume source so treatment is delivered",
+    "fork without a probe, then explicitly resume fork with tools disabled",
+    "record neutral recall response and verify source transcript hash is unchanged"
+  ],
+  "probe": "Without using tools or external files, return one JSON object describing the current objective, files and symbols involved, requirements, decisions, negative constraints, errors with causes and fixes, commands and test outcomes, unresolved items, and the next action. State uncertainty instead of guessing.",
+  "continuation": "Continue with the single highest-priority unfinished item. Preserve prior constraints, implement it, and run the relevant tests. Do not inspect conversation history, benchmark files, or session stores.",
+  "invalidation": [
+    "any automatic or unscheduled compaction",
+    "model id differs from claude-haiku-4-5-20251001",
+    "phase acceptance test fails",
+    "treatment is absent or late",
+    "source transcript changes during score-only fork",
+    "raw artifact access by a probe or continuation process",
+    "cost, time, or turn cap is exceeded",
+    "public privacy scan fails"
+  ]
+}

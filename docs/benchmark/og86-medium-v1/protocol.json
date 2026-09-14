@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "series": "OG86-medium-v1",
+  "preregistrationCommit": null,
+  "workloadCommit": null,
+  "dcompactBaseCommit": "9ebd0a1130198d2d4aa85cd38cbea4e42844ea6d",
+  "stage": "medium",
+  "samplePerArm": 1,
+  "arms": {
+    "A": "native compact only",
+    "B": "native compact plus exact native summary resurfaced on the next explicit resume",
+    "C": "native compact plus dcompact checkpoint and pack injected on the next explicit resume"
+  },
+  "model": {
+    "requested": "claude-haiku-4-5-20251001",
+    "ordinaryAssistantTurnMustMatch": true,
+    "internalCompactionSummarizer": "unproven unless session evidence exposes it"
+  },
+  "runtime": {
+    "claudeCode": "2.1.270",
+    "node": "26.7.0",
+    "os": "macOS 27.0",
+    "pricingSource": "Claude CLI total_cost_usd field from the same process output"
+  },
+  "workload": { "kind": "synthetic repository with organic agent execution", "atoms": 100 },
+  "packBudgetBytes": 16384,
+  "nativeSummaryBudgetBytes": 16384,
+  "salienceConfoundRatio": 2,
+  "caps": {
+    "stage0Usd": 0.25,
+    "perScoredArmUsd": 0.35,
+    "mediumSeriesUsd": 1.2,
+    "perScoredArmMinutes": 60,
+    "mediumSeriesMinutes": 210,
+    "assistantTurnsPerArm": 48
+  },
+  "privacy": {
+    "rawSessions": "private-only",
+    "rawHookEvents": "private-only",
+    "sessionIds": "private-only",
+    "publicArtifacts": "sanitized and recomputable only"
+  },
+  "freezeRule": "Any post-score change to workload, prompts, atoms, scorer, schedule, hooks, model, budgets, or validity rules creates a new series.",
+  "armOrderDerivation": "sort A, B, C by sha256(OG86-medium-v1|preregistrationCommit|arm)",
+  "stage0Design": "one untreated compacted organic source with three pre-treatment forks; scored arms remain independent source sessions",
+  "largeStage": "not authorized until the complete medium result is valid and publication margin remains"
+}

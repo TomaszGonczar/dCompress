@@ -1,0 +1,2734 @@
+[
+  {
+    "id": "P1-FS-01",
+    "phase": 1,
+    "category": "file_symbol",
+    "responseField": "files_symbols",
+    "canonical": "src/parser.js defines parseReservation",
+    "accepted": [
+      [
+        "src/parser.js defines parseReservation"
+      ],
+      [
+        "parser.js parseReservation"
+      ]
+    ],
+    "partial": [
+      "src/parser.js",
+      "defines",
+      "parseReservation"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:file_symbol:1"
+    }
+  },
+  {
+    "id": "P1-FS-02",
+    "phase": 1,
+    "category": "file_symbol",
+    "responseField": "files_symbols",
+    "canonical": "src/ledger.js defines addReservation",
+    "accepted": [
+      [
+        "src/ledger.js defines addReservation"
+      ],
+      [
+        "ledger.js addReservation"
+      ]
+    ],
+    "partial": [
+      "src/ledger.js",
+      "defines",
+      "addReservation"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:file_symbol:2"
+    }
+  },
+  {
+    "id": "P1-FS-03",
+    "phase": 1,
+    "category": "file_symbol",
+    "responseField": "files_symbols",
+    "canonical": "test/phase1.test.js covers the seeded defects",
+    "accepted": [
+      [
+        "test/phase1.test.js covers the seeded defects"
+      ],
+      [
+        "phase1.test.js seeded defects"
+      ]
+    ],
+    "partial": [
+      "test/phase1.test.js",
+      "covers",
+      "seeded"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:file_symbol:3"
+    }
+  },
+  {
+    "id": "P1-FS-04",
+    "phase": 1,
+    "category": "file_symbol",
+    "responseField": "files_symbols",
+    "canonical": "reservation records contain id guest cents and status",
+    "accepted": [
+      [
+        "reservation records contain id guest cents and status"
+      ],
+      [
+        "id guest cents status"
+      ]
+    ],
+    "partial": [
+      "reservation",
+      "records",
+      "contain"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:file_symbol:4"
+    }
+  },
+  {
+    "id": "P1-FS-05",
+    "phase": 1,
+    "category": "file_symbol",
+    "responseField": "files_symbols",
+    "canonical": "ledger.records preserves reservation history",
+    "accepted": [
+      [
+        "ledger.records preserves reservation history"
+      ],
+      [
+        "ledger records history"
+      ]
+    ],
+    "partial": [
+      "ledger.records",
+      "preserves",
+      "reservation"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:file_symbol:5"
+    }
+  },
+  {
+    "id": "P1-RQ-01",
+    "phase": 1,
+    "category": "requirement",
+    "responseField": "requirements",
+    "canonical": "decimal prices parse to exact integer cents",
+    "accepted": [
+      [
+        "decimal prices parse to exact integer cents"
+      ],
+      [
+        "exact integer cents"
+      ]
+    ],
+    "partial": [
+      "decimal",
+      "prices",
+      "parse"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:requirement:1"
+    }
+  },
+  {
+    "id": "P1-RQ-02",
+    "phase": 1,
+    "category": "requirement",
+    "responseField": "requirements",
+    "canonical": "duplicate reservation ids are rejected before mutation",
+    "accepted": [
+      [
+        "duplicate reservation ids are rejected before mutation"
+      ],
+      [
+        "duplicate reservation rejected"
+      ]
+    ],
+    "partial": [
+      "duplicate",
+      "reservation",
+      "rejected"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:requirement:2"
+    }
+  },
+  {
+    "id": "P1-RQ-03",
+    "phase": 1,
+    "category": "requirement",
+    "responseField": "requirements",
+    "canonical": "the serialized reservation JSON shape stays unchanged",
+    "accepted": [
+      [
+        "the serialized reservation JSON shape stays unchanged"
+      ],
+      [
+        "JSON record shape unchanged"
+      ]
+    ],
+    "partial": [
+      "serialized",
+      "reservation",
+      "shape"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:requirement:3"
+    }
+  },
+  {
+    "id": "P1-NC-01",
+    "phase": 1,
+    "category": "negative_constraint",
+    "responseField": "negative_constraints",
+    "canonical": "preserve parseReservation and addReservation signatures",
+    "accepted": [
+      [
+        "preserve parseReservation and addReservation signatures"
+      ],
+      [
+        "preserve exported signatures"
+      ]
+    ],
+    "partial": [
+      "preserve",
+      "parseReservation",
+      "addReservation"
+    ],
+    "contradictions": [
+      "changed parseReservation and addReservation signatures"
+    ],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:negative_constraint:1"
+    }
+  },
+  {
+    "id": "P1-NC-02",
+    "phase": 1,
+    "category": "negative_constraint",
+    "responseField": "negative_constraints",
+    "canonical": "add no dependency for the parser repair",
+    "accepted": [
+      [
+        "add no dependency for the parser repair"
+      ],
+      [
+        "no dependency"
+      ]
+    ],
+    "partial": [
+      "dependency",
+      "parser",
+      "repair"
+    ],
+    "contradictions": [
+      "added a parser dependency"
+    ],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:negative_constraint:2"
+    }
+  },
+  {
+    "id": "P1-NC-03",
+    "phase": 1,
+    "category": "negative_constraint",
+    "responseField": "negative_constraints",
+    "canonical": "do not rewrite existing ledger history",
+    "accepted": [
+      [
+        "do not rewrite existing ledger history"
+      ],
+      [
+        "no history rewrite"
+      ]
+    ],
+    "partial": [
+      "rewrite",
+      "existing",
+      "ledger"
+    ],
+    "contradictions": [
+      "chose to rewrite existing ledger history"
+    ],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:negative_constraint:3"
+    }
+  },
+  {
+    "id": "P1-NC-04",
+    "phase": 1,
+    "category": "negative_constraint",
+    "responseField": "negative_constraints",
+    "canonical": "choose decimal-string parsing instead of floating-point multiplication",
+    "accepted": [
+      [
+        "choose decimal-string parsing instead of floating-point multiplication"
+      ],
+      [
+        "reject floating point multiplication"
+      ]
+    ],
+    "partial": [
+      "choose",
+      "decimal-string",
+      "parsing"
+    ],
+    "contradictions": [
+      "kept floating-point multiplication"
+    ],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:negative_constraint:4"
+    }
+  },
+  {
+    "id": "P1-LK-01",
+    "phase": 1,
+    "category": "linkage",
+    "responseField": "errors.cause",
+    "canonical": "10.10 exposed unsafe floating-point cent conversion",
+    "accepted": [
+      [
+        "10.10 exposed unsafe floating-point cent conversion"
+      ],
+      [
+        "floating point caused cent conversion failure"
+      ]
+    ],
+    "partial": [
+      "10.10",
+      "exposed",
+      "unsafe"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:linkage:1"
+    }
+  },
+  {
+    "id": "P1-LK-02",
+    "phase": 1,
+    "category": "linkage",
+    "responseField": "errors.fix",
+    "canonical": "parsing decimal digits directly fixed exact cents",
+    "accepted": [
+      [
+        "parsing decimal digits directly fixed exact cents"
+      ],
+      [
+        "direct digit parsing fixed cents"
+      ]
+    ],
+    "partial": [
+      "parsing",
+      "decimal",
+      "digits"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:linkage:2"
+    }
+  },
+  {
+    "id": "P1-LK-03",
+    "phase": 1,
+    "category": "linkage",
+    "responseField": "errors.cause",
+    "canonical": "duplicate ids overwrote an existing ledger row",
+    "accepted": [
+      [
+        "duplicate ids overwrote an existing ledger row"
+      ],
+      [
+        "duplicate overwrite caused history mutation"
+      ]
+    ],
+    "partial": [
+      "duplicate",
+      "overwrote",
+      "existing"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:linkage:3"
+    }
+  },
+  {
+    "id": "P1-LK-04",
+    "phase": 1,
+    "category": "linkage",
+    "responseField": "errors.fix",
+    "canonical": "throwing before mutation fixed duplicate handling",
+    "accepted": [
+      [
+        "throwing before mutation fixed duplicate handling"
+      ],
+      [
+        "throw before mutation fixed duplicate"
+      ]
+    ],
+    "partial": [
+      "throwing",
+      "before",
+      "mutation"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:linkage:4"
+    }
+  },
+  {
+    "id": "P1-CT-01",
+    "phase": 1,
+    "category": "command_test",
+    "responseField": "commands_tests",
+    "canonical": "the initial npm test run exposed two seeded failures",
+    "accepted": [
+      [
+        "the initial npm test run exposed two seeded failures"
+      ],
+      [
+        "initial npm test two failures"
+      ]
+    ],
+    "partial": [
+      "initial",
+      "exposed",
+      "seeded"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:command_test:1"
+    }
+  },
+  {
+    "id": "P1-CT-02",
+    "phase": 1,
+    "category": "command_test",
+    "responseField": "commands_tests",
+    "canonical": "the final npm test run passed the phase-one tests",
+    "accepted": [
+      [
+        "the final npm test run passed the phase-one tests"
+      ],
+      [
+        "final npm test passed"
+      ]
+    ],
+    "partial": [
+      "final",
+      "passed",
+      "phase-one"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:command_test:2"
+    }
+  },
+  {
+    "id": "P1-CT-03",
+    "phase": 1,
+    "category": "command_test",
+    "responseField": "commands_tests",
+    "canonical": "the exact JSON fixture remained byte-for-byte unchanged",
+    "accepted": [
+      [
+        "the exact JSON fixture remained byte-for-byte unchanged"
+      ],
+      [
+        "JSON fixture unchanged"
+      ]
+    ],
+    "partial": [
+      "exact",
+      "fixture",
+      "remained"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:command_test:3"
+    }
+  },
+  {
+    "id": "P1-CT-04",
+    "phase": 1,
+    "category": "command_test",
+    "responseField": "commands_tests",
+    "canonical": "the decimal and duplicate regression tests both passed",
+    "accepted": [
+      [
+        "the decimal and duplicate regression tests both passed"
+      ],
+      [
+        "decimal duplicate tests passed"
+      ]
+    ],
+    "partial": [
+      "decimal",
+      "duplicate",
+      "regression"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:command_test:4"
+    }
+  },
+  {
+    "id": "P1-UN-01",
+    "phase": 1,
+    "category": "unresolved",
+    "responseField": "unresolved",
+    "canonical": "idempotent replay remains future work after phase one",
+    "accepted": [
+      [
+        "idempotent replay remains future work after phase one"
+      ],
+      [
+        "replay remains"
+      ]
+    ],
+    "partial": [
+      "idempotent",
+      "replay",
+      "remains"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:unresolved:1"
+    }
+  },
+  {
+    "id": "P1-UN-02",
+    "phase": 1,
+    "category": "unresolved",
+    "responseField": "unresolved",
+    "canonical": "cancellation revenue remains future work after phase one",
+    "accepted": [
+      [
+        "cancellation revenue remains future work after phase one"
+      ],
+      [
+        "cancellation remains"
+      ]
+    ],
+    "partial": [
+      "cancellation",
+      "revenue",
+      "remains"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:unresolved:2"
+    }
+  },
+  {
+    "id": "P1-UN-03",
+    "phase": 1,
+    "category": "unresolved",
+    "responseField": "unresolved",
+    "canonical": "dry-run import remains future work after phase one",
+    "accepted": [
+      [
+        "dry-run import remains future work after phase one"
+      ],
+      [
+        "dry run remains"
+      ]
+    ],
+    "partial": [
+      "dry-run",
+      "import",
+      "remains"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:unresolved:3"
+    }
+  },
+  {
+    "id": "P1-PV-01",
+    "phase": 1,
+    "category": "provenance",
+    "responseField": "provenance",
+    "canonical": "the decimal regression is evidenced by phase1.test.js",
+    "accepted": [
+      [
+        "the decimal regression is evidenced by phase1.test.js"
+      ],
+      [
+        "phase1.test.js decimal"
+      ]
+    ],
+    "partial": [
+      "decimal",
+      "regression",
+      "evidenced"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:provenance:1"
+    }
+  },
+  {
+    "id": "P1-PV-02",
+    "phase": 1,
+    "category": "provenance",
+    "responseField": "provenance",
+    "canonical": "the duplicate regression is evidenced by the unchanged ledger.records assertion",
+    "accepted": [
+      [
+        "the duplicate regression is evidenced by the unchanged ledger.records assertion"
+      ],
+      [
+        "ledger records assertion"
+      ]
+    ],
+    "partial": [
+      "duplicate",
+      "regression",
+      "evidenced"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 1,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-1:provenance:2"
+    }
+  },
+  {
+    "id": "P2-FS-01",
+    "phase": 2,
+    "category": "file_symbol",
+    "responseField": "files_symbols",
+    "canonical": "src/replay.js defines replay",
+    "accepted": [
+      [
+        "src/replay.js defines replay"
+      ],
+      [
+        "replay.js replay"
+      ]
+    ],
+    "partial": [
+      "src/replay.js",
+      "defines",
+      "replay"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:file_symbol:1"
+    }
+  },
+  {
+    "id": "P2-FS-02",
+    "phase": 2,
+    "category": "file_symbol",
+    "responseField": "files_symbols",
+    "canonical": "src/ledger.js participates in replay idempotence",
+    "accepted": [
+      [
+        "src/ledger.js participates in replay idempotence"
+      ],
+      [
+        "ledger.js replay idempotence"
+      ]
+    ],
+    "partial": [
+      "src/ledger.js",
+      "participates",
+      "replay"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:file_symbol:2"
+    }
+  },
+  {
+    "id": "P2-FS-03",
+    "phase": 2,
+    "category": "file_symbol",
+    "responseField": "files_symbols",
+    "canonical": "the replay tests compare one pass with two passes",
+    "accepted": [
+      [
+        "the replay tests compare one pass with two passes"
+      ],
+      [
+        "replay one pass two passes"
+      ]
+    ],
+    "partial": [
+      "replay",
+      "tests",
+      "compare"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:file_symbol:3"
+    }
+  },
+  {
+    "id": "P2-FS-04",
+    "phase": 2,
+    "category": "file_symbol",
+    "responseField": "files_symbols",
+    "canonical": "event identity prevents duplicate replay application",
+    "accepted": [
+      [
+        "event identity prevents duplicate replay application"
+      ],
+      [
+        "event identity duplicate application"
+      ]
+    ],
+    "partial": [
+      "event",
+      "identity",
+      "prevents"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:file_symbol:4"
+    }
+  },
+  {
+    "id": "P2-FS-05",
+    "phase": 2,
+    "category": "file_symbol",
+    "responseField": "files_symbols",
+    "canonical": "first-seen reservation order stays stable",
+    "accepted": [
+      [
+        "first-seen reservation order stays stable"
+      ],
+      [
+        "first seen order stable"
+      ]
+    ],
+    "partial": [
+      "first-seen",
+      "reservation",
+      "order"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:file_symbol:5"
+    }
+  },
+  {
+    "id": "P2-RQ-01",
+    "phase": 2,
+    "category": "requirement",
+    "responseField": "requirements",
+    "canonical": "replaying twice equals replaying once",
+    "accepted": [
+      [
+        "replaying twice equals replaying once"
+      ],
+      [
+        "replay twice equals once"
+      ]
+    ],
+    "partial": [
+      "replaying",
+      "twice",
+      "equals"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:requirement:1"
+    }
+  },
+  {
+    "id": "P2-RQ-02",
+    "phase": 2,
+    "category": "requirement",
+    "responseField": "requirements",
+    "canonical": "replay preserves stable first-seen insertion order",
+    "accepted": [
+      [
+        "replay preserves stable first-seen insertion order"
+      ],
+      [
+        "stable insertion order"
+      ]
+    ],
+    "partial": [
+      "replay",
+      "preserves",
+      "stable"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:requirement:2"
+    }
+  },
+  {
+    "id": "P2-RQ-03",
+    "phase": 2,
+    "category": "requirement",
+    "responseField": "requirements",
+    "canonical": "the public record shape remains unchanged during replay",
+    "accepted": [
+      [
+        "the public record shape remains unchanged during replay"
+      ],
+      [
+        "record shape unchanged replay"
+      ]
+    ],
+    "partial": [
+      "public",
+      "record",
+      "shape"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:requirement:3"
+    }
+  },
+  {
+    "id": "P2-NC-01",
+    "phase": 2,
+    "category": "negative_constraint",
+    "responseField": "negative_constraints",
+    "canonical": "reject a process-global replay cache",
+    "accepted": [
+      [
+        "reject a process-global replay cache"
+      ],
+      [
+        "no process global cache"
+      ]
+    ],
+    "partial": [
+      "reject",
+      "process-global",
+      "replay"
+    ],
+    "contradictions": [
+      "added a process-global replay cache"
+    ],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:negative_constraint:1"
+    }
+  },
+  {
+    "id": "P2-NC-02",
+    "phase": 2,
+    "category": "negative_constraint",
+    "responseField": "negative_constraints",
+    "canonical": "add no runtime dependency for replay",
+    "accepted": [
+      [
+        "add no runtime dependency for replay"
+      ],
+      [
+        "no runtime dependency"
+      ]
+    ],
+    "partial": [
+      "runtime",
+      "dependency",
+      "replay"
+    ],
+    "contradictions": [
+      "added a runtime dependency for replay"
+    ],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:negative_constraint:2"
+    }
+  },
+  {
+    "id": "P2-NC-03",
+    "phase": 2,
+    "category": "negative_constraint",
+    "responseField": "negative_constraints",
+    "canonical": "keep replay state local to the ledger operation",
+    "accepted": [
+      [
+        "keep replay state local to the ledger operation"
+      ],
+      [
+        "local replay state"
+      ]
+    ],
+    "partial": [
+      "replay",
+      "state",
+      "local"
+    ],
+    "contradictions": [
+      "stored replay state globally"
+    ],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:negative_constraint:3"
+    }
+  },
+  {
+    "id": "P2-NC-04",
+    "phase": 2,
+    "category": "negative_constraint",
+    "responseField": "negative_constraints",
+    "canonical": "preserve the phase-one parser and duplicate fixes",
+    "accepted": [
+      [
+        "preserve the phase-one parser and duplicate fixes"
+      ],
+      [
+        "preserve parser duplicate fixes"
+      ]
+    ],
+    "partial": [
+      "preserve",
+      "phase-one",
+      "parser"
+    ],
+    "contradictions": [
+      "reverted the parser and duplicate fixes"
+    ],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:negative_constraint:4"
+    }
+  },
+  {
+    "id": "P2-LK-01",
+    "phase": 2,
+    "category": "linkage",
+    "responseField": "errors.cause",
+    "canonical": "reapplying reservation events caused duplicate-id failures",
+    "accepted": [
+      [
+        "reapplying reservation events caused duplicate-id failures"
+      ],
+      [
+        "reapplying events caused duplicate failures"
+      ]
+    ],
+    "partial": [
+      "reapplying",
+      "reservation",
+      "events"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:linkage:1"
+    }
+  },
+  {
+    "id": "P2-LK-02",
+    "phase": 2,
+    "category": "linkage",
+    "responseField": "errors.fix",
+    "canonical": "tracking applied event identity made replay idempotent",
+    "accepted": [
+      [
+        "tracking applied event identity made replay idempotent"
+      ],
+      [
+        "event identity made replay idempotent"
+      ]
+    ],
+    "partial": [
+      "tracking",
+      "applied",
+      "event"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:linkage:2"
+    }
+  },
+  {
+    "id": "P2-LK-03",
+    "phase": 2,
+    "category": "linkage",
+    "responseField": "errors.cause",
+    "canonical": "rebuilding through unordered aggregation threatened insertion order",
+    "accepted": [
+      [
+        "rebuilding through unordered aggregation threatened insertion order"
+      ],
+      [
+        "unordered aggregation threatened order"
+      ]
+    ],
+    "partial": [
+      "rebuilding",
+      "through",
+      "unordered"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:linkage:3"
+    }
+  },
+  {
+    "id": "P2-LK-04",
+    "phase": 2,
+    "category": "linkage",
+    "responseField": "errors.fix",
+    "canonical": "first-seen ordered traversal preserved deterministic ordering",
+    "accepted": [
+      [
+        "first-seen ordered traversal preserved deterministic ordering"
+      ],
+      [
+        "ordered traversal preserved ordering"
+      ]
+    ],
+    "partial": [
+      "first-seen",
+      "ordered",
+      "traversal"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:linkage:4"
+    }
+  },
+  {
+    "id": "P2-CT-01",
+    "phase": 2,
+    "category": "command_test",
+    "responseField": "commands_tests",
+    "canonical": "npm test exercised replay idempotence",
+    "accepted": [
+      [
+        "npm test exercised replay idempotence"
+      ],
+      [
+        "npm test replay idempotence"
+      ]
+    ],
+    "partial": [
+      "exercised",
+      "replay",
+      "idempotence"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:command_test:1"
+    }
+  },
+  {
+    "id": "P2-CT-02",
+    "phase": 2,
+    "category": "command_test",
+    "responseField": "commands_tests",
+    "canonical": "the replay-twice equality assertion passed",
+    "accepted": [
+      [
+        "the replay-twice equality assertion passed"
+      ],
+      [
+        "replay twice assertion passed"
+      ]
+    ],
+    "partial": [
+      "replay-twice",
+      "equality",
+      "assertion"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:command_test:2"
+    }
+  },
+  {
+    "id": "P2-CT-03",
+    "phase": 2,
+    "category": "command_test",
+    "responseField": "commands_tests",
+    "canonical": "the stable ordering assertion passed",
+    "accepted": [
+      [
+        "the stable ordering assertion passed"
+      ],
+      [
+        "ordering assertion passed"
+      ]
+    ],
+    "partial": [
+      "stable",
+      "ordering",
+      "assertion"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:command_test:3"
+    }
+  },
+  {
+    "id": "P2-CT-04",
+    "phase": 2,
+    "category": "command_test",
+    "responseField": "commands_tests",
+    "canonical": "all earlier phase tests remained green",
+    "accepted": [
+      [
+        "all earlier phase tests remained green"
+      ],
+      [
+        "earlier tests remained green"
+      ]
+    ],
+    "partial": [
+      "earlier",
+      "phase",
+      "tests"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:command_test:4"
+    }
+  },
+  {
+    "id": "P2-UN-01",
+    "phase": 2,
+    "category": "unresolved",
+    "responseField": "unresolved",
+    "canonical": "tombstone compaction policy remains unresolved",
+    "accepted": [
+      [
+        "tombstone compaction policy remains unresolved"
+      ],
+      [
+        "tombstone policy unresolved"
+      ]
+    ],
+    "partial": [
+      "tombstone",
+      "compaction",
+      "policy"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:unresolved:1"
+    }
+  },
+  {
+    "id": "P2-UN-02",
+    "phase": 2,
+    "category": "unresolved",
+    "responseField": "unresolved",
+    "canonical": "cancellation revenue remains the next diagnosed defect",
+    "accepted": [
+      [
+        "cancellation revenue remains the next diagnosed defect"
+      ],
+      [
+        "cancellation revenue next"
+      ]
+    ],
+    "partial": [
+      "cancellation",
+      "revenue",
+      "remains"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:unresolved:2"
+    }
+  },
+  {
+    "id": "P2-UN-03",
+    "phase": 2,
+    "category": "unresolved",
+    "responseField": "unresolved",
+    "canonical": "batch import dry-run remains unimplemented",
+    "accepted": [
+      [
+        "batch import dry-run remains unimplemented"
+      ],
+      [
+        "dry run unimplemented"
+      ]
+    ],
+    "partial": [
+      "batch",
+      "import",
+      "dry-run"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:unresolved:3"
+    }
+  },
+  {
+    "id": "P2-PV-01",
+    "phase": 2,
+    "category": "provenance",
+    "responseField": "provenance",
+    "canonical": "replay idempotence is backed by its one-pass versus two-pass test",
+    "accepted": [
+      [
+        "replay idempotence is backed by its one-pass versus two-pass test"
+      ],
+      [
+        "one pass versus two pass test"
+      ]
+    ],
+    "partial": [
+      "replay",
+      "idempotence",
+      "backed"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:provenance:1"
+    }
+  },
+  {
+    "id": "P2-PV-02",
+    "phase": 2,
+    "category": "provenance",
+    "responseField": "provenance",
+    "canonical": "stable order is backed by the first-seen ordering test",
+    "accepted": [
+      [
+        "stable order is backed by the first-seen ordering test"
+      ],
+      [
+        "first seen ordering test"
+      ]
+    ],
+    "partial": [
+      "stable",
+      "order",
+      "backed"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 2,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-2:provenance:2"
+    }
+  },
+  {
+    "id": "P3-FS-01",
+    "phase": 3,
+    "category": "file_symbol",
+    "responseField": "files_symbols",
+    "canonical": "src/ledger.js defines cancelReservation",
+    "accepted": [
+      [
+        "src/ledger.js defines cancelReservation"
+      ],
+      [
+        "ledger.js cancelReservation"
+      ]
+    ],
+    "partial": [
+      "src/ledger.js",
+      "defines",
+      "cancelReservation"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:file_symbol:1"
+    }
+  },
+  {
+    "id": "P3-FS-02",
+    "phase": 3,
+    "category": "file_symbol",
+    "responseField": "files_symbols",
+    "canonical": "src/report.js defines activeRevenue",
+    "accepted": [
+      [
+        "src/report.js defines activeRevenue"
+      ],
+      [
+        "report.js activeRevenue"
+      ]
+    ],
+    "partial": [
+      "src/report.js",
+      "defines",
+      "activeRevenue"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:file_symbol:2"
+    }
+  },
+  {
+    "id": "P3-FS-03",
+    "phase": 3,
+    "category": "file_symbol",
+    "responseField": "files_symbols",
+    "canonical": "src/report.js defines report",
+    "accepted": [
+      [
+        "src/report.js defines report"
+      ],
+      [
+        "report.js report"
+      ]
+    ],
+    "partial": [
+      "src/report.js",
+      "defines",
+      "report"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:file_symbol:3"
+    }
+  },
+  {
+    "id": "P3-FS-04",
+    "phase": 3,
+    "category": "file_symbol",
+    "responseField": "files_symbols",
+    "canonical": "cancellation tests span ledger and report behavior",
+    "accepted": [
+      [
+        "cancellation tests span ledger and report behavior"
+      ],
+      [
+        "cancellation tests ledger report"
+      ]
+    ],
+    "partial": [
+      "cancellation",
+      "tests",
+      "ledger"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:file_symbol:4"
+    }
+  },
+  {
+    "id": "P3-FS-05",
+    "phase": 3,
+    "category": "file_symbol",
+    "responseField": "files_symbols",
+    "canonical": "append-only records retain reservation and cancellation history",
+    "accepted": [
+      [
+        "append-only records retain reservation and cancellation history"
+      ],
+      [
+        "append only records cancellation history"
+      ]
+    ],
+    "partial": [
+      "append-only",
+      "records",
+      "retain"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:file_symbol:5"
+    }
+  },
+  {
+    "id": "P3-RQ-01",
+    "phase": 3,
+    "category": "requirement",
+    "responseField": "requirements",
+    "canonical": "active revenue excludes cancelled reservations",
+    "accepted": [
+      [
+        "active revenue excludes cancelled reservations"
+      ],
+      [
+        "revenue excludes cancelled"
+      ]
+    ],
+    "partial": [
+      "active",
+      "revenue",
+      "excludes"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:requirement:1"
+    }
+  },
+  {
+    "id": "P3-RQ-02",
+    "phase": 3,
+    "category": "requirement",
+    "responseField": "requirements",
+    "canonical": "cancellation preserves append-only history",
+    "accepted": [
+      [
+        "cancellation preserves append-only history"
+      ],
+      [
+        "cancellation append only"
+      ]
+    ],
+    "partial": [
+      "cancellation",
+      "preserves",
+      "append-only"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:requirement:2"
+    }
+  },
+  {
+    "id": "P3-RQ-03",
+    "phase": 3,
+    "category": "requirement",
+    "responseField": "requirements",
+    "canonical": "integer cents and serialized record shape remain unchanged",
+    "accepted": [
+      [
+        "integer cents and serialized record shape remain unchanged"
+      ],
+      [
+        "integer cents record shape unchanged"
+      ]
+    ],
+    "partial": [
+      "integer",
+      "cents",
+      "serialized"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:requirement:3"
+    }
+  },
+  {
+    "id": "P3-NC-01",
+    "phase": 3,
+    "category": "negative_constraint",
+    "responseField": "negative_constraints",
+    "canonical": "do not delete cancelled records",
+    "accepted": [
+      [
+        "do not delete cancelled records"
+      ],
+      [
+        "do not delete records"
+      ]
+    ],
+    "partial": [
+      "delete",
+      "cancelled",
+      "records"
+    ],
+    "contradictions": [
+      "deleted cancelled records"
+    ],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:negative_constraint:1"
+    }
+  },
+  {
+    "id": "P3-NC-02",
+    "phase": 3,
+    "category": "negative_constraint",
+    "responseField": "negative_constraints",
+    "canonical": "do not rewrite stored reservation records",
+    "accepted": [
+      [
+        "do not rewrite stored reservation records"
+      ],
+      [
+        "do not rewrite stored records"
+      ]
+    ],
+    "partial": [
+      "rewrite",
+      "stored",
+      "reservation"
+    ],
+    "contradictions": [
+      "rewrote stored reservation records"
+    ],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:negative_constraint:2"
+    }
+  },
+  {
+    "id": "P3-NC-03",
+    "phase": 3,
+    "category": "negative_constraint",
+    "responseField": "negative_constraints",
+    "canonical": "preserve exported report and ledger signatures",
+    "accepted": [
+      [
+        "preserve exported report and ledger signatures"
+      ],
+      [
+        "preserve report ledger signatures"
+      ]
+    ],
+    "partial": [
+      "preserve",
+      "exported",
+      "report"
+    ],
+    "contradictions": [
+      "changed exported report and ledger signatures"
+    ],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:negative_constraint:3"
+    }
+  },
+  {
+    "id": "P3-NC-04",
+    "phase": 3,
+    "category": "negative_constraint",
+    "responseField": "negative_constraints",
+    "canonical": "reject history mutation as the cancellation repair",
+    "accepted": [
+      [
+        "reject history mutation as the cancellation repair"
+      ],
+      [
+        "reject history mutation"
+      ]
+    ],
+    "partial": [
+      "reject",
+      "history",
+      "mutation"
+    ],
+    "contradictions": [
+      "used history mutation as the cancellation repair"
+    ],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:negative_constraint:4"
+    }
+  },
+  {
+    "id": "P3-LK-01",
+    "phase": 3,
+    "category": "linkage",
+    "responseField": "errors.cause",
+    "canonical": "activeRevenue summed superseded and cancelled rows",
+    "accepted": [
+      [
+        "activeRevenue summed superseded and cancelled rows"
+      ],
+      [
+        "activeRevenue counted cancelled rows"
+      ]
+    ],
+    "partial": [
+      "activeRevenue",
+      "summed",
+      "superseded"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:linkage:1"
+    }
+  },
+  {
+    "id": "P3-LK-02",
+    "phase": 3,
+    "category": "linkage",
+    "responseField": "errors.fix",
+    "canonical": "the duplicated historical amount caused inflated revenue",
+    "accepted": [
+      [
+        "the duplicated historical amount caused inflated revenue"
+      ],
+      [
+        "historical amount inflated revenue"
+      ]
+    ],
+    "partial": [
+      "duplicated",
+      "historical",
+      "amount"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:linkage:2"
+    }
+  },
+  {
+    "id": "P3-LK-03",
+    "phase": 3,
+    "category": "linkage",
+    "responseField": "errors.cause",
+    "canonical": "deriving current state by reservation id fixed report totals",
+    "accepted": [
+      [
+        "deriving current state by reservation id fixed report totals"
+      ],
+      [
+        "derive current state fixed totals"
+      ]
+    ],
+    "partial": [
+      "deriving",
+      "current",
+      "state"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:linkage:3"
+    }
+  },
+  {
+    "id": "P3-LK-04",
+    "phase": 3,
+    "category": "linkage",
+    "responseField": "errors.fix",
+    "canonical": "cancellation and report regression tests verified the fix",
+    "accepted": [
+      [
+        "cancellation and report regression tests verified the fix"
+      ],
+      [
+        "cancellation report tests verified fix"
+      ]
+    ],
+    "partial": [
+      "cancellation",
+      "report",
+      "regression"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:linkage:4"
+    }
+  },
+  {
+    "id": "P3-CT-01",
+    "phase": 3,
+    "category": "command_test",
+    "responseField": "commands_tests",
+    "canonical": "the seeded cancellation report test failed before repair",
+    "accepted": [
+      [
+        "the seeded cancellation report test failed before repair"
+      ],
+      [
+        "cancellation test failed before"
+      ]
+    ],
+    "partial": [
+      "seeded",
+      "cancellation",
+      "report"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:command_test:1"
+    }
+  },
+  {
+    "id": "P3-CT-02",
+    "phase": 3,
+    "category": "command_test",
+    "responseField": "commands_tests",
+    "canonical": "npm test passed after the cancellation repair",
+    "accepted": [
+      [
+        "npm test passed after the cancellation repair"
+      ],
+      [
+        "npm test passed cancellation"
+      ]
+    ],
+    "partial": [
+      "passed",
+      "after",
+      "cancellation"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:command_test:2"
+    }
+  },
+  {
+    "id": "P3-CT-03",
+    "phase": 3,
+    "category": "command_test",
+    "responseField": "commands_tests",
+    "canonical": "the append-only history assertion passed",
+    "accepted": [
+      [
+        "the append-only history assertion passed"
+      ],
+      [
+        "append only assertion passed"
+      ]
+    ],
+    "partial": [
+      "append-only",
+      "history",
+      "assertion"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:command_test:3"
+    }
+  },
+  {
+    "id": "P3-CT-04",
+    "phase": 3,
+    "category": "command_test",
+    "responseField": "commands_tests",
+    "canonical": "the stored fixture bytes stayed unchanged",
+    "accepted": [
+      [
+        "the stored fixture bytes stayed unchanged"
+      ],
+      [
+        "stored fixture bytes unchanged"
+      ]
+    ],
+    "partial": [
+      "stored",
+      "fixture",
+      "bytes"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:command_test:4"
+    }
+  },
+  {
+    "id": "P3-UN-01",
+    "phase": 3,
+    "category": "unresolved",
+    "responseField": "unresolved",
+    "canonical": "tombstone compaction policy is still unresolved",
+    "accepted": [
+      [
+        "tombstone compaction policy is still unresolved"
+      ],
+      [
+        "tombstone policy still unresolved"
+      ]
+    ],
+    "partial": [
+      "tombstone",
+      "compaction",
+      "policy"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:unresolved:1"
+    }
+  },
+  {
+    "id": "P3-UN-02",
+    "phase": 3,
+    "category": "unresolved",
+    "responseField": "unresolved",
+    "canonical": "dry-run batch import is the next feature",
+    "accepted": [
+      [
+        "dry-run batch import is the next feature"
+      ],
+      [
+        "dry run next feature"
+      ]
+    ],
+    "partial": [
+      "dry-run",
+      "batch",
+      "import"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:unresolved:2"
+    }
+  },
+  {
+    "id": "P3-UN-03",
+    "phase": 3,
+    "category": "unresolved",
+    "responseField": "unresolved",
+    "canonical": "atomic mixed-validity import is not yet the active task",
+    "accepted": [
+      [
+        "atomic mixed-validity import is not yet the active task"
+      ],
+      [
+        "atomic import not yet active"
+      ]
+    ],
+    "partial": [
+      "atomic",
+      "mixed-validity",
+      "import"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:unresolved:3"
+    }
+  },
+  {
+    "id": "P3-PV-01",
+    "phase": 3,
+    "category": "provenance",
+    "responseField": "provenance",
+    "canonical": "the revenue fix is evidenced by cancellation report tests",
+    "accepted": [
+      [
+        "the revenue fix is evidenced by cancellation report tests"
+      ],
+      [
+        "cancellation report tests"
+      ]
+    ],
+    "partial": [
+      "revenue",
+      "evidenced",
+      "cancellation"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:provenance:1"
+    }
+  },
+  {
+    "id": "P3-PV-02",
+    "phase": 3,
+    "category": "provenance",
+    "responseField": "provenance",
+    "canonical": "append-only behavior is evidenced by preserved record-history assertions",
+    "accepted": [
+      [
+        "append-only behavior is evidenced by preserved record-history assertions"
+      ],
+      [
+        "record history assertions"
+      ]
+    ],
+    "partial": [
+      "append-only",
+      "behavior",
+      "evidenced"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 3,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-3:provenance:2"
+    }
+  },
+  {
+    "id": "P4-FS-01",
+    "phase": 4,
+    "category": "file_symbol",
+    "responseField": "files_symbols",
+    "canonical": "src/import.js defines importBatch",
+    "accepted": [
+      [
+        "src/import.js defines importBatch"
+      ],
+      [
+        "import.js importBatch"
+      ]
+    ],
+    "partial": [
+      "src/import.js",
+      "defines",
+      "importBatch"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:file_symbol:1"
+    }
+  },
+  {
+    "id": "P4-FS-02",
+    "phase": 4,
+    "category": "file_symbol",
+    "responseField": "files_symbols",
+    "canonical": "src/cli.js preserves the public CLI arguments",
+    "accepted": [
+      [
+        "src/cli.js preserves the public CLI arguments"
+      ],
+      [
+        "cli.js public arguments"
+      ]
+    ],
+    "partial": [
+      "src/cli.js",
+      "preserves",
+      "public"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:file_symbol:2"
+    }
+  },
+  {
+    "id": "P4-FS-03",
+    "phase": 4,
+    "category": "file_symbol",
+    "responseField": "files_symbols",
+    "canonical": "batch import tests cover dry-run and invalid input",
+    "accepted": [
+      [
+        "batch import tests cover dry-run and invalid input"
+      ],
+      [
+        "batch import dry run invalid tests"
+      ]
+    ],
+    "partial": [
+      "batch",
+      "import",
+      "tests"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:file_symbol:3"
+    }
+  },
+  {
+    "id": "P4-FS-04",
+    "phase": 4,
+    "category": "file_symbol",
+    "responseField": "files_symbols",
+    "canonical": "parseReservation validates each import line",
+    "accepted": [
+      [
+        "parseReservation validates each import line"
+      ],
+      [
+        "parseReservation validates line"
+      ]
+    ],
+    "partial": [
+      "parseReservation",
+      "validates",
+      "import"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:file_symbol:4"
+    }
+  },
+  {
+    "id": "P4-FS-05",
+    "phase": 4,
+    "category": "file_symbol",
+    "responseField": "files_symbols",
+    "canonical": "the ledger is the mutation boundary for importBatch",
+    "accepted": [
+      [
+        "the ledger is the mutation boundary for importBatch"
+      ],
+      [
+        "ledger mutation boundary"
+      ]
+    ],
+    "partial": [
+      "ledger",
+      "mutation",
+      "boundary"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:file_symbol:5"
+    }
+  },
+  {
+    "id": "P4-RQ-01",
+    "phase": 4,
+    "category": "requirement",
+    "responseField": "requirements",
+    "canonical": "dry-run validates every line without mutating the ledger",
+    "accepted": [
+      [
+        "dry-run validates every line without mutating the ledger"
+      ],
+      [
+        "dry run no mutation"
+      ]
+    ],
+    "partial": [
+      "dry-run",
+      "validates",
+      "every"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:requirement:1"
+    }
+  },
+  {
+    "id": "P4-RQ-02",
+    "phase": 4,
+    "category": "requirement",
+    "responseField": "requirements",
+    "canonical": "invalid batch input reports the source line number",
+    "accepted": [
+      [
+        "invalid batch input reports the source line number"
+      ],
+      [
+        "invalid input line number"
+      ]
+    ],
+    "partial": [
+      "invalid",
+      "batch",
+      "input"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:requirement:2"
+    }
+  },
+  {
+    "id": "P4-RQ-03",
+    "phase": 4,
+    "category": "requirement",
+    "responseField": "requirements",
+    "canonical": "dry-run reports the proposed reservation count",
+    "accepted": [
+      [
+        "dry-run reports the proposed reservation count"
+      ],
+      [
+        "dry run proposed count"
+      ]
+    ],
+    "partial": [
+      "dry-run",
+      "reports",
+      "proposed"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:requirement:3"
+    }
+  },
+  {
+    "id": "P4-NC-01",
+    "phase": 4,
+    "category": "negative_constraint",
+    "responseField": "negative_constraints",
+    "canonical": "preserve the public CLI arguments",
+    "accepted": [
+      [
+        "preserve the public CLI arguments"
+      ],
+      [
+        "preserve CLI arguments"
+      ]
+    ],
+    "partial": [
+      "preserve",
+      "public",
+      "arguments"
+    ],
+    "contradictions": [
+      "changed the public CLI arguments"
+    ],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:negative_constraint:1"
+    }
+  },
+  {
+    "id": "P4-NC-02",
+    "phase": 4,
+    "category": "negative_constraint",
+    "responseField": "negative_constraints",
+    "canonical": "preserve the serialized record format",
+    "accepted": [
+      [
+        "preserve the serialized record format"
+      ],
+      [
+        "preserve record format"
+      ]
+    ],
+    "partial": [
+      "preserve",
+      "serialized",
+      "record"
+    ],
+    "contradictions": [
+      "changed the serialized record format"
+    ],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:negative_constraint:2"
+    }
+  },
+  {
+    "id": "P4-NC-03",
+    "phase": 4,
+    "category": "negative_constraint",
+    "responseField": "negative_constraints",
+    "canonical": "add no dependency and no global cache",
+    "accepted": [
+      [
+        "add no dependency and no global cache"
+      ],
+      [
+        "no dependency no global cache"
+      ]
+    ],
+    "partial": [
+      "dependency",
+      "global",
+      "cache"
+    ],
+    "contradictions": [
+      "added a dependency or global cache"
+    ],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:negative_constraint:3"
+    }
+  },
+  {
+    "id": "P4-NC-04",
+    "phase": 4,
+    "category": "negative_constraint",
+    "responseField": "negative_constraints",
+    "canonical": "do not write the unfinished atomicity task into repository files",
+    "accepted": [
+      [
+        "do not write the unfinished atomicity task into repository files"
+      ],
+      [
+        "unfinished item chat only"
+      ]
+    ],
+    "partial": [
+      "write",
+      "unfinished",
+      "atomicity"
+    ],
+    "contradictions": [
+      "wrote the unfinished atomicity task into repository files"
+    ],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:negative_constraint:4"
+    }
+  },
+  {
+    "id": "P4-LK-01",
+    "phase": 4,
+    "category": "linkage",
+    "responseField": "errors.cause",
+    "canonical": "validating while mutating can leave a partial batch",
+    "accepted": [
+      [
+        "validating while mutating can leave a partial batch"
+      ],
+      [
+        "validation during mutation causes partial batch"
+      ]
+    ],
+    "partial": [
+      "validating",
+      "while",
+      "mutating"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:linkage:1"
+    }
+  },
+  {
+    "id": "P4-LK-02",
+    "phase": 4,
+    "category": "linkage",
+    "responseField": "errors.fix",
+    "canonical": "a validation pass before mutation makes dry-run safe",
+    "accepted": [
+      [
+        "a validation pass before mutation makes dry-run safe"
+      ],
+      [
+        "validate before mutation makes dry run safe"
+      ]
+    ],
+    "partial": [
+      "validation",
+      "before",
+      "mutation"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:linkage:2"
+    }
+  },
+  {
+    "id": "P4-LK-03",
+    "phase": 4,
+    "category": "linkage",
+    "responseField": "errors.cause",
+    "canonical": "wrapping parse errors with the index provides source line numbers",
+    "accepted": [
+      [
+        "wrapping parse errors with the index provides source line numbers"
+      ],
+      [
+        "parse error index provides line number"
+      ]
+    ],
+    "partial": [
+      "wrapping",
+      "parse",
+      "errors"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:linkage:3"
+    }
+  },
+  {
+    "id": "P4-LK-04",
+    "phase": 4,
+    "category": "linkage",
+    "responseField": "errors.fix",
+    "canonical": "dry-run and invalid-batch tests verified the feature",
+    "accepted": [
+      [
+        "dry-run and invalid-batch tests verified the feature"
+      ],
+      [
+        "dry run invalid batch tests verified"
+      ]
+    ],
+    "partial": [
+      "dry-run",
+      "invalid-batch",
+      "tests"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:linkage:4"
+    }
+  },
+  {
+    "id": "P4-CT-01",
+    "phase": 4,
+    "category": "command_test",
+    "responseField": "commands_tests",
+    "canonical": "npm test exercised dry-run import",
+    "accepted": [
+      [
+        "npm test exercised dry-run import"
+      ],
+      [
+        "npm test dry run"
+      ]
+    ],
+    "partial": [
+      "exercised",
+      "dry-run",
+      "import"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:command_test:1"
+    }
+  },
+  {
+    "id": "P4-CT-02",
+    "phase": 4,
+    "category": "command_test",
+    "responseField": "commands_tests",
+    "canonical": "the no-mutation dry-run assertion passed",
+    "accepted": [
+      [
+        "the no-mutation dry-run assertion passed"
+      ],
+      [
+        "no mutation assertion passed"
+      ]
+    ],
+    "partial": [
+      "no-mutation",
+      "dry-run",
+      "assertion"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:command_test:2"
+    }
+  },
+  {
+    "id": "P4-CT-03",
+    "phase": 4,
+    "category": "command_test",
+    "responseField": "commands_tests",
+    "canonical": "the invalid-line-number assertion passed",
+    "accepted": [
+      [
+        "the invalid-line-number assertion passed"
+      ],
+      [
+        "line number assertion passed"
+      ]
+    ],
+    "partial": [
+      "invalid-line-number",
+      "assertion",
+      "passed"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:command_test:3"
+    }
+  },
+  {
+    "id": "P4-CT-04",
+    "phase": 4,
+    "category": "command_test",
+    "responseField": "commands_tests",
+    "canonical": "the complete regression suite passed after phase four",
+    "accepted": [
+      [
+        "the complete regression suite passed after phase four"
+      ],
+      [
+        "complete suite passed"
+      ]
+    ],
+    "partial": [
+      "complete",
+      "regression",
+      "suite"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:command_test:4"
+    }
+  },
+  {
+    "id": "P4-UN-01",
+    "phase": 4,
+    "category": "unresolved",
+    "responseField": "unresolved",
+    "canonical": "mixed-validity non-dry-run import must become atomic",
+    "accepted": [
+      [
+        "mixed-validity non-dry-run import must become atomic"
+      ],
+      [
+        "mixed validity import atomic"
+      ]
+    ],
+    "partial": [
+      "mixed-validity",
+      "non-dry-run",
+      "import"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:unresolved:1"
+    }
+  },
+  {
+    "id": "P4-UN-02",
+    "phase": 4,
+    "category": "unresolved",
+    "responseField": "unresolved",
+    "canonical": "the atomicity item is the single highest-priority next action",
+    "accepted": [
+      [
+        "the atomicity item is the single highest-priority next action"
+      ],
+      [
+        "highest priority atomicity"
+      ]
+    ],
+    "partial": [
+      "atomicity",
+      "single",
+      "highest-priority"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:unresolved:2"
+    }
+  },
+  {
+    "id": "P4-UN-03",
+    "phase": 4,
+    "category": "unresolved",
+    "responseField": "unresolved",
+    "canonical": "tombstone compaction policy remains open but lower priority",
+    "accepted": [
+      [
+        "tombstone compaction policy remains open but lower priority"
+      ],
+      [
+        "tombstone policy lower priority"
+      ]
+    ],
+    "partial": [
+      "tombstone",
+      "compaction",
+      "policy"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": true,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:unresolved:3"
+    }
+  },
+  {
+    "id": "P4-PV-01",
+    "phase": 4,
+    "category": "provenance",
+    "responseField": "provenance",
+    "canonical": "dry-run behavior is backed by the batch import tests",
+    "accepted": [
+      [
+        "dry-run behavior is backed by the batch import tests"
+      ],
+      [
+        "batch import tests dry run"
+      ]
+    ],
+    "partial": [
+      "dry-run",
+      "behavior",
+      "backed"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:provenance:1"
+    }
+  },
+  {
+    "id": "P4-PV-02",
+    "phase": 4,
+    "category": "provenance",
+    "responseField": "provenance",
+    "canonical": "the next action exists only in the phase-four chat record",
+    "accepted": [
+      [
+        "the next action exists only in the phase-four chat record"
+      ],
+      [
+        "next action chat record"
+      ]
+    ],
+    "partial": [
+      "action",
+      "exists",
+      "phase-four"
+    ],
+    "contradictions": [],
+    "availableAfterCheckpoint": 4,
+    "continuationCritical": false,
+    "observation": {
+      "kind": "prompt_or_harness",
+      "predicate": "phase-4:provenance:2"
+    }
+  }
+]

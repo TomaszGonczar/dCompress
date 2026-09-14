@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "normalization": [
+    "Unicode NFC",
+    "lowercase en-US",
+    "whitespace collapse",
+    "ASCII punctuation to spaces"
+  ],
+  "exact": "one accepted phrase-set is wholly present in the declared response field",
+  "partial": "at least one frozen partial token is present but no accepted phrase-set is complete",
+  "missing": "neither exact nor partial evidence is present",
+  "contradiction": "a frozen contradiction phrase is present; recall is zero and falseFacts increments",
+  "points": {
+    "exact": 1,
+    "partial": 0.5,
+    "missing": 0,
+    "contradiction": 0
+  },
+  "denominator": "25 times checkpoint ordinal",
+  "target": {
+    "finalRecall": 0.9,
+    "maximumCDecay": 0.05,
+    "cFalseFacts": 0,
+    "cCriticalExact": 1,
+    "continuationChecksPassed": 8
+  }
+}

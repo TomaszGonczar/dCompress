@@ -1,0 +1,19 @@
+{
+  "series": "OG86-medium-v1-stage0",
+  "scored": false,
+  "checks": [
+    "dependency ancestry",
+    "task-owned isolation and private modes",
+    "Claude Haiku 4.5 model attribution for ordinary assistant turns",
+    "manual compact boundary",
+    "hook ordering and exact summary capture",
+    "same next-resume additionalContext channel for B and C",
+    "actual dcompact checkpoint and marked pack",
+    "two-step fork isolation",
+    "new-process explicit resume",
+    "restricted probe and continuation tool boundary",
+    "deterministic scorer mutations",
+    "public privacy scan"
+  ],
+  "stopOnFailure": true
+}
