@@ -1,0 +1,30 @@
+{
+  "label": "post-compact-0001",
+  "adapter": "claude",
+  "observedCliVersion": "2.1.270",
+  "source": "synthetic sanitized Claude post-compaction shape fixture for OG-84; no private transcript content",
+  "transcriptBytes": 1905,
+  "transcriptLines": 6,
+  "sanitizedSha256": "sha256:158b91050152cbc07d0aaa7929aa3c6a82ffbe433f0db7f27ef12faf70734189",
+  "lineEnding": "LF, no trailing newline (SCHEMA §10 fixture rule)",
+  "omittedRecordTypes": [
+    "private compact summary prose; only synthetic sentinels are present"
+  ],
+  "expected": {
+    "parseDiagnostics": 0,
+    "toolCalls": 2,
+    "toolResults": 2,
+    "normalizedEvents": 2,
+    "degraded": [],
+    "facts": 2,
+    "factsByKind": {
+      "file.modified": 1,
+      "file.read": 1
+    }
+  },
+  "notes": [
+    "system/compact_boundary carries compactMetadata and no message object",
+    "the following user record is marked isCompactSummary and isVisibleInTranscriptOnly",
+    "boundary and summary contents are synthetic sentinels, excluded from events and payload"
+  ]
+}

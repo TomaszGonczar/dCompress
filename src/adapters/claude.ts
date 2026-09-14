@@ -132,6 +132,28 @@ const CONVERSATION_RECORD_TYPES: Readonly<Record<string, true>> = {
   system: true,
 };
 
+/**
+ * Claude writes the compaction boundary as a `system` record without a `message` object. Its
+ * summary is transcript data, not a user turn: recognizing the boundary here prevents the
+ * parser from reporting a false `conversational-content-not-text` diagnostic while keeping the
+ * summary body out of normalized events and the hashed payload.
+ */
+function isCompactBoundaryRecord(record: JsonObject): boolean {
+  return record.type === "system" && record.subtype === "compact_boundary" && isObject(record.compactMetadata);
+}
+
+/**
+ * The summary immediately after a boundary is a user-shaped record marked for transcript-only
+ * display. It is intentionally recognized and skipped rather than treated as user prose: the
+ * summary is not a deterministic fact source and must never enter the payload through a decision
+ * cue or snippet.
+ */
+function isCompactSummaryRecord(record: JsonObject): boolean {
+  if ((record.type !== "user" && record.type !== "assistant") || record.isCompactSummary !== true) return false;
+  const message = record.message;
+  return isObject(message) && Object.prototype.hasOwnProperty.call(message, "content");
+}
+
 export type ClaudeDiagnosticCode =
   | "invalid-utf8"
   | "malformed-json"
@@ -169,7 +191,7 @@ export interface ClaudeParseResult {
   readonly session: ClaudeSession;
   /** Every `tool_use.name` observed, sorted and deduplicated. */
   readonly toolNames: string[];
-  /** Conversation records (`user`/`assistant`/`system`), regardless of content. */
+  /** Conversation records (`user`/`assistant`/`system`), regardless of content, including compact metadata. */
   readonly recordCount: number;
   /** Conversation records carrying at least one recognized content block. */
   readonly conversationRecords: number;
@@ -328,6 +350,30 @@ export function parseClaudeTranscript(bytes: Uint8Array): ClaudeParseResult {
       diagnostics.push({ line, code: "unknown-record-type", detail: "<other>" });
       continue;
     }
+    const compactBoundary = isCompactBoundaryRecord(parsed);
+    const compactSummary = isCompactSummaryRecord(parsed);
+    if (compactBoundary || compactSummary) {
+      // Compact metadata is intentionally skipped as an event, but it is still a valid source
+      // of session extraction inputs. Identity is read only after the shape has been recognized;
+      // malformed/unknown records must never become a guessed session.
+      recordCount += 1;
+      if (sessionId === null) sessionId = asString(parsed.sessionId);
+      if (sessionCwd === null) sessionCwd = asString(parsed.cwd);
+      if (sessionVersion === null) sessionVersion = asString(parsed.version);
+      continue;
+    }
+    // A compact-boundary or compact-summary candidate with an invalid shape is still surfaced
+    // as drift, but cannot contribute identity. Keep the existing diagnostic detail stable.
+    if (type === "system" && parsed.subtype === "compact_boundary") {
+      recordCount += 1;
+      diagnostics.push({ line, code: "conversational-content-not-text", detail: type });
+      continue;
+    }
+    if ((type === "user" || type === "assistant") && parsed.isCompactSummary === true) {
+      recordCount += 1;
+      diagnostics.push({ line, code: "conversational-content-not-text", detail: type });
+      continue;
+    }
     if (NON_CONVERSATIONAL_RECORD_TYPES[type] === true) continue;
     if (CONVERSATION_RECORD_TYPES[type] !== true) {
       diagnostics.push({ line, code: "unknown-record-type", detail: safeToken(type) });
@@ -436,6 +482,7 @@ export function parseClaudeTranscript(bytes: Uint8Array): ClaudeParseResult {
 
   for (const { line, bytes: rawLine, parsed } of physical) {
     if (parsed === null || CONVERSATION_RECORD_TYPES[asString(parsed.type) ?? ""] !== true) continue;
+    if (isCompactBoundaryRecord(parsed) || isCompactSummaryRecord(parsed)) continue;
     const message = parsed.message;
     if (!isObject(message)) continue;
     const entry = line - 1;
