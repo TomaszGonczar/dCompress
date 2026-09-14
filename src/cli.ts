@@ -16,6 +16,8 @@
 
 import { readFileSync, realpathSync } from "node:fs";
 import { basename } from "node:path";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { readClaudeTranscript } from "./adapters/mappers.js";
@@ -30,6 +32,9 @@ import type { AdapterId, DegradedState, PackOptions, Payload, Snapshot } from ".
 import { doctor, doctorExitCode, formatDoctorReport } from "./doctor.js";
 import type { DoctorReport } from "./doctor.js";
 import { EXIT_DEGRADED, EXIT_INTEGRITY_FAILURE, EXIT_OK, EXIT_OPERATIONAL_FAILURE, EXIT_USAGE } from "./exit-codes.js";
+import { installClaude } from "./install/apply.js";
+import { InstallRefusal } from "./install/refusal.js";
+import { uninstallClaude } from "./install/uninstall-apply.js";
 import { readManifest, snapshotId } from "./store/manifest.js";
 import { sessionPaths } from "./store/paths.js";
 import { listSnapshots, shortHash } from "./store/snapshot.js";
@@ -103,6 +108,8 @@ function usage(): string {
     "  dcompact show --session <id> --snapshot <id> [--store <dir>] [--json]",
     "  dcompact verify --session <id> [--snapshot <id>] [--store <dir>] [--provenance] [--json]",
     "  dcompact doctor --session <id> --store <dir> [--adapter <name>] [--json]",
+    "  dcompact install --agent claude --store <dir> [--settings <path>] [--dry-run]",
+    "  dcompact uninstall --agent claude --store <dir> [--settings <path>] [--dry-run]",
     "",
     "Commands:",
     "  preview   Map a transcript to normalized events, extract facts, print the pack.",
@@ -114,9 +121,17 @@ function usage(): string {
     "  verify    Recompute a snapshot's payload hash; --provenance re-checks it against the",
     "            transcript named in its envelope.",
     "  doctor    Report store, manifest, lock, quarantine, and adapter health for one session.",
-    "",
+    "  install   Write dcompact's Claude hook entries into a settings file, after copying",
+    "            every file it edits to a byte backup under <store>/backups/.",
+    "  uninstall Remove dcompact's Claude hook entries from a settings file, restoring",
+    "            byte-identical pre-install files or removing files dcompact created.",
     "Options:",
     "  --transcript <path>   Claude Code JSONL transcript to read. Required for preview/snapshot.",
+    "  --agent <name>        Agent to install/uninstall for. Only \"claude\" is supported.",
+    "  --settings <path>     Claude settings file for install/uninstall to edit. Default:",
+    "                        $CLAUDE_CONFIG_DIR/settings.json, else ~/.claude/settings.json.",
+    "  --command <exec>      install only: executable Claude runs for a hook. Default: dcompact.",
+    "  --dry-run             install/uninstall only: print the plan and write nothing.",
     `  --max-bytes <n>       Pack byte budget. Default ${DEFAULT_MAX_BYTES}. A value below the`,
     "                        mandatory header plus elision notice is refused with the exact",
     "                        minimum for that transcript (reported in the refusal message).",
@@ -126,7 +141,7 @@ function usage(): string {
     "                        never guessed, never the most recent (AGENTS invariant 8).",
     "  --store <dir>         Store root. list/show/verify default to the resolved XDG/",
     "                        DCOMPACT_HOME store when omitted; snapshot/restore/hook/doctor",
-    "                        require it explicitly.",
+    "                        require it explicitly. install/uninstall write backups under it.",
     "  --snapshot <id>       A snapshot's short hash or full id, as printed by `list --json`.",
     "                        Required for show; verify checks every snapshot when omitted.",
     "  --provenance          verify only: re-read the transcript and check each fact's evidence.",
@@ -299,6 +314,98 @@ function nonNegativeInteger(raw: string, flag: string): number {
     throw new UsageError("invalid-number", `${flag} requires a non-negative integer, received: ${JSON.stringify(raw)}`);
   }
   return Number(raw);
+}
+
+interface InstallArgs {
+  readonly agent: "claude";
+  readonly settingsPath: string;
+  readonly storeRoot: string;
+  readonly executable?: string;
+  readonly dryRun: boolean;
+}
+
+/**
+ * Claude's user settings file. `CLAUDE_CONFIG_DIR` relocates the whole Claude data directory
+ * including settings (ADAPTER-SPEC §2), so it is honoured rather than assumed absent.
+ */
+function defaultClaudeSettingsPath(): string {
+  const configured = process.env.CLAUDE_CONFIG_DIR;
+  const configDir = configured !== undefined && configured.trim() !== "" ? configured : join(homedir(), ".claude");
+  return join(configDir, "settings.json");
+}
+
+function parseInstallArgs(argv: readonly string[]): InstallArgs | "help" {
+  let agent: string | null = null;
+  let settings: string | null = null;
+  let store: string | null = null;
+  let executable: string | undefined;
+  let dryRun = false;
+  for (let index = 0; index < argv.length; index += 1) {
+    const flag = argv[index];
+    if (flag === "--help" || flag === "-h") return "help";
+    if (flag === "--dry-run") {
+      dryRun = true;
+      continue;
+    }
+    const value = argv[index + 1];
+    if (flag === "--agent" || flag === "--settings" || flag === "--store" || flag === "--command") {
+      if (value === undefined) throw new UsageError("missing-value", `${flag} requires a value`);
+      if (flag === "--agent") agent = value;
+      else if (flag === "--settings") settings = value;
+      else if (flag === "--store") store = value;
+      else executable = value;
+      index += 1;
+      continue;
+    }
+    throw new UsageError("unknown-argument", `Unknown argument: ${JSON.stringify(flag)}`);
+  }
+  if (agent === null) throw new UsageError("missing-agent", 'install requires --agent <name>; only "claude" is supported.');
+  if (agent !== "claude") {
+    throw new UsageError("unsupported-agent", `install supports agent "claude" only; received ${JSON.stringify(agent)}.`);
+  }
+  if (store === null || store.trim() === "") {
+    throw new UsageError("missing-store", "install requires a non-empty task-owned --store <dir>; live agent state is never selected.");
+  }
+  if (settings !== null && settings.trim() === "") {
+    throw new UsageError("empty-settings", "install requires a non-empty --settings <path>; omit the flag for the default Claude user settings file.");
+  }
+  return { agent, settingsPath: settings ?? defaultClaudeSettingsPath(), storeRoot: store, executable, dryRun };
+}
+
+function parseUninstallArgs(argv: readonly string[]): InstallArgs | "help" {
+  let agent: string | null = null;
+  let settings: string | null = null;
+  let store: string | null = null;
+  let dryRun = false;
+  for (let index = 0; index < argv.length; index += 1) {
+    const flag = argv[index];
+    if (flag === "--help" || flag === "-h") return "help";
+    if (flag === "--dry-run") {
+      dryRun = true;
+      continue;
+    }
+    const value = argv[index + 1];
+    if (flag === "--agent" || flag === "--settings" || flag === "--store") {
+      if (value === undefined) throw new UsageError("missing-value", `${flag} requires a value`);
+      if (flag === "--agent") agent = value;
+      else if (flag === "--settings") settings = value;
+      else store = value;
+      index += 1;
+      continue;
+    }
+    throw new UsageError("unknown-argument", `Unknown argument: ${JSON.stringify(flag)}`);
+  }
+  if (agent === null) throw new UsageError("missing-agent", 'uninstall requires --agent <name>; only "claude" is supported.');
+  if (agent !== "claude") {
+    throw new UsageError("unsupported-agent", `uninstall supports agent "claude" only; received ${JSON.stringify(agent)}.`);
+  }
+  if (store === null || store.trim() === "") {
+    throw new UsageError("missing-store", "uninstall requires a non-empty task-owned --store <dir>; live agent state is never selected.");
+  }
+  if (settings !== null && settings.trim() === "") {
+    throw new UsageError("empty-settings", "uninstall requires a non-empty --settings <path>; omit the flag for the default Claude user settings file.");
+  }
+  return { agent, settingsPath: settings ?? defaultClaudeSettingsPath(), storeRoot: store, dryRun };
 }
 
 export function parsePreviewArgs(argv: readonly string[]): PreviewOptions | "help" {
@@ -629,12 +736,30 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
     io.stderr(`Unknown command: ${JSON.stringify(command)}\n\n${usage()}\n`);
     return EXIT_USAGE;
   }
-  if (command !== "preview" && command !== "snapshot" && command !== "restore" && command !== "hook" && command !== "list" && command !== "show" && command !== "verify" && command !== "doctor") {
+  if (command !== "preview" && command !== "snapshot" && command !== "restore" && command !== "hook" && command !== "list" && command !== "show" && command !== "verify" && command !== "doctor" && command !== "install" && command !== "uninstall") {
     io.stderr(`Unknown command: ${JSON.stringify(command)}\n\n${usage()}\n`);
     return EXIT_USAGE;
   }
 
   try {
+    if (command === "install") {
+      const parsed = parseInstallArgs(argv.slice(1));
+      if (parsed === "help") {
+        io.stdout(`${usage()}\n`);
+        return EXIT_OK;
+      }
+      io.stdout(installClaude(parsed).report);
+      return EXIT_OK;
+    }
+    if (command === "uninstall") {
+      const parsed = parseUninstallArgs(argv.slice(1));
+      if (parsed === "help") {
+        io.stdout(`${usage()}\n`);
+        return EXIT_OK;
+      }
+      io.stdout(uninstallClaude(parsed).report);
+      return EXIT_OK;
+    }
     if (command === "snapshot" || command === "restore") {
       const parsed = parseContinuityArgs(argv.slice(1), command);
       if (parsed === "help") {
@@ -739,6 +864,10 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
       // `show`/`verify` it specifically surfaces that as the same integrity failure, not a
       // generic refusal, so both codes report the same class of problem the same way.
       return error.code === "snapshot-quarantined" ? EXIT_INTEGRITY_FAILURE : EXIT_OPERATIONAL_FAILURE;
+    }
+    if (error instanceof InstallRefusal) {
+      io.stderr(`Refusing install: ${error.message}\n`);
+      return EXIT_OPERATIONAL_FAILURE;
     }
     const reason = error instanceof Error ? (error.stack ?? error.message) : String(error);
     io.stderr(`Internal error: ${reason}\n`);
