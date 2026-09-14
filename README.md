@@ -177,6 +177,36 @@ Determinism is the point of the project, so it is enforced rather than asserted:
 > can still contain a token, a path, or a private note that the transcript happened to contain.
 > The bundled demo transcript is synthetic.
 
+### Publishing this repository
+
+Every change is scanned before it can be published — the working tree, and the commits the change
+adds — by `scripts/privacy-scan.mjs`, which CI runs as its own `privacy` job:
+
+```sh
+node scripts/privacy-scan.mjs --json
+node scripts/privacy-scan.mjs --history origin/main..HEAD --json
+```
+
+It reports host paths, session-id-shaped UUIDs, bearer tokens, API key prefixes, email addresses,
+and the user name and host name of the machine it runs on, read at run time so the scan means
+something on the machine that wrote the content. A report names the rule, the file, and the line,
+never the matched text: a scanner that echoes what it found into a public CI log has published it.
+`--history` reads the content commits *added*, because a file deleted in a later commit is still
+readable from the repository. `test/privacy-scan.spec.ts` proves that each class is detected, that
+the report carries no matched value, and that a secret added and then deleted is still found.
+
+What this gate is not:
+
+- **A pattern scanner, not a guarantee.** It finds the shapes it knows. A path, a credential, or a
+  sentence that matches none of its rules passes, and a clean run is not evidence that a transcript
+  is safe to publish. Binary files are counted and skipped, and a file the scan cannot read fails
+  the run rather than passing quietly.
+- **Not redaction.** Secret redaction inside packs is still unimplemented (the box above and
+  CONCEPT §9); this gate protects this repository's own commits, not the packs dcompact prints.
+- **Not a broad exemption list.** Each allowlist entry is one exact literal with the reason it is
+  not a leak — test placeholders, the development sandbox's own paths — and every run reports how
+  many occurrences each entry suppressed.
+
 Related design decisions:
 [ADR 003 — facts, not transcripts](docs/adr/003-facts-not-transcripts.md) (dcompact stores
 extracted facts, never conversations) and CONCEPT §9 for the full security model.
