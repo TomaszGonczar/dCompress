@@ -38,6 +38,7 @@
  */
 
 import { normalizePath } from "../core/canonical.js";
+import { splitPhysicalLines } from "../core/hash.js";
 import type {
   ExtractConfig,
   NormalizedEvent,
@@ -162,19 +163,6 @@ function isObject(value: unknown): value is JsonObject {
 /** Narrow to a string without throwing; used at every transcript boundary. */
 function asString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
-}
-
-/** Split on LF, keeping the exact bytes of each physical line including its terminator. */
-function splitPhysicalLines(bytes: Uint8Array): Uint8Array[] {
-  const lines: Uint8Array[] = [];
-  let start = 0;
-  for (let index = 0; index < bytes.length; index += 1) {
-    if (bytes[index] !== 0x0a) continue;
-    lines.push(bytes.slice(start, index + 1));
-    start = index + 1;
-  }
-  if (start < bytes.length) lines.push(bytes.slice(start));
-  return lines;
 }
 
 /**

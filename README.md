@@ -12,9 +12,10 @@ hash-addressed fact pack that can be verified against the transcript line by lin
 
 > **Status: work in progress — deterministic core plus an experimental Claude Code continuity
 > slice.** Implemented and tested today: `preview`, plus explicit-session `snapshot`, `restore`,
-> and `hook` commands backed by a task-owned store. The continuity slice never scans for or
-> guesses a session and is not the general installer/integration. **Not implemented:**
-> `install`/`uninstall`, MCP, and the Codex/OMP adapters. Those remain on the roadmap in
+> and `hook` commands backed by a task-owned store, plus the read-only `list`, `show`, and
+> `verify` commands over that store. The continuity slice never scans for or guesses a session
+> and is not the general installer/integration. **Not implemented:** `install`/`uninstall`,
+> `prune`/`pin`, MCP, and the Codex/OMP adapters. Those remain on the roadmap in
 > [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md).
 
 ## Try it in 60 seconds
@@ -107,12 +108,13 @@ under a reduced byte budget the todo facts are the first the renderer drops.
 | Explicit-session durable checkpoint store | **Works — experimental Claude-only slice** |
 | `restore` / bounded pack for the named session | **Works — experimental Claude-only slice** |
 | Claude `PreCompact` / `SessionStart` hook bridge | **Works — task-owned development integration** |
-| Store: XDG path resolution, atomic snapshot write, hash-verified read, quarantine, manifest, advisory lock, retention | **Works as a library** — `src/store/`; no CLI command is wired to it yet |
-| `prune` / `pin` / `list` commands | **Not implemented** — the retention and manifest policy they would call exists; the command surface does not |
+| Store: XDG path resolution, atomic snapshot write, hash-verified read, quarantine, manifest, advisory lock, retention | **Works** — `src/store/`, exposed read-only by `list`/`show`/`verify` |
+| `list` / `show` / `verify` (read-only store commands, `--json` supported) | **Works** — `verify --provenance` re-checks facts against the transcript named in the envelope |
+| `prune` / `pin` commands | **Not implemented** — the retention and manifest policy they would call exists; the command surface does not |
 | `install` / `uninstall` / reversible byte-identical restore | **Not implemented** |
 | MCP server | **Not implemented** |
 | Codex, OMP, Pi, or any second adapter | **Not implemented** |
-| `verify`, `show`, `diff`, `doctor`, `init` | **Not implemented** |
+| `diff`, `doctor`, `init` | **Not implemented** |
 | `git.state` facts for Claude | **Not implemented** — the core supports them, the Claude adapter does not emit them |
 | Secret redaction | **Not implemented** — planned for the hardening phase |
 | npm publish / `npm i -g dcompact` / `npx dcompact` | **Not available** — the package is `private: true` |
