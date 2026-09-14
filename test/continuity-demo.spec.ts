@@ -6,6 +6,7 @@ import { join, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { claudeExtractConfig, parseClaudeTranscript } from "../src/adapters/claude.js";
+import { claudeDefinition } from "../src/adapters/mappers.js";
 import { run, type CliIo } from "../src/cli.js";
 import { extractPayloadWithHealth } from "../src/core/extract/index.js";
 import { payloadHash } from "../src/core/hash.js";
@@ -238,8 +239,9 @@ function physicalLines(bytes: Uint8Array): number {
 /** The manifest's declared reading of one transcript, recomputed through the entry points the CLI uses. */
 function readingOf(path: string): Record<string, unknown> {
   const bytes = new Uint8Array(readFileSync(path));
-  const parse = parseClaudeTranscript(bytes);
-  const { payload, degraded } = extractPayloadWithHealth(parse.events, claudeExtractConfig(parse));
+  const definition = claudeDefinition();
+  const parse = parseClaudeTranscript(bytes, definition);
+  const { payload, degraded } = extractPayloadWithHealth(parse.events, claudeExtractConfig(parse, definition));
   return {
     physicalLines: physicalLines(bytes),
     conversationRecords: parse.recordCount,

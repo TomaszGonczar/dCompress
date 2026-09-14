@@ -1,33 +1,40 @@
 /**
- * Claude Code transcript adapter — OG-61 P6a thin slice.
+ * Claude Code transcript adapter — the mapper half of the Claude adapter.
  *
  * Scope: map the JSONL transcript Claude Code writes under
- * `~/.claude/projects/<slug>/<session>.jsonl` to `NormalizedEvent[]`, and declare the
- * extraction inputs (`ExtractConfig`) those events are extracted with.
+ * `~/.claude/projects/<slug>/<session>.jsonl` to normalized events, and declare the extraction
+ * inputs (`ExtractConfig`) those events are extracted with.
  *
- * Deliberately absent (P6b owns them): the adapter registry, `adapters/claude.json`, hook
- * installation, store wiring, session discovery. This module never probes the filesystem and
- * never reads the clock: every value it emits comes from the transcript bytes. Transcript
- * content is untrusted data; nothing here is executed, evaluated, or interpolated into a
- * shell.
+ * Everything an agent version can change without changing mapping *logic* lives in
+ * `adapters/claude.json` and arrives here as an `AdapterDefinition`: the record vocabulary, the
+ * tool-name table and its prefix rule, the decision lexicon, the fixtures the vocabulary was
+ * verified against, and the version those fixtures were measured on. What stays in code is the
+ * parsing: which block fields carry a path or a command, how a call is paired with its result,
+ * and which record shapes are recognized-but-skipped. That split is the P5 contract — an adapter
+ * is a JSON file plus a mapper function.
  *
- * Mapping decisions, all keyed to names observed on Claude Code 2.1.238 (ADAPTER-SPEC §2):
+ * This module never probes the filesystem and never reads the clock: every value it emits comes
+ * from the transcript bytes and the supplied definition. Transcript content is untrusted data;
+ * nothing here is executed, evaluated, or interpolated into a shell.
  *
- * | `tool_use.name` | tool kind | note |
- * |---|---|---|
- * | `Bash`   | `command`       | failure comes from the paired result's `is_error`, never an exit code |
- * | `Read`   | `file.read`     | |
- * | `Write`  | `file.modified` | `file.created` is not inferred: a `Write` result does not prove the file was absent |
- * | `Edit`   | `file.modified` | |
- * | `TaskCreate` / `TaskUpdate` | `todo` | the fact is emitted from the paired result; no result, no todo |
- * | every other exact observed non-MCP name | `ignored` | decided, and counted as covered |
- * | `mcp__<server>__<tool>` | `ignored` | documented Claude MCP naming, prefix rule |
- * | a name that was never observed | absent from the map | counted by core as `unmapped_tool_calls` |
+ * Mapping decisions in code, keyed to names observed on Claude Code 2.1.238 (ADAPTER-SPEC §2):
  *
- * A name is never mapped speculatively: an unrecognized name must lower `coverage_ppm`, which
- * is the signal that the vocabulary has drifted. A recognized call whose result never arrived is
- * emitted with `resultObserved: false`, so it still counts toward coverage while producing no
- * effect fact — the transcript does not show what the call did.
+ * - a call is paired with its result by `tool_use.id` ↔ `tool_result.tool_use_id`, never by line
+ *   adjacency; real transcripts separate the two with `attachment` records;
+ * - a failure comes from the paired result's `is_error`, never from an exit code, which the
+ *   transcript does not carry;
+ * - `Write` and `Edit` both map to `file.modified`; `file.created` is never inferred, because a
+ *   `Write` result does not prove the file was absent;
+ * - `TaskCreate`/`TaskUpdate` carry their meaning in the paired result, not in the call: the task
+ *   id and the status arrive with the result, so no result means no todo;
+ * - the compaction boundary and the summary after it are recognized and skipped: the summary is
+ *   not a deterministic fact source and must never reach the payload through a cue or snippet;
+ * - a recognized call whose result never arrived is emitted with `resultObserved: false`, so it
+ *   still counts toward coverage while producing no effect fact.
+ *
+ * The tool kinds themselves are the definition's. A name that is neither in its exact table nor
+ * matched by its prefix table stays out of the map, so the extractor counts it as
+ * `unmapped_tool_calls` and `coverage_ppm` reports the drift instead of a guess absorbing it.
  */
 
 import { normalizePath } from "../core/canonical.js";
@@ -39,98 +46,10 @@ import type {
   NormalizedToolEvent,
   NormalizedUserEvent,
   PathNormalizationOptions,
-  ScopeRoot,
   ToolKind,
 } from "../core/types.js";
-
-export const CLAUDE_ADAPTER_ID = "claude" as const;
-
-/** Version of the CLI whose transcript shapes were measured; recorded, never inferred. */
-export const CLAUDE_OBSERVED_VERSION = "2.1.238";
-
-/**
- * Provisional decision lexicon for the thin slice. SCHEMA §5.6 makes the lexicon data with a
- * versioned hash stored in the envelope; P6b moves this to `adapters/lexicon.json` and hashes
- * it. Kept here so P6a adds no new configuration file.
- */
-export const CLAUDE_DECISION_CUES: readonly string[] = Object.freeze([
-  "we will",
-  "we must",
-  "must",
-  "always",
-  "never",
-  "don't",
-  "do not",
-  "instead",
-]);
-
-/**
- * Claude tool names that are recognized and deliberately produce no fact.
- *
- * This is exactly the non-MCP vocabulary measured in P4 (ADAPTER-SPEC §2) minus the names mapped
- * to a fact kind below, so the set is a decision about observed tools, not a catch-all. Mapping
- * any of these to a kind would invent meaning the transcript does not carry. Names that were
- * never observed are deliberately absent: they must surface as `unmapped_tool_calls` drift
- * rather than be absorbed by a guess.
- */
-const IGNORED_TOOL_NAMES: readonly string[] = Object.freeze([
-  "AskUserQuestion",
-  "ToolSearch",
-  "Agent",
-  "WebFetch",
-  "ListAgents",
-  "Artifact",
-  "TaskList",
-  "Skill",
-  "ScheduleWakeup",
-  "ExitPlanMode",
-]);
-
-/**
- * Exact observed tool names mapped to a tool kind. The table covers the full non-MCP vocabulary
- * in ADAPTER-SPEC §2: each name is either given the fact kind its semantics justify or is
- * explicitly listed as ignored. A name absent from both tables is an unmapped call, counted by
- * core, which is the signal that the agent's vocabulary has drifted.
- */
-export const CLAUDE_TOOL_KINDS: Readonly<Record<string, ToolKind>> = Object.freeze({
-  Bash: "command",
-  Read: "file.read",
-  Write: "file.modified",
-  Edit: "file.modified",
-  // Task tools carry their state in the paired result, not in the call, and are emitted as
-  // `todo` events by the mapper.
-  TaskCreate: "todo",
-  TaskUpdate: "todo",
-  ...Object.fromEntries(IGNORED_TOOL_NAMES.map((name) => [name, "ignored" as ToolKind])),
-});
-
-/** Claude names MCP tools `mcp__<server>__<tool>`; the server set is unbounded, so match a prefix. */
-const MCP_TOOL_PREFIX = "mcp__";
-
-/**
- * Top-level record types that are recognized and carry no extractable fact for this slice.
- * Anything outside this table plus the conversation types below is `schema-drift`.
- */
-const NON_CONVERSATIONAL_RECORD_TYPES: Readonly<Record<string, true>> = {
-  attachment: true,
-  "queue-operation": true,
-  mode: true,
-  "permission-mode": true,
-  "last-prompt": true,
-  "custom-title": true,
-  "ai-title": true,
-  "file-history-snapshot": true,
-  "file-history-delta": true,
-  "atis-latch": true,
-  "summary": true,
-  "compact-boundary": true,
-};
-
-const CONVERSATION_RECORD_TYPES: Readonly<Record<string, true>> = {
-  user: true,
-  assistant: true,
-  system: true,
-};
+import { buildExtractConfig, toolKindsFor } from "./registry.js";
+import type { AdapterDefinition, AdapterDiagnostic, AdapterParseResult, AdapterSession } from "./registry.js";
 
 /**
  * Claude writes the compaction boundary as a `system` record without a `message` object. Its
@@ -171,32 +90,26 @@ export type ClaudeDiagnosticCode =
 /**
  * A skipped or repaired input, reported so the caller can mark the snapshot degraded.
  * `detail` never contains transcript prose: it is a bounded adapter-vocabulary token.
+ *
+ * The code set is Claude's; the framework only requires that a diagnostic exists, because any
+ * diagnostic means the declaration does not cover what the transcript contained (see
+ * `registry.ts`).
  */
-export interface ClaudeDiagnostic {
-  readonly line: number;
+export interface ClaudeDiagnostic extends AdapterDiagnostic {
   readonly code: ClaudeDiagnosticCode;
-  readonly detail: string;
 }
 
-export interface ClaudeSession {
-  readonly sessionId: string | null;
-  readonly cwd: string | null;
-  readonly version: string | null;
-}
-
-export interface ClaudeParseResult {
+/**
+ * `AdapterParseResult` with Claude's narrower diagnostic codes, so the CLI can order its report
+ * by a known code list while the framework stays adapter-agnostic.
+ */
+export interface ClaudeParseResult extends AdapterParseResult {
   /** Normalized events in physical line order; `entry` is the 0-based record index. */
   readonly events: NormalizedEvent[];
   readonly diagnostics: ClaudeDiagnostic[];
-  readonly session: ClaudeSession;
+  readonly session: AdapterSession;
   /** Every `tool_use.name` observed, sorted and deduplicated. */
   readonly toolNames: string[];
-  /** Conversation records (`user`/`assistant`/`system`), regardless of content, including compact metadata. */
-  readonly recordCount: number;
-  /** Conversation records carrying at least one recognized content block. */
-  readonly conversationRecords: number;
-  readonly toolCalls: number;
-  readonly toolResults: number;
 }
 
 /** Raised when the transcript cannot supply a required extraction input. Refusal, never a guess. */
@@ -303,14 +216,23 @@ function taskStatusState(status: string): "open" | "done" | null {
 }
 
 /**
- * Map Claude JSONL bytes to normalized events.
+ * Map Claude JSONL bytes to normalized events against one adapter definition.
  *
  * Pairing is by `tool_use.id` ↔ `tool_result.tool_use_id`, never by line adjacency; results
  * are physically separated from their calls by `attachment` records in real transcripts.
  * Evidence line numbers are 1-based physical lines and `rawLine` is the exact line bytes, so
  * `lineHash` reflects the bytes on disk rather than a re-serialization.
+ *
+ * The record vocabulary is the definition's, so a new record type is a declared change rather
+ * than a code change — and so the same vocabulary decides what `drift.ts` accepts as known.
  */
-export function parseClaudeTranscript(bytes: Uint8Array): ClaudeParseResult {
+export function parseClaudeTranscript(bytes: Uint8Array, definition: AdapterDefinition): ClaudeParseResult {
+  const records = definition.transcript.records;
+  // Membership is tested by `Set`, not by an object lookup: a transcript-supplied `type` such as
+  // `constructor` must miss, which an object literal inherited from `Object.prototype` cannot
+  // promise.
+  const conversational = new Set(records.conversational);
+  const nonConversational = new Set(records.non_conversational);
   const diagnostics: ClaudeDiagnostic[] = [];
   const physical: PhysicalLine[] = splitPhysicalLines(bytes).map((lineBytes, index) => {
     const line = index + 1;
@@ -374,8 +296,8 @@ export function parseClaudeTranscript(bytes: Uint8Array): ClaudeParseResult {
       diagnostics.push({ line, code: "conversational-content-not-text", detail: type });
       continue;
     }
-    if (NON_CONVERSATIONAL_RECORD_TYPES[type] === true) continue;
-    if (CONVERSATION_RECORD_TYPES[type] !== true) {
+    if (nonConversational.has(type)) continue;
+    if (!conversational.has(type)) {
       diagnostics.push({ line, code: "unknown-record-type", detail: safeToken(type) });
       continue;
     }
@@ -481,7 +403,7 @@ export function parseClaudeTranscript(bytes: Uint8Array): ClaudeParseResult {
   };
 
   for (const { line, bytes: rawLine, parsed } of physical) {
-    if (parsed === null || CONVERSATION_RECORD_TYPES[asString(parsed.type) ?? ""] !== true) continue;
+    if (parsed === null || !conversational.has(asString(parsed.type) ?? "")) continue;
     if (isCompactBoundaryRecord(parsed) || isCompactSummaryRecord(parsed)) continue;
     const message = parsed.message;
     if (!isObject(message)) continue;
@@ -678,18 +600,12 @@ function todoEventFor(
 /**
  * Declare the tool map for the tools this transcript actually contains.
  *
- * Derived rather than fixed so the MCP prefix rule can apply without teaching core a wildcard,
- * and so `coverage_ppm` stays a real signal: a name that is neither in {@link CLAUDE_TOOL_KINDS}
- * nor an MCP name is left out of the map and core counts it as an unmapped call.
+ * Derived rather than fixed so the definition's prefix rule can apply without teaching the
+ * engine a wildcard, and so `coverage_ppm` stays a real signal: a name in neither of the
+ * definition's tables is left out of the map and the extractor counts it as an unmapped call.
  */
-export function claudeToolKinds(toolNames: readonly string[]): Record<string, ToolKind> {
-  const kinds: Record<string, ToolKind> = {};
-  for (const name of toolNames) {
-    const declared = CLAUDE_TOOL_KINDS[name];
-    if (declared !== undefined) kinds[name] = declared;
-    else if (name.startsWith(MCP_TOOL_PREFIX)) kinds[name] = "ignored";
-  }
-  return kinds;
+export function claudeToolKinds(toolNames: readonly string[], definition: AdapterDefinition): Record<string, ToolKind> {
+  return toolKindsFor(definition.tools, toolNames);
 }
 
 /**
@@ -699,8 +615,11 @@ export function claudeToolKinds(toolNames: readonly string[]): Record<string, To
  * a session cwd but nothing that proves a repository root, and probing the filesystem in
  * extraction is a determinism bug (SCHEMA §5.2 rule 5). Scope roots are empty because cwd is
  * the session cwd; any path outside it becomes the opaque external form.
+ *
+ * The vocabulary and the decision lexicon come from the definition, through the framework's
+ * assembler, so no adapter-specific copy of them can drift.
  */
-export function claudeExtractConfig(parse: ClaudeParseResult): ExtractConfig {
+export function claudeExtractConfig(parse: ClaudeParseResult, definition: AdapterDefinition): ExtractConfig {
   const cwd = parse.session.cwd;
   if (cwd === null || cwd.length === 0) {
     throw new ClaudeTranscriptRefusal(
@@ -708,14 +627,11 @@ export function claudeExtractConfig(parse: ClaudeParseResult): ExtractConfig {
       "The transcript records no session cwd, so paths cannot be normalized without guessing.",
     );
   }
-  const scopeRoots: ScopeRoot[] = [];
-  return {
-    adapterId: CLAUDE_ADAPTER_ID,
-    toolKinds: claudeToolKinds(parse.toolNames),
-    scopeRoots,
+  return buildExtractConfig(definition, {
     cwd,
     repoRoot: null,
     pathBase: "cwd",
-    decisionCues: CLAUDE_DECISION_CUES,
-  };
+    scopeRoots: [],
+    toolNames: parse.toolNames,
+  });
 }
