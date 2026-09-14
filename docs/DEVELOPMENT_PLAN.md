@@ -62,7 +62,48 @@ WAVE 5  Ship
         P11b generic fallback   ── transcript-from-file, SQLite, git-only tier
         P12 Hardening           ── fault injection, fuzz, property, budgets
         P13 Release             ── packaging, docs, demo, publish
+
+TIMEBOXED PORTFOLIO VALIDATION LANE  (2026-09-14 → 2026-09-16)
+        OG-84  Post-compact fix ── model Claude compact_boundary records explicitly
+        OG-85  Continuity slice ── explicit-session checkpoint, merge, pack, reinjection
+        OG-86  Benchmark v2    ── paired medium/large repeated-compaction runs
+        OG-83  Publication     ── refresh evidence, then pass the privacy/history gate
 ```
+
+The portfolio lane is a deliberate vertical slice through P3, P6b, and P7. It does **not**
+mark those production phases complete or weaken their exit criteria. It exists to answer the
+product question before Wednesday: can a real Claude session retain useful, verifiable facts
+through repeated native compactions when dcompact checkpoints and reinjects them? The slice
+uses an explicitly named session and a documented development integration; it does not add the
+general installer, production retention policy, MCP, or another adapter.
+
+Medium and large describe sustained workload size, never pack byte budgets. The primary
+comparison uses the existing 16 KiB pack budget. Medium is the Wednesday gate: four manually
+scheduled compactions over roughly 80–120 observed facts. Large is the staged follow-on: seven
+or eight compactions over roughly 180–300, attempted only after the medium evidence and the
+publication surface are safe. An unfinished large run may not hold the portfolio gate hostage.
+
+Workloads, rubrics, scoring code, schedules, and cost/time stop conditions are frozen before
+execution. All arms use Claude Haiku 4.5 on the same task. The design distinguishes three
+effects: native `/compact` alone; native `/compact` with its own summary deliberately
+re-surfaced at the same checkpoint (a salience control); and native `/compact` plus dcompact
+checkpoint/reinjection. Without the salience control, a dcompact win could mean only that its
+pack was newer, not that its representation preserved more. The coding work is organic; the
+compaction timing is controlled and manual, and must be described that way. OG-86 owns the
+exact acceptance and honesty rules.
+
+The automatic 66% watermark remains OG-81. It is not smuggled into the Wednesday slice: a
+generic threshold requires trustworthy per-adapter telemetry, epoch re-arming, install wiring,
+and doctor reporting. OG-85 proves the continuity loop with a task-owned Claude configuration
+and development hook integration, so the user stays inside the agent without touching live
+configuration; it must not claim automatic watermark or polished installer support.
+
+Every lane PR must scan both its diff and the reachable history it adds for real session ids,
+host paths, usernames, project identifiers, and transcript prose. Fixtures use synthetic
+records only. Because GitHub-owned pull refs retain old commits, the current private repository
+is not the publication target: after the evidence is final, OG-83 exports the sanitized HEAD
+into a fresh public repository and verifies it while logged out. Normal one-issue-per-PR review
+continues privately without making the publication rewrite harder.
 
 **P12a is not optional and is not a wrapper.** ADR 001 establishes that the user is inside
 their coding agent when they need this, and that a bare terminal command cannot know which
@@ -85,8 +126,10 @@ Wave gates, stated as stops rather than cautions:
 
 - **After Wave 1** — if determinism cannot be demonstrated on synthetic fixtures, stop. Real
   transcripts only add noise. (P2)
-- **After Wave 2** — if the preview pack is not visibly more useful than the agent's own
-  summary, stop and rethink the fact vocabulary. This is the cheap moment for it. (P6)
+- **After Wave 2** — if the preview facts are not useful enough to justify an injected
+  continuity experiment, stop and rethink the fact vocabulary. P6a established an extraction
+  substrate; it did not establish that a one-shot preview beats native compaction. The product
+  claim is tested only after checkpoint, merge, and reinjection exist. (P6/P7; OG-85/OG-86)
 - **After Wave 4** — if adding Codex or OMP required a change to `core/`, that change is the
   framework bug, not the adapter's. Record it. (P5)
 
