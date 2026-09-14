@@ -15,7 +15,7 @@ import { readFileSync } from "node:fs";
 import type { Snapshot } from "../core/types.js";
 import { errnoCode, refuseSymlinkedPath, stateRefusal, writeFileAtomic } from "./fs.js";
 import { ensureSessionDirectories } from "./paths.js";
-import { StoreRefusal, compareText, isDegradedList, isHash, isInteger, isRecord, isUtcInstant } from "./types.js";
+import { StoreRefusal, compareText, isDegradedList, isHash, isInteger, isLockRecord, isRecord, isUtcInstant } from "./types.js";
 import type { Manifest, ManifestLock, ManifestPrunedEntry, ManifestReadResult, ManifestSnapshotEntry, PruneReason, SessionPaths } from "./types.js";
 
 export const MANIFEST_VERSION = 1;
@@ -23,7 +23,6 @@ export const MANIFEST_VERSION = 1;
 const MANIFEST_FIELDS: Record<string, true> = { lock: true, manifest_version: true, pruned: true, session: true, snapshots: true };
 const SNAPSHOT_ENTRY_FIELDS: Record<string, true> = { created_at: true, degraded: true, facts: true, hash: true, id: true, pinned: true };
 const PRUNED_ENTRY_FIELDS: Record<string, true> = { at: true, hash: true, reason: true };
-const LOCK_FIELDS: Record<string, true> = { host: true, pid: true, started_at: true };
 const PRUNE_REASONS: Record<PruneReason, true> = { "retention:count": true, "retention:age": true, manual: true, corrupt: true };
 
 function hasExactFields(value: Record<string, unknown>, fields: Record<string, true>): boolean {
@@ -80,12 +79,7 @@ function parsePrunedEntry(value: unknown, index: number): ManifestPrunedEntry | 
 
 function parseLock(value: unknown): ManifestLock | null | string {
   if (value === null) return null;
-  if (!isRecord(value)) return "lock is neither null nor an object";
-  if (!hasExactFields(value, LOCK_FIELDS)) return "lock has an unknown or missing field";
-  if (!isInteger(value.pid, 1)) return "lock.pid is not a positive integer";
-  if (typeof value.host !== "string" || value.host.length === 0) return "lock.host is not a non-empty string";
-  if (!isUtcInstant(value.started_at)) return "lock.started_at is not a UTC instant at seconds precision";
-  return { pid: value.pid, host: value.host, started_at: value.started_at };
+  return isLockRecord(value) ? value : "lock is neither null nor a valid {pid, host, started_at} holder record";
 }
 
 function parseManifest(raw: string): ParsedManifest {

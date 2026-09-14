@@ -114,6 +114,89 @@ export interface ManifestLock {
   readonly started_at: string;
 }
 
+/** Why a lock the store could not trust was broken (CONCEPT §11.3, "Store race"). */
+export type LockBreakReason = "stale" | "unreadable";
+
+export interface BrokenLock {
+  /** The broken holder, or `null` when its record could not be read at all. */
+  readonly holder: ManifestLock | null;
+  readonly reason: LockBreakReason;
+  /** Where the broken record's bytes were preserved; `null` when the store could not file them. */
+  readonly evidence_path: string | null;
+  /** The broken record's age, or `null` when its `started_at` was unreadable. */
+  readonly age_ms: number | null;
+}
+
+/**
+ * The result of one writer's attempt to hold a session.
+ *
+ * `held: false` is not a failure: the store's writers write under distinct names, so a writer
+ * that waited out a live holder proceeds and reports `respected` rather than failing its caller.
+ */
+export interface SessionLock {
+  readonly held: boolean;
+  /** The live holder this writer waited out, `null` when it never had to wait for one. */
+  readonly respected: ManifestLock | null;
+  readonly broken: BrokenLock | null;
+  /** How long this writer waited, measured on the injected clock. */
+  readonly waited_ms: number;
+  /** The index write that recorded the claim, `null` when this writer never held the lock. */
+  readonly claim: ManifestWriteResult | null;
+  /**
+   * Drop this writer's claim and leave the index agreeing with the directory.
+   *
+   * Returns the index write this performed, including a repair of an index that had fallen behind
+   * the snapshot files, or `null` when there was nothing to write. Safe to call more than once,
+   * and safe to call when the loop never held the lock.
+   */
+  release(): ManifestWriteResult | null;
+}
+
+/** How many snapshots a session keeps and how old one may be: CONCEPT §10, 15 or 72 h. */
+export interface RetentionPolicy {
+  readonly maxSnapshots: number;
+  readonly maxAgeMs: number;
+}
+
+export interface PrunedSnapshot {
+  readonly path: string;
+  /** `<created_at>|<hash>`, the same id the manifest index uses. */
+  readonly id: string;
+  readonly hash: string;
+  readonly created_at: string;
+  readonly reason: PruneReason;
+  /** The instant of this prune, from the injected clock. */
+  readonly at: string;
+}
+
+/** One snapshot the policy selects, with the reason it was selected. */
+export interface RetentionCandidate {
+  readonly entry: ManifestSnapshotEntry;
+  readonly reason: Extract<PruneReason, "retention:count" | "retention:age">;
+}
+
+/** What the policy selects for one evaluation, before anything is deleted or written. */
+export interface RetentionPlan {
+  /** The index entries that survive, oldest first. */
+  readonly kept: readonly ManifestSnapshotEntry[];
+  /** The entries the policy selects for deletion, age before count. */
+  readonly pruned: readonly RetentionCandidate[];
+}
+
+export interface RetentionResult {
+  readonly policy: RetentionPolicy;
+  /** The instant the pass was evaluated at, from the injected clock. */
+  readonly now: string;
+  /** True when nothing was deleted and nothing was written. */
+  readonly dryRun: boolean;
+  /** Ids that survive this pass, oldest first. Pins and the newest snapshot are never pruned. */
+  readonly kept: readonly string[];
+  /** What this pass deleted, or on a dry run exactly what it would have deleted. */
+  readonly pruned: readonly PrunedSnapshot[];
+  /** The index write that recorded the prunes, or `null` when the pass changed nothing. */
+  readonly manifest: ManifestWriteResult | null;
+}
+
 /** `manifest.json` (SCHEMA §8), outside any hash. */
 export interface Manifest {
   readonly manifest_version: 1;
@@ -185,6 +268,34 @@ export function isUtcInstant(value: unknown): value is string {
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+const LOCK_RECORD_FIELDS: Record<string, true> = { host: true, pid: true, started_at: true };
+
+/**
+ * A lock holder record (SCHEMA §8): the shape both `manifest.lock` and the session lock file
+ * carry, so one reader can be sure of what the other wrote. Unknown fields are rejected: a
+ * record dcompact does not understand is not a holder it can reason about.
+ */
+export function isLockRecord(value: unknown): value is ManifestLock {
+  if (!isRecord(value)) return false;
+  const keys = Object.keys(value);
+  if (keys.length !== 3 || !keys.every((key) => LOCK_RECORD_FIELDS[key] === true)) return false;
+  if (!isInteger(value.pid, 1)) return false;
+  if (typeof value.host !== "string" || value.host.length === 0) return false;
+  return isUtcInstant(value.started_at);
+}
+
+/**
+ * The inverse of `isUtcInstant`: a wall-clock millisecond count at the seconds precision every
+ * stored instant uses. Truncating rather than rounding keeps an instant from ever naming a moment
+ * that has not happened yet.
+ */
+export function utcInstantFrom(milliseconds: number): string {
+  if (!Number.isFinite(milliseconds)) {
+    throw new StoreRefusal("invalid-instant", `Cannot form a UTC instant from ${describeValue(milliseconds)}; the clock must return a finite millisecond count.`);
+  }
+  return new Date(Math.floor(milliseconds / 1000) * 1000).toISOString().replace(/\.000Z$/, "Z");
 }
 
 /** Payload integers are non-negative by construction; `minimum` raises the floor where needed. */

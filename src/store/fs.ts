@@ -5,7 +5,7 @@
  * durability and permissions rules are stated once instead of per caller.
  */
 
-import { chmodSync, closeSync, fsyncSync, lstatSync, mkdirSync, openSync, renameSync, rmSync, writeSync } from "node:fs";
+import { chmodSync, closeSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeSync } from "node:fs";
 import type { Stats } from "node:fs";
 import { dirname } from "node:path";
 
@@ -44,6 +44,16 @@ export function lstatOrNull(path: string, label: string): Stats | null {
   } catch (error) {
     if (errnoCode(error) === "ENOENT") return null;
     wrap(error, path, label);
+  }
+}
+
+/** `readFileSync` with `ENOENT` as `null`; every other failure is the caller's to act on. */
+export function readFileOrNull(path: string, label: string): string | null {
+  try {
+    return readFileSync(path, "utf8");
+  } catch (error) {
+    if (errnoCode(error) === "ENOENT") return null;
+    wrap(error, path, label, "file");
   }
 }
 
@@ -138,4 +148,96 @@ export function writeFileAtomic(path: string, contents: string): void {
     wrap(error, path, "state file", "file");
   }
   fsyncDirectory(dirname(path));
+}
+
+/**
+ * Create `path` with `contents`, or report that the name is taken — never both, and never
+ * partially.
+ *
+ * The bytes land in a sibling temp file first and are published with `link()`, which fails with
+ * `EEXIST` rather than overwriting. Exclusive creation and complete content therefore happen in
+ * one step: a second writer cannot observe a lock file that is empty because its owner is still
+ * writing it.
+ */
+export function createExclusiveFile(path: string, contents: string): boolean {
+  const temp = `${path}.tmp-${process.pid}`;
+  let created = false;
+  try {
+    const fd = openSync(temp, "w", 0o600);
+    try {
+      writeSync(fd, contents);
+      fsyncSync(fd);
+    } finally {
+      closeSync(fd);
+    }
+    chmodSync(temp, 0o600);
+    try {
+      linkSync(temp, path);
+      created = true;
+    } catch (error) {
+      // A held name is an ordinary outcome here, not a failure: the caller decides what the
+      // existing file means before it tries again.
+      if (errnoCode(error) !== "EEXIST") throw error;
+    }
+  } catch (error) {
+    wrap(error, path, "state file", "file");
+  } finally {
+    try {
+      rmSync(temp, { force: true });
+    } catch {
+      // The temp name is inert: nothing reads state except by its final name.
+    }
+  }
+  if (created) fsyncDirectory(dirname(path));
+  return created;
+}
+
+/** Remove a state file; one that another writer already removed is not this caller's failure. */
+export function removeStateFile(path: string, label: string): void {
+  try {
+    rmSync(path);
+  } catch (error) {
+    if (errnoCode(error) === "ENOENT") return;
+    wrap(error, path, label, "file");
+  }
+}
+
+/**
+ * `<path><suffix>`, then `<path><suffix>.1` … up to `limit`; `null` when every name is taken.
+ *
+ * Evidence kept beside the file it came from stays findable, and the bound keeps a repeating
+ * failure from filling the directory with numbered copies of itself.
+ */
+export function freeSiblingPath(path: string, suffix: string, limit: number, label: string): string | null {
+  if (lstatOrNull(`${path}${suffix}`, label) === null) return `${path}${suffix}`;
+  for (let index = 1; index <= limit; index += 1) {
+    const candidate = `${path}${suffix}.${index}`;
+    if (lstatOrNull(candidate, label) === null) return candidate;
+  }
+  return null;
+}
+
+/**
+ * Move a state file aside under a free numbered sibling name, keeping its bytes for inspection,
+ * and report where they went.
+ *
+ * `null` means the bytes are gone: either another writer moved or removed the file first, or no
+ * name was free beside it. The caller asked for the path to be clear, and clearing it is the
+ * part that must not fail — a store that cannot make progress is worse than one that lost
+ * evidence it had nowhere to file.
+ */
+export function preserveStateFile(path: string, suffix: string, limit: number, label: string): string | null {
+  const target = freeSiblingPath(path, suffix, limit, label);
+  if (target === null) {
+    removeStateFile(path, label);
+    return null;
+  }
+  try {
+    renameSync(path, target);
+  } catch (error) {
+    if (errnoCode(error) === "ENOENT") return null;
+    wrap(error, path, label, "file");
+  }
+  fsyncDirectory(dirname(path));
+  return target;
 }
