@@ -15,6 +15,7 @@
  */
 
 import { readFileSync, realpathSync } from "node:fs";
+import { basename } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { parseClaudeTranscript, claudeExtractConfig, ClaudeTranscriptRefusal } from "./adapters/claude.js";
@@ -23,11 +24,21 @@ import { checkpoint, restore, runHook, ContinuityRefusal } from "./continuity.js
 import { extractPayloadWithHealth } from "./core/extract/index.js";
 import { payloadHash } from "./core/hash.js";
 import { DEFAULT_MAX_BYTES, formatDegradedStates, minimumPackBytes, renderPack } from "./core/pack.js";
-import type { DegradedState, PackOptions, Payload } from "./core/types.js";
+import type { AdapterId, DegradedState, PackOptions, Payload, Snapshot } from "./core/types.js";
+import { readManifest, snapshotId } from "./store/manifest.js";
+import { sessionPaths } from "./store/paths.js";
+import { listSnapshots, shortHash } from "./store/snapshot.js";
+import { StoreRefusal } from "./store/types.js";
+import type { ManifestSnapshotEntry, SessionPaths, SnapshotReadQuarantined } from "./store/types.js";
+import { checkPayloadHash, checkProvenance } from "./store/verify.js";
+
+/** The only adapter the store commands read today; `--adapter` is not a flag this slice adds. */
+const STORE_ADAPTER: AdapterId = "claude";
 
 const EXIT_OK = 0;
 const EXIT_USAGE = 2;
-const EXIT_TRANSCRIPT_UNREADABLE = 3;
+/** CONCEPT §6.2: integrity failure — an unreadable transcript, or (`verify`) a hash mismatch. */
+const EXIT_INTEGRITY = 3;
 const EXIT_REFUSED = 4;
 const EXIT_INTERNAL = 5;
 
@@ -81,30 +92,48 @@ function usage(): string {
     "  dcompact snapshot --session <id> --transcript <path> --store <dir>",
     "  dcompact restore --session <id> --store <dir> [options]",
     "  dcompact hook --event precompact|session-start --store <dir>",
+    "  dcompact list --session <id> [--store <dir>] [--json]",
+    "  dcompact show --session <id> --snapshot <id> [--store <dir>] [--json]",
+    "  dcompact verify --session <id> [--snapshot <id>] [--store <dir>] [--provenance] [--json]",
     "",
     "Commands:",
     "  preview   Map a transcript to normalized events, extract facts, print the pack.",
     "  snapshot  Checkpoint one explicitly named Claude session.",
     "  restore   Merge and render checkpoints for one explicitly named session.",
     "  hook      Fail-open Claude PreCompact/SessionStart bridge over stdin/stdout.",
+    "  list      List one session's stored snapshots, oldest first, plus quarantine state.",
+    "  show      Print one stored snapshot's envelope, payload summary, and rendered pack.",
+    "  verify    Recompute a snapshot's payload hash; --provenance re-checks it against the",
+    "            transcript named in its envelope.",
     "",
     "Options:",
-    "  --transcript <path>   Claude Code JSONL transcript to read. Required.",
+    "  --transcript <path>   Claude Code JSONL transcript to read. Required for preview/snapshot.",
     `  --max-bytes <n>       Pack byte budget. Default ${DEFAULT_MAX_BYTES}. A value below the`,
     "                        mandatory header plus elision notice is refused with the exact",
     "                        minimum for that transcript (reported in the refusal message).",
     "  --max-facts <n>       Maximum number of facts in the pack.",
     "  --include-evidence    Append evidence line numbers to each fact.",
+    "  --session <id>        Explicit session id. Required by every command below preview;",
+    "                        never guessed, never the most recent (AGENTS invariant 8).",
+    "  --store <dir>         Store root. list/show/verify default to the resolved XDG/",
+    "                        DCOMPACT_HOME store when omitted; snapshot/restore/hook require it.",
+    "  --snapshot <id>       A snapshot's short hash or full id, as printed by `list --json`.",
+    "                        Required for show; verify checks every snapshot when omitted.",
+    "  --provenance          verify only: re-read the transcript and check each fact's evidence.",
+    "  --json                list/show/verify: print the documented JSON shape instead of text.",
     "  --help, -h            Print this usage.",
     "",
     "Exit codes:",
-    `  ${EXIT_OK}  pack written to stdout`,
-    `  ${EXIT_USAGE}  usage error (unknown command, missing --transcript, bad value)`,
-    `  ${EXIT_TRANSCRIPT_UNREADABLE}  the transcript could not be read`,
-    `  ${EXIT_REFUSED}  the transcript cannot supply a required extraction input`,
+    `  ${EXIT_OK}  success`,
+    `  ${EXIT_USAGE}  usage error (unknown command, missing --transcript/--session, bad value)`,
+    `  ${EXIT_INTEGRITY}  integrity failure: the transcript could not be read, or verify found a`,
+    "     payload whose hash does not match its envelope (quarantined, corrupt, or tampered)",
+    `  ${EXIT_REFUSED}  the operation refuses: a required extraction input is missing, the`,
+    "     session/store/snapshot id is invalid, or the named snapshot does not exist",
     `  ${EXIT_INTERNAL}  unexpected internal error`,
     "",
-    "Identity is explicit: this command never scans for sessions and never selects one.",
+    "Identity is explicit: no command scans for sessions, snapshots, or stores, and none",
+    "ever selects one for you.",
   ].join("\n");
 }
 
@@ -167,6 +196,49 @@ function parseHookArgs(argv: readonly string[]): { readonly event: "precompact" 
   if (event === null) throw new UsageError("missing-event", "hook requires --event precompact|session-start");
   if (store === null) throw new UsageError("missing-store", "hook requires a task-owned --store <dir>; live agent state is never selected.");
   return { event, store };
+}
+
+interface StoreArgs {
+  readonly session: string;
+  readonly store?: string;
+  readonly snapshot?: string;
+  readonly provenance: boolean;
+  readonly json: boolean;
+}
+
+/** Shared by `list`/`show`/`verify`: an explicit `--session`, everything else optional. */
+function parseStoreArgs(argv: readonly string[], command: "list" | "show" | "verify"): StoreArgs | "help" {
+  let session: string | null = null;
+  let store: string | undefined;
+  let snapshot: string | undefined;
+  let provenance = false;
+  let json = false;
+  for (let index = 0; index < argv.length; index += 1) {
+    const flag = argv[index];
+    if (flag === "--help" || flag === "-h") return "help";
+    if (flag === "--json") {
+      json = true;
+      continue;
+    }
+    if (flag === "--provenance") {
+      if (command !== "verify") throw new UsageError("unknown-argument", `Unknown argument: ${JSON.stringify(flag)}`);
+      provenance = true;
+      continue;
+    }
+    if (flag === "--session" || flag === "--store" || flag === "--snapshot") {
+      const value = argv[index + 1];
+      if (value === undefined) throw new UsageError("missing-value", `${flag} requires a value`);
+      if (flag === "--session") session = value;
+      else if (flag === "--store") store = value;
+      else snapshot = value;
+      index += 1;
+      continue;
+    }
+    throw new UsageError("unknown-argument", `Unknown argument: ${JSON.stringify(flag)}`);
+  }
+  if (session === null) throw new UsageError("missing-session", `${command} requires an explicit --session <id>; no session is ever chosen for you.`);
+  if (command === "show" && snapshot === undefined) throw new UsageError("missing-snapshot", "show requires an explicit --snapshot <id>.");
+  return { session, store, snapshot, provenance, json };
 }
 
 function nonNegativeInteger(raw: string, flag: string): number {
@@ -306,6 +378,169 @@ export function preview(options: PreviewOptions): PreviewResult {
   return { pack, payload, diagnostics: parse.diagnostics, degraded, report: `${lines.join("\n")}\n` };
 }
 
+function resolveSession(args: StoreArgs): SessionPaths {
+  return sessionPaths({ adapter: STORE_ADAPTER, sessionId: args.session, root: args.store });
+}
+
+/** SCHEMA §2: the manifest id, the full hash, and its short display form are all valid input. */
+function matchesSnapshotQuery(entry: Pick<ManifestSnapshotEntry, "id" | "hash">, query: string): boolean {
+  return entry.id === query || entry.hash === query || shortHash(entry.hash) === query;
+}
+
+/**
+ * A quarantined file's `path` is the name `writeSnapshot` derived before it was tampered with,
+ * so the short hash it embeds is still the query surface a user saw from `list`. A file placed
+ * under a name that never followed that convention (there is no envelope left to derive one
+ * from) falls back to its bare filename.
+ */
+function quarantineQueryId(entry: SnapshotReadQuarantined): string {
+  return /-([0-9a-f]{12})\.json$/.exec(basename(entry.path))?.[1] ?? basename(entry.path).replace(/\.json$/, "");
+}
+
+function describeQuarantine(entry: SnapshotReadQuarantined): Record<string, unknown> {
+  return { id: quarantineQueryId(entry), path: entry.path, quarantinePath: entry.quarantinePath, code: entry.code, reason: entry.reason };
+}
+
+function notFoundRefusal(session: SessionPaths, query: string): StoreRefusal {
+  return new StoreRefusal("snapshot-not-found", `No snapshot ${JSON.stringify(query)} in session ${JSON.stringify(session.name)}. Run "dcompact list --session ${session.sessionId}" to see what exists.`);
+}
+
+function runList(args: StoreArgs, io: CliIo): number {
+  const session = resolveSession(args);
+  const listed = listSnapshots(session);
+  const manifestRead = readManifest(session, listed.entries);
+  const entries = manifestRead.manifest.snapshots;
+
+  if (args.json) {
+    io.stdout(`${JSON.stringify({
+      session: session.name,
+      store: session.root,
+      manifest: { path: manifestRead.path, rebuilt: manifestRead.rebuilt, reason: manifestRead.reason },
+      snapshots: entries.map((entry) => ({ id: entry.id, hash: entry.hash, short: shortHash(entry.hash), created_at: entry.created_at, facts: entry.facts, degraded: entry.degraded, pinned: entry.pinned })),
+      quarantined: listed.quarantined.map(describeQuarantine),
+    })}\n`);
+    return EXIT_OK;
+  }
+
+  const lines: string[] = [];
+  lines.push(`session: ${session.name}`);
+  lines.push(`store: ${session.root}`);
+  lines.push(`manifest: ${manifestRead.path}${manifestRead.rebuilt ? ` (rebuilt: ${manifestRead.reason})` : ""}`);
+  if (entries.length === 0) {
+    lines.push("snapshots: none");
+  } else {
+    lines.push(`snapshots: ${entries.length}`);
+    for (const entry of entries) {
+      lines.push(`  ${shortHash(entry.hash)}  ${entry.created_at}  facts=${entry.facts}  degraded=${entry.degraded.length > 0 ? entry.degraded.join(",") : "none"}  pinned=${entry.pinned ? "yes" : "no"}`);
+    }
+  }
+  if (listed.quarantined.length === 0) {
+    lines.push("quarantined: none");
+  } else {
+    lines.push(`quarantined: ${listed.quarantined.length}`);
+    for (const entry of listed.quarantined) lines.push(`  ${quarantineQueryId(entry)}  code=${entry.code}  reason=${entry.reason}`);
+  }
+  io.stdout(`${lines.join("\n")}\n`);
+  return EXIT_OK;
+}
+
+function runShow(args: StoreArgs, io: CliIo): number {
+  const session = resolveSession(args);
+  const query = args.snapshot as string;
+  const listed = listSnapshots(session);
+  const found = listed.snapshots.find((snapshot) => matchesSnapshotQuery({ id: snapshotId(snapshot.envelope.created_at, snapshot.envelope.hash), hash: snapshot.envelope.hash }, query));
+  if (found === undefined) {
+    const quarantined = listed.quarantined.find((entry) => quarantineQueryId(entry) === query);
+    if (quarantined !== undefined) {
+      throw new StoreRefusal("snapshot-quarantined", `Snapshot ${JSON.stringify(query)} is quarantined (${quarantined.code}: ${quarantined.reason}); inspect ${JSON.stringify(quarantined.quarantinePath)} to repair it.`);
+    }
+    throw notFoundRefusal(session, query);
+  }
+
+  const { envelope, payload } = found;
+  const pack = renderPack(payload, { degraded: envelope.degraded });
+  if (args.json) {
+    io.stdout(`${JSON.stringify({ id: shortHash(envelope.hash), envelope, payload, pack })}\n`);
+    return EXIT_OK;
+  }
+
+  const lines: string[] = [];
+  lines.push(`snapshot ${shortHash(envelope.hash)} (${envelope.created_at})`);
+  lines.push(`envelope: adapter=${envelope.adapter} session=${envelope.session_id ?? "<absent>"} schema=${envelope.schema_version} canonicalization=${envelope.canonicalization} extractor=${envelope.extractor_version}`);
+  lines.push(`  hash=${envelope.hash}`);
+  lines.push(`  transcript=${envelope.transcript_path ?? "<absent>"} bytes=${envelope.transcript_bytes} lines=${envelope.transcript_lines} mtime=${envelope.transcript_mtime ?? "<absent>"}`);
+  lines.push(`  degraded=${envelope.degraded.length > 0 ? envelope.degraded.join(",") : "none"}`);
+  lines.push(`payload: facts=${payload.counters.facts} path_base=${payload.path_base} coverage=${payload.counters.coverage_ppm}ppm unmapped=${payload.counters.unmapped_tool_calls} external=${payload.counters.external_path_count}`);
+  lines.push(`  by_kind: ${Object.entries(payload.counters.by_kind).map(([kind, count]) => `${kind}=${count}`).join(", ") || "none"}`);
+  lines.push(`  git: ${payload.git === null ? "absent" : `head=${payload.git.head} branch=${payload.git.branch} dirty=${payload.git.dirty}`}`);
+  lines.push(`  plan: ${payload.plan === null ? "absent" : `todos=${payload.plan.todos} done=${payload.plan.done}`}`);
+  lines.push("--- pack ---");
+  lines.push(pack);
+  io.stdout(`${lines.join("\n")}\n`);
+  return EXIT_OK;
+}
+
+function runVerify(args: StoreArgs, io: CliIo): number {
+  const session = resolveSession(args);
+  const listed = listSnapshots(session);
+  let usable: readonly Snapshot[] = listed.snapshots;
+  let quarantined: readonly SnapshotReadQuarantined[] = listed.quarantined;
+
+  if (args.snapshot !== undefined) {
+    const match = usable.find((snapshot) => matchesSnapshotQuery({ id: snapshotId(snapshot.envelope.created_at, snapshot.envelope.hash), hash: snapshot.envelope.hash }, args.snapshot as string));
+    if (match !== undefined) {
+      usable = [match];
+      quarantined = [];
+    } else {
+      const quarantinedMatch = quarantined.find((entry) => quarantineQueryId(entry) === args.snapshot);
+      if (quarantinedMatch === undefined) throw notFoundRefusal(session, args.snapshot);
+      usable = [];
+      quarantined = [quarantinedMatch];
+    }
+  }
+
+  const checked = usable.map((snapshot) => {
+    const hash = checkPayloadHash(snapshot);
+    const provenance = args.provenance ? checkProvenance(snapshot) : null;
+    return { id: shortHash(snapshot.envelope.hash), hash, provenance };
+  });
+  // Corruption already surfaced by `readSnapshot` as a quarantine (CONCEPT §11.3 "Corrupt
+  // snapshot"); a hash re-check here can only ever confirm what let the file into `usable` in
+  // the first place. Either source failing is the same integrity contract.
+  const integrityOk = quarantined.length === 0 && checked.every((entry) => entry.hash.ok);
+
+  if (args.json) {
+    io.stdout(`${JSON.stringify({
+      session: session.name,
+      store: session.root,
+      checked,
+      quarantined: quarantined.map(describeQuarantine),
+      integrityOk,
+    })}\n`);
+    return integrityOk ? EXIT_OK : EXIT_INTEGRITY;
+  }
+
+  const lines: string[] = [];
+  lines.push(`session: ${session.name}`);
+  lines.push(checked.length === 0 ? "checked: none" : `checked: ${checked.length}`);
+  for (const entry of checked) {
+    lines.push(`  ${entry.id}  hash=${entry.hash.ok ? "ok" : `MISMATCH (expected ${entry.hash.expected}, computed ${entry.hash.computed})`}`);
+    if (entry.provenance !== null) {
+      const { counts, transcriptReadable, transcriptPath } = entry.provenance;
+      lines.push(`    provenance: transcript=${transcriptPath ?? "<absent>"} readable=${transcriptReadable} backed=${counts.backed} drifted=${counts.drifted} unbacked=${counts.unbacked}`);
+    }
+  }
+  if (quarantined.length === 0) {
+    lines.push("quarantined: none");
+  } else {
+    lines.push(`quarantined: ${quarantined.length}`);
+    for (const entry of quarantined) lines.push(`  ${quarantineQueryId(entry)}  code=${entry.code}  reason=${entry.reason}`);
+  }
+  lines.push(`integrity: ${integrityOk ? "ok" : "FAILED"}`);
+  io.stdout(`${lines.join("\n")}\n`);
+  return integrityOk ? EXIT_OK : EXIT_INTEGRITY;
+}
+
 /** Output sinks, injected so a test can assert the exact streams without spawning a process. */
 export interface CliIo {
   readonly stdout: (text: string) => void;
@@ -347,7 +582,7 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
     io.stderr(`Unknown command: ${JSON.stringify(command)}\n\n${usage()}\n`);
     return EXIT_USAGE;
   }
-  if (command !== "preview" && command !== "snapshot" && command !== "restore" && command !== "hook") {
+  if (command !== "preview" && command !== "snapshot" && command !== "restore" && command !== "hook" && command !== "list" && command !== "show" && command !== "verify") {
     io.stderr(`Unknown command: ${JSON.stringify(command)}\n\n${usage()}\n`);
     return EXIT_USAGE;
   }
@@ -393,6 +628,16 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
       io.stdout(`${runHook(input, parsed.event, { root: parsed.store })}\n`);
       return EXIT_OK;
     }
+    if (command === "list" || command === "show" || command === "verify") {
+      const parsed = parseStoreArgs(argv.slice(1), command);
+      if (parsed === "help") {
+        io.stdout(`${usage()}\n`);
+        return EXIT_OK;
+      }
+      if (command === "list") return runList(parsed, io);
+      if (command === "show") return runShow(parsed, io);
+      return runVerify(parsed, io);
+    }
     const parsed = parsePreviewArgs(argv.slice(1));
     if (parsed === "help") {
       io.stdout(`${usage()}\n`);
@@ -405,7 +650,7 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
   } catch (error) {
     if (error instanceof UsageError) {
       io.stderr(`${error.message}\n`);
-      if (error.code === "transcript-unreadable") return EXIT_TRANSCRIPT_UNREADABLE;
+      if (error.code === "transcript-unreadable") return EXIT_INTEGRITY;
       io.stderr(`\n${usage()}\n`);
       return EXIT_USAGE;
     }
@@ -416,6 +661,13 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
     if (error instanceof ContinuityRefusal) {
       io.stderr(`Refusing continuity operation: ${error.message}\n`);
       return EXIT_REFUSED;
+    }
+    if (error instanceof StoreRefusal) {
+      io.stderr(`Refusing store operation: ${error.message}\n`);
+      // A quarantined snapshot is corruption CONCEPT §11.3 already detected on read; asking to
+      // `show`/`verify` it specifically surfaces that as the same integrity failure, not a
+      // generic refusal, so both codes report the same class of problem the same way.
+      return error.code === "snapshot-quarantined" ? EXIT_INTEGRITY : EXIT_REFUSED;
     }
     const reason = error instanceof Error ? (error.stack ?? error.message) : String(error);
     io.stderr(`Internal error: ${reason}\n`);
