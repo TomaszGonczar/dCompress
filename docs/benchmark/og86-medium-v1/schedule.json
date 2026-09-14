@@ -2,6 +2,7 @@
   "series": "OG86-medium-v1",
   "phases": 4,
   "manualCompactions": 4,
+  "armOrderSeedCommit": "fd1c5ed7e872243f94746402f5b61790614d4ea9",
   "sequencePerPhase": [
     "send frozen phase prompt to source session",
     "run npm test and verify phase acceptance",
