@@ -99,7 +99,8 @@ Claude-only and task-owned; it does not edit live Claude configuration.
 | Explicit-session durable checkpoint store | **Works — experimental Claude-only slice** |
 | `restore` / bounded pack for the named session | **Works — experimental Claude-only slice** |
 | Claude `PreCompact` / `SessionStart` hook bridge | **Works — task-owned development integration** |
-| Manifest, lock, retention, prune, pin | **Not implemented** |
+| Store: XDG path resolution, atomic snapshot write, hash-verified read, quarantine, manifest, advisory lock, retention | **Works as a library** — `src/store/`; no CLI command is wired to it yet |
+| `prune` / `pin` / `list` commands | **Not implemented** — the retention and manifest policy they would call exists; the command surface does not |
 | `install` / `uninstall` / reversible byte-identical restore | **Not implemented** |
 | MCP server | **Not implemented** |
 | Codex, OMP, Pi, or any second adapter | **Not implemented** |
@@ -204,8 +205,9 @@ and restores a verified pack. This checkout has only the experimental explicit-s
 slice; general installation and the other adapters remain future work. In wave order:
 
 1. **Wave 1 — done.** Core engine, canonicalization, hashing, 10 golden vectors.
-2. **Wave 2 — partially done.** Adapter recon is complete; the Claude thin slice (`preview`) is
-   implemented and judged above. The store is next.
+2. **Wave 2 — done.** Adapter recon is complete, the Claude thin slice (`preview`) is
+   implemented and judged above, and the store (snapshots, manifest, lock, retention) is
+   implemented as a library.
 3. **Wave 3.** The experimental Claude continuity slice is in place; general install/uninstall
    with reversible, byte-identical restore remains next.
 4. **Wave 4.** Adapter framework, then the Codex and OMP adapters, each validated against the
