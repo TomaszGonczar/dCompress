@@ -170,11 +170,12 @@ demo fixture gives different byte counts because it is a different transcript.
   the command's *icon id*, plus an unrelated CLI verb). Driven over RPC it returned
   `success: true` with a structured handoff summary. The multi-cycle arm was cancelled on a
   timebox, so only invocation and output shape are claimed.
-- **`dcompact` on current live Claude sessions — degraded.** `dcompact preview` reports
-  `degraded: schema-drift` (9 `conversational-content-not-text` diagnostics) on live
-  post-compaction sessions, because it does not model `system` / `compact_boundary` records.
-  That is a real gap worth an issue — the record type that exists only *after* a compaction is
-  one `dcompact` degrades on — and it is not a retention result.
+- **Post-compaction record coverage — fixture-confirmed, live retention unclaimed.** OG-84 adds
+  a committed sanitized fixture for the observed `system` / `compact_boundary` record and its
+  `isCompactSummary` follow-up; the parser now reports clean health and extracts surrounding
+  tool facts without hashing compact-summary prose or metadata. No live session was rerun for
+  this change, so this removes a reproducible parser false positive for the covered shape but
+  does not claim a new retention result.
 - **`dcompact` on Codex, OMP, or Pi — unsupported.** No adapter exists, so no cross-host
   `dcompact` cell is possible.
 - **Synthetic Codex cell — not claimed.** `gpt-5.6-luna` was exercised, but the effective model

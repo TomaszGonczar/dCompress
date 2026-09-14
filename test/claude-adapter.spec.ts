@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -23,6 +24,11 @@ import type { DegradedState, NormalizedToolEvent, PackOptions } from "../src/cor
 const fixtureDirectory = join(process.cwd(), "test", "fixtures", "claude", "slice-0001");
 const fixturePath = join(fixtureDirectory, "transcript.jsonl");
 const fixtureBytes = new Uint8Array(readFileSync(fixturePath));
+const postCompactFixtureDirectory = join(process.cwd(), "test", "fixtures", "claude", "post-compact-0001");
+const postCompactFixturePath = join(postCompactFixtureDirectory, "transcript.jsonl");
+const postCompactFixtureBytes = new Uint8Array(readFileSync(postCompactFixturePath));
+const POST_COMPACT_BOUNDARY_SENTINEL = "SYNTHETIC_COMPACT_BOUNDARY_SENTINEL";
+const POST_COMPACT_SUMMARY_SENTINEL = "SYNTHETIC_COMPACT_SUMMARY_SENTINEL";
 const textEncoder = new TextEncoder();
 
 function source(lines: readonly object[]): Uint8Array {
@@ -258,6 +264,57 @@ describe("claude transcript fixture", () => {
   });
 });
 
+describe("claude post-compaction fixture", () => {
+  it("recognizes the boundary and summary records without drift or payload prose", () => {
+    const parse = eventsFor(postCompactFixtureBytes);
+    const fixtureManifest = JSON.parse(readFileSync(join(postCompactFixtureDirectory, "fixture.manifest.json"), "utf8")) as {
+      readonly transcriptBytes: number;
+      readonly sanitizedSha256: string;
+      readonly lineEnding: string;
+    };
+    expect(fixtureManifest.transcriptBytes).toBe(postCompactFixtureBytes.byteLength);
+    expect(fixtureManifest.sanitizedSha256).toBe(`sha256:${createHash("sha256").update(postCompactFixtureBytes).digest("hex")}`);
+    expect(fixtureManifest.lineEnding).toBe("LF, no trailing newline (SCHEMA §10 fixture rule)");
+    expect(postCompactFixtureBytes.at(-1)).not.toBe(0x0a);
+    expect(parse.diagnostics).toEqual([]);
+    expect(parse.session).toEqual({ sessionId: "fixture-post-compact", cwd: "/fixture/repo", version: "2.1.270" });
+    expect(parse.recordCount).toBe(6);
+    expect(parse.toolCalls).toBe(2);
+    expect(parse.toolResults).toBe(2);
+    expect(parse.events.filter((event) => event.type === "tool")).toHaveLength(2);
+
+    const payload = extractPayload(parse.events, claudeExtractConfig(parse));
+    const eventText = JSON.stringify(parse.events);
+    expect(eventText).not.toContain(POST_COMPACT_BOUNDARY_SENTINEL);
+    expect(eventText).not.toContain(POST_COMPACT_SUMMARY_SENTINEL);
+    expect(payload.facts.map((fact) => `${fact.kind} ${fact.key}`).sort()).toEqual([
+      "file.modified after-compact.txt",
+      "file.read before-compact.txt",
+    ]);
+    expect(canonicalize(payload)).not.toContain("compact_boundary");
+    expect(canonicalize(payload)).not.toContain("isCompactSummary");
+    expect(canonicalize(payload)).not.toContain("preTokens");
+    expect(canonicalize(payload)).not.toContain("2026-01-01T00:00:03.000Z");
+    expect(canonicalize(payload)).not.toContain("2026-01-01T00:00:04.000Z");
+  });
+
+  it("keeps the CLI health clean for a recognized post-compaction transcript", () => {
+    const result = preview({ transcript: postCompactFixturePath, pack: {} });
+
+    expect(result.degraded).toEqual([]);
+    expect(result.diagnostics).toEqual([]);
+    expect(result.pack).toContain("\nStatus: ok\n");
+    expect(result.report).toContain("health: ok");
+    expect(result.pack).not.toContain(POST_COMPACT_BOUNDARY_SENTINEL);
+    expect(result.pack).not.toContain(POST_COMPACT_SUMMARY_SENTINEL);
+    expect(result.report).not.toContain("schema-drift");
+    expect(result.report).not.toContain("extraction-empty");
+    expect(result.report).not.toContain(POST_COMPACT_BOUNDARY_SENTINEL);
+    expect(result.report).not.toContain(POST_COMPACT_SUMMARY_SENTINEL);
+    expect(JSON.stringify(result.diagnostics)).not.toContain(POST_COMPACT_SUMMARY_SENTINEL);
+  });
+});
+
 describe("claude mapper edge cases", () => {
   it("refuses to normalize paths when the transcript records no cwd", () => {
     const bytes = source([
@@ -290,6 +347,58 @@ describe("claude mapper edge cases", () => {
 
     expect(parse.diagnostics).toEqual([{ line: 2, code: "unknown-record-type", detail: "totally-new-record" }]);
     expect(parse.events).toEqual([]);
+  });
+
+  it("keeps a malformed compact boundary as schema drift instead of guessing", () => {
+    const bytes = source([
+      { type: "system", subtype: "compact_boundary", uuid: "malformed-boundary", sessionId: "wrong", cwd: "/wrong", version: "wrong", content: "invalid", compactMetadata: null },
+      { type: "system", subtype: "compact_boundary", uuid: "valid-boundary", sessionId: "s", cwd: "/fixture/repo", version: "2.1.270", content: "valid", compactMetadata: { trigger: "manual" } },
+    ]);
+    const parse = eventsFor(bytes);
+
+    expect(parse.session).toEqual({ sessionId: "s", cwd: "/fixture/repo", version: "2.1.270" });
+    expect(parse.recordCount).toBe(2);
+    expect(() => claudeExtractConfig(parse)).not.toThrow();
+    expect(parse.diagnostics).toEqual([{ line: 1, code: "conversational-content-not-text", detail: "system" }]);
+    expect(parse.events).toEqual([]);
+  });
+
+  it("uses compact-boundary identity when it is the sole transcript context", () => {
+    const bytes = source([
+      { type: "system", subtype: "compact_boundary", sessionId: "boundary-only", cwd: "/fixture/repo", version: "2.1.270", content: POST_COMPACT_BOUNDARY_SENTINEL, compactMetadata: { trigger: "auto", preTokens: 99 } },
+    ]);
+    const parse = eventsFor(bytes);
+
+    expect(parse.session).toEqual({ sessionId: "boundary-only", cwd: "/fixture/repo", version: "2.1.270" });
+    expect(parse.recordCount).toBe(1);
+    expect(parse.events).toEqual([]);
+    expect(() => claudeExtractConfig(parse)).not.toThrow();
+    expect(JSON.stringify(parse.events)).not.toContain(POST_COMPACT_BOUNDARY_SENTINEL);
+
+    const directory = mkdtempSync(join(tmpdir(), "dcompact-compact-boundary-"));
+    try {
+      const transcript = join(directory, "boundary-only.jsonl");
+      writeFileSync(transcript, bytes);
+      const result = preview({ transcript, pack: {} });
+      expect(result.degraded).toEqual(["extraction-empty"]);
+      expect(result.report).toContain("session: boundary-only | cwd: /fixture/repo | cli: 2.1.270");
+      expect(result.pack).not.toContain(POST_COMPACT_BOUNDARY_SENTINEL);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("uses compact-summary identity when it is the sole transcript context", () => {
+    const bytes = source([
+      { type: "user", isCompactSummary: true, sessionId: "summary-only", cwd: "/fixture/repo", version: "2.1.270", message: { role: "user", content: POST_COMPACT_SUMMARY_SENTINEL } },
+    ]);
+    const parse = eventsFor(bytes);
+
+    expect(parse.session).toEqual({ sessionId: "summary-only", cwd: "/fixture/repo", version: "2.1.270" });
+    expect(parse.recordCount).toBe(1);
+    expect(parse.events).toEqual([]);
+    expect(() => claudeExtractConfig(parse)).not.toThrow();
+    expect(JSON.stringify(parse.events)).not.toContain(POST_COMPACT_SUMMARY_SENTINEL);
   });
 
   it("degrades a malformed line without dropping the records around it", () => {
