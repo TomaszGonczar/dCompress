@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
- * `dcompact` CLI — OG-61 P6a thin slice.
+ * `dcompact` CLI — deterministic preview plus the OG-85 explicit-session continuity slice.
  *
- * The only command in this slice is `preview`: read one transcript, map it, extract, print the
- * pack. There is no store, no hook, no install, and no session discovery — those are P6b.
+ * `preview` reads one transcript, maps it, extracts facts, and prints the pack. The continuity
+ * commands use an explicit session and task-owned store; there is no install or session
+ * discovery.
  *
  * Identity rule (AGENTS §"Non-negotiable invariants" 8): a session is never guessed. This
  * command requires an explicit `--transcript <path>`; it does not scan `~/.claude/projects`,
@@ -18,6 +19,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { parseClaudeTranscript, claudeExtractConfig, ClaudeTranscriptRefusal } from "./adapters/claude.js";
 import type { ClaudeDiagnostic } from "./adapters/claude.js";
+import { checkpoint, restore, runHook, ContinuityRefusal } from "./continuity.js";
 import { extractPayloadWithHealth } from "./core/extract/index.js";
 import { payloadHash } from "./core/hash.js";
 import { DEFAULT_MAX_BYTES, formatDegradedStates, minimumPackBytes, renderPack } from "./core/pack.js";
@@ -76,9 +78,15 @@ function usage(): string {
     "",
     "Usage:",
     "  dcompact preview --transcript <path> [options]",
+    "  dcompact snapshot --session <id> --transcript <path> --store <dir>",
+    "  dcompact restore --session <id> --store <dir> [options]",
+    "  dcompact hook --event precompact|session-start --store <dir>",
     "",
     "Commands:",
     "  preview   Map a transcript to normalized events, extract facts, print the pack.",
+    "  snapshot  Checkpoint one explicitly named Claude session.",
+    "  restore   Merge and render checkpoints for one explicitly named session.",
+    "  hook      Fail-open Claude PreCompact/SessionStart bridge over stdin/stdout.",
     "",
     "Options:",
     "  --transcript <path>   Claude Code JSONL transcript to read. Required.",
@@ -97,8 +105,68 @@ function usage(): string {
     `  ${EXIT_INTERNAL}  unexpected internal error`,
     "",
     "Identity is explicit: this command never scans for sessions and never selects one.",
-    "Session selection (`--session <id>`) arrives with the P6b integration.",
   ].join("\n");
+}
+
+interface ContinuityArgs {
+  readonly session: string;
+  readonly transcript?: string;
+  readonly store: string;
+  readonly pack: PackOptions;
+}
+
+function parseContinuityArgs(argv: readonly string[], command: "snapshot" | "restore"): ContinuityArgs | "help" {
+  let session: string | null = null;
+  let transcript: string | undefined;
+  let store: string | null = null;
+  const pack: { maxBytes?: number; maxFacts?: number; includeEvidence?: boolean } = {};
+  for (let index = 0; index < argv.length; index += 1) {
+    const flag = argv[index];
+    if (flag === "--help" || flag === "-h") return "help";
+    const value = argv[index + 1];
+    if (flag === "--session" || flag === "--transcript" || flag === "--store" || flag === "--max-bytes" || flag === "--max-facts") {
+      if (value === undefined) throw new UsageError("missing-value", `${flag} requires a value`);
+      if (flag === "--session") session = value;
+      else if (flag === "--transcript") transcript = value;
+      else if (flag === "--store") store = value;
+      else if (flag === "--max-bytes") pack.maxBytes = nonNegativeInteger(value, flag);
+      else pack.maxFacts = nonNegativeInteger(value, flag);
+      index += 1;
+      continue;
+    }
+    if (flag === "--include-evidence") {
+      pack.includeEvidence = true;
+      continue;
+    }
+    throw new UsageError("unknown-argument", `Unknown argument: ${JSON.stringify(flag)}`);
+  }
+  if (session === null) throw new UsageError("missing-session", `${command} requires an explicit --session <id>; no session is ever chosen for you.`);
+  if (store === null) throw new UsageError("missing-store", `${command} requires a task-owned --store <dir>; live agent state is never selected.`);
+  if (store.trim() === "") throw new UsageError("empty-store", `${command} requires a non-empty --store <dir>; pass an explicit disposable path.`);
+  if (command === "snapshot" && transcript === undefined) throw new UsageError("missing-transcript", "snapshot requires an explicit --transcript <path>");
+  return { session, transcript, store, pack };
+}
+
+function parseHookArgs(argv: readonly string[]): { readonly event: "precompact" | "session-start"; readonly store: string } | "help" {
+  let event: "precompact" | "session-start" | null = null;
+  let store: string | null = null;
+  for (let index = 0; index < argv.length; index += 1) {
+    const flag = argv[index];
+    if (flag === "--help" || flag === "-h") return "help";
+    const value = argv[index + 1];
+    if (flag === "--event" || flag === "--store") {
+      if (value === undefined) throw new UsageError("missing-value", `${flag} requires a value`);
+      if (flag === "--store") store = value;
+      else if (value === "precompact" || value === "session-start") event = value;
+      else throw new UsageError("invalid-event", "--event must be precompact or session-start");
+      index += 1;
+      continue;
+    }
+    throw new UsageError("unknown-argument", `Unknown argument: ${JSON.stringify(flag)}`);
+  }
+  if (event === null) throw new UsageError("missing-event", "hook requires --event precompact|session-start");
+  if (store === null) throw new UsageError("missing-store", "hook requires a task-owned --store <dir>; live agent state is never selected.");
+  return { event, store };
 }
 
 function nonNegativeInteger(raw: string, flag: string): number {
@@ -242,12 +310,26 @@ export function preview(options: PreviewOptions): PreviewResult {
 export interface CliIo {
   readonly stdout: (text: string) => void;
   readonly stderr: (text: string) => void;
+  readonly stdin?: () => string;
 }
 
 const processIo: CliIo = {
   stdout: (text) => void process.stdout.write(text),
   stderr: (text) => void process.stderr.write(text),
 };
+
+let hookPipeProtectionInstalled = false;
+
+/** Installed only for hook commands: a closed Claude pipe is a fail-open hook outcome. */
+function protectHookPipes(): void {
+  if (hookPipeProtectionInstalled) return;
+  // Hook output is best-effort: any stream failure, including platform-specific closed-pipe
+  // errors, must not turn an otherwise fail-open hook into a non-zero process exit.
+  const ignoreStreamError = (): void => undefined;
+  process.stdout.on("error", ignoreStreamError);
+  process.stderr.on("error", ignoreStreamError);
+  hookPipeProtectionInstalled = true;
+}
 
 export function run(argv: readonly string[], io: CliIo = processIo): number {
   const command = argv[0];
@@ -259,12 +341,58 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
     io.stdout(`${usage()}\n`);
     return EXIT_OK;
   }
-  if (command !== "preview") {
+  // Keep the pre-continuity CLI's unknown-command behaviour for a bare `snapshot` invocation;
+  // the real continuity command is only selected once its explicit identity/options are present.
+  if (command === "snapshot" && argv.length === 1) {
+    io.stderr(`Unknown command: ${JSON.stringify(command)}\n\n${usage()}\n`);
+    return EXIT_USAGE;
+  }
+  if (command !== "preview" && command !== "snapshot" && command !== "restore" && command !== "hook") {
     io.stderr(`Unknown command: ${JSON.stringify(command)}\n\n${usage()}\n`);
     return EXIT_USAGE;
   }
 
   try {
+    if (command === "snapshot" || command === "restore") {
+      const parsed = parseContinuityArgs(argv.slice(1), command);
+      if (parsed === "help") {
+        io.stdout(`${usage()}\n`);
+        return EXIT_OK;
+      }
+      if (command === "snapshot") {
+        const result = checkpoint({ root: parsed.store, sessionId: parsed.session, transcriptPath: parsed.transcript as string });
+        io.stdout(`${JSON.stringify({ path: result.path, created: result.created, hash: result.snapshot.envelope.hash })}\n`);
+      } else {
+        const result = restore({ root: parsed.store, sessionId: parsed.session, ...parsed.pack });
+        io.stdout(result.pack);
+      }
+      return EXIT_OK;
+    }
+    if (command === "hook") {
+      protectHookPipes();
+      let parsed: ReturnType<typeof parseHookArgs>;
+      try {
+        parsed = parseHookArgs(argv.slice(1));
+      } catch {
+        // Hook configuration mistakes are fail-open too: never block Claude on exit 2.
+        io.stdout("{}\n");
+        return EXIT_OK;
+      }
+      if (parsed === "help") {
+        io.stdout(`${usage()}\n`);
+        return EXIT_OK;
+      }
+      let input: Record<string, unknown> = {};
+      try {
+        input = JSON.parse(io.stdin?.() ?? readFileSync(0, "utf8")) as Record<string, unknown>;
+      } catch {
+        // A malformed hook payload must not become a non-zero Claude hook exit.
+        io.stdout("{}\n");
+        return EXIT_OK;
+      }
+      io.stdout(`${runHook(input, parsed.event, { root: parsed.store })}\n`);
+      return EXIT_OK;
+    }
     const parsed = parsePreviewArgs(argv.slice(1));
     if (parsed === "help") {
       io.stdout(`${usage()}\n`);
@@ -283,6 +411,10 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
     }
     if (error instanceof ClaudeTranscriptRefusal) {
       io.stderr(`Refusing to preview: ${error.message}\n`);
+      return EXIT_REFUSED;
+    }
+    if (error instanceof ContinuityRefusal) {
+      io.stderr(`Refusing continuity operation: ${error.message}\n`);
       return EXIT_REFUSED;
     }
     const reason = error instanceof Error ? (error.stack ?? error.message) : String(error);

@@ -602,8 +602,9 @@ Rules:
   then by recency, then by a stable tiebreak — so two runs produce the same pack.
 - Facts marked `unbacked` (transcript rotated or truncated) are shown with an explicit
   marker, never silently dropped.
-- Over budget → drop whole fact groups from the bottom of the priority order, emit
-  `… (n facts elided, run dcompact show <id>)`.
+- Over budget → retain as many ordered facts as fit, backfilling around oversized facts, and emit
+  `… (n facts elided, run dcompact show <id>)`; if no fact fits, report `degraded: budget-exceeded`
+  whenever the health line itself fits the explicit budget.
 - Injection is idempotent: repeated injection of the same snapshot is detected by marker
   `[dcompact:<hash>]` in the injected text, and re-injection is skipped.
 - Injection point is **adapter-specific, and the choice matters more than the payload**:
@@ -618,6 +619,11 @@ Rules:
   That reasoning does not transfer to OMP, where `session.compacting` contributes *into* the
   summary rather than preceding it. Applying one agent's constraint to another is how a
   design loses the better mechanism (CONCEPT §7.3.1).
+
+  In the experimental Claude continuity slice, each successful `PreCompact` starts a new
+  injection epoch even when its payload marker is unchanged. Repeated `SessionStart(compact)`
+  within that epoch is suppressed; `SessionStart(resume)` always injects because resume creates a
+  fresh context.
 - Nothing is ever injected that the user has not had a chance to read: `restore` prints the
   exact bytes.
 
