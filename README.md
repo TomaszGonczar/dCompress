@@ -85,6 +85,14 @@ printf '%s\n' '<claude-hook-json>' | node dist/cli.js hook --event session-start
 The hook fails open with `{}` on malformed input or an unavailable checkpoint. This slice is
 Claude-only and task-owned; it does not edit live Claude configuration.
 
+[`docs/demo/claude-continuity-0001.md`](docs/demo/claude-continuity-0001.md) records the whole
+loop — checkpoint at the boundary, injection at `SessionStart`, checkpoint after the compaction,
+and the merged pack — against a synthetic two-epoch fixture, pinned byte-for-byte by
+`test/continuity-demo.spec.ts`. It also records what the pack loses, because that is the part a
+demo is tempted to hide: a next action stated in prose is extracted only when it matches the
+decision-cue lexicon, `todo.state` keeps a task's text but not whether it is open or done, and
+under a reduced byte budget the todo facts are the first the renderer drops.
+
 ## What it does today, and what it does not
 
 | Capability | Status |
@@ -189,8 +197,9 @@ The limitations, stated as plainly as the verdict:
    is not a long real session.
 2. **Most of its file changes are git-visible**, so its advantage over `git status` is not yet
    demonstrated at scale.
-3. **No unfinished next action is exercised** — the open-work case a post-compaction resume
-   most needs.
+3. **No unfinished next action is exercised in the preview fixture** — the open-work case a
+   post-compaction resume most needs. The continuity demo does carry an unresolved task across a
+   compaction, and shows that the pack cannot say it is unresolved.
 4. OG-85 adds an **experimental**, task-owned Claude continuity slice with explicit snapshot,
    restore, and hook commands; it is not the general install/integration gate D2.
 5. It measures whether the pack is *useful*, not whether injection improves agent outcomes. The
