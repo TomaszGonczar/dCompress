@@ -2430,10 +2430,10 @@ process.stdout.write(JSON.stringify({ threw, message }));
     expect(result.message).toContain("unparseable envelope");
   });
 
-  it("still rejects a non-zero exit", () => {
+  it("still rejects a non-zero exit, diagnosing from the envelope when one parses", () => {
     const result = invokeWrapper(JSON.stringify({ type: "result", subtype: "error", is_error: true }), 1);
     expect(result.threw).toBe(true);
-    expect(result.message).toContain("status=1");
+    expect(result.message).toContain("is_error=true");
   });
 
   it("rejects a success envelope that is not an object, or lacks a valid cost", () => {
@@ -2800,39 +2800,68 @@ process.stdout.write(JSON.stringify({ threw, message }));
   });
 });
 
+/**
+ * An isolated repository carrying only the two seed fields the gate reads, so
+ * the gate is proven against fixture data instead of this repository's own
+ * history -- which the operator has since seeded for real (OG-86), and any
+ * future seed commit here would otherwise re-break these tests permanently.
+ */
+function seedFixtureRepo(seed: { freezeCommit: string | null; armOrderSeedCommit: string | null }): string {
+  const dir = mkdtempSync(join(tmpdir(), "og86-seed-fixture-"));
+  spawnSync("git", ["init", "-q"], { cwd: dir });
+  spawnSync("git", ["config", "user.email", "og86-fixture@example.invalid"], { cwd: dir });
+  spawnSync("git", ["config", "user.name", "og86-fixture"], { cwd: dir });
+  const benchmark = join(dir, "docs", "benchmark", "og86-medium-v1");
+  mkdirSync(benchmark, { recursive: true });
+  writeFileSync(join(benchmark, "protocol.json"), JSON.stringify({ freezeCommit: seed.freezeCommit }));
+  writeFileSync(join(benchmark, "schedule.json"), JSON.stringify({ armOrderSeedCommit: seed.armOrderSeedCommit }));
+  spawnSync("git", ["add", "-A"], { cwd: dir });
+  spawnSync("git", ["commit", "-q", "-m", "fixture"], { cwd: dir });
+  return dir;
+}
+
 describe("OG-86 seed gate", () => {
   it("refuses to execute pre-seed and accepts an agreeing local seed", () => {
-    const result = evaluate<Record<string, string | null>>(`
-const repo = process.cwd();
+    const repo = seedFixtureRepo({ freezeCommit: null, armOrderSeedCommit: null });
+    try {
+      const realCommit = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repo, encoding: "utf8" }).stdout.trim();
+      const result = evaluate<Record<string, string | null>>(`
+const repo = ARGS.repo;
 const attempt = (fn) => { try { fn(); return null; } catch (error) { return error.message; } };
-const real = "fd1c5ed7e872243f94746402f5b61790614d4ea9";
 process.stdout.write(JSON.stringify({
-  // The live repository is pre-seed, so execute must refuse.
+  // The fixture repository is deliberately pre-seed, so execute must refuse.
   preSeed: attempt(() => controller.assertSeedReady(repo)),
   // A bogus revision is rejected by shape.
   badShape: controller.isLocalCommit(repo, "HEAD") ? "yes" : "no",
-  shortHex: controller.isLocalCommit(repo, "fd1c5ed") ? "yes" : "no",
-  // A real local commit resolves.
-  realCommit: controller.isLocalCommit(repo, real) ? "yes" : "no",
+  shortHex: controller.isLocalCommit(repo, ARGS.realCommit.slice(0, 7)) ? "yes" : "no",
+  // The fixture's own real commit resolves.
+  realCommit: controller.isLocalCommit(repo, ARGS.realCommit) ? "yes" : "no",
   // A well-formed but absent commit does not.
   absent: controller.isLocalCommit(repo, "0".repeat(40)) ? "yes" : "no",
 }));
-`);
-    expect(result.preSeed).toContain("before the seed");
-    expect(result.badShape).toBe("no");
-    expect(result.shortHex).toBe("no");
-    expect(result.realCommit).toBe("yes");
-    expect(result.absent).toBe("no");
+`, { repo, realCommit });
+      expect(result.preSeed).toContain("before the seed");
+      expect(result.badShape).toBe("no");
+      expect(result.shortHex).toBe("no");
+      expect(result.realCommit).toBe("yes");
+      expect(result.absent).toBe("no");
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
   });
 
   it("reports the pre-seed seed fields as null", () => {
-    const seed = evaluate<Record<string, unknown>>(`
-process.stdout.write(JSON.stringify(controller.readSeedFields(process.cwd())));
-`);
-    // The content state under review records no seed, and the generator must not
-    // invent one.
-    expect(seed.protocolFreezeCommit).toBeNull();
-    expect(seed.scheduleArmOrderSeedCommit).toBeNull();
+    const repo = seedFixtureRepo({ freezeCommit: null, armOrderSeedCommit: null });
+    try {
+      const seed = evaluate<Record<string, unknown>>(`
+process.stdout.write(JSON.stringify(controller.readSeedFields(ARGS.repo)));
+`, { repo });
+      // The fixture content records no seed, and the generator must not invent one.
+      expect(seed.protocolFreezeCommit).toBeNull();
+      expect(seed.scheduleArmOrderSeedCommit).toBeNull();
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
   });
 
   it("refuses a symlinked or non-empty private root", () => {

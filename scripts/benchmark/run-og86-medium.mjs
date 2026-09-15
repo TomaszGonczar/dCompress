@@ -534,14 +534,23 @@ export function modelReadingValid(reading) {
  * scorer reads. The neutral probe is asked for one JSON object, so anything
  * else is a refusal rather than a zero score: scoring an empty or malformed body
  * would record a recall of zero for a model that may have answered correctly.
+ *
+ * A real model commonly wraps an otherwise correct answer in a markdown code
+ * fence despite the prompt asking for JSON alone (measured: phase-1 arm C of
+ * the first medium-series execute attempt). Stripping exactly one fence
+ * wrapping the *entire* trimmed response is not guessing at content: the
+ * unwrapped text still has to parse as a JSON object next, so anything other
+ * than one clean fence around one JSON object still refuses.
  */
 export function materializeProbeResponse(text) {
   if (typeof text !== "string" || text.trim().length === 0) {
     return { response: null, refusal: "empty-probe-result" };
   }
+  const fenced = /^```(?:json)?\s*\n([\s\S]*?)\n```$/.exec(text.trim());
+  const candidate = fenced ? fenced[1] : text;
   let parsed = null;
   try {
-    parsed = JSON.parse(text);
+    parsed = JSON.parse(candidate);
   } catch {
     return { response: null, refusal: "probe-result-not-json" };
   }
