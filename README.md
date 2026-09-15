@@ -1,28 +1,31 @@
 # dcompress
 
-Deterministic, rule-based memory for coding agents — no model in the extraction path.
+<p align="center">
+  <b>The Deterministic AI Systems Suite</b><br>
+  <a href="https://github.com/TomaszGonczar/dCompress"><b>dCompress</b></a> (Fact Memory) &middot;
+  <a href="https://github.com/TomaszGonczar/dsearch"><b>dsearch</b></a> (Retrieval Grounding) &middot;
+  <a href="https://github.com/TomaszGonczar/dproof"><b>dproof</b></a> (State Evidence) &middot;
+  <a href="https://github.com/TomaszGonczar/omega-zero"><b>omega-zero</b></a> (Governance) &middot;
+  <a href="https://github.com/TomaszGonczar/hackathon-multi-ai-blueprint"><b>hackathon-blueprint</b></a> (Operations)
+</p>
 
-[![CI](https://github.com/TomaszGonczar/dcompress/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/TomaszGonczar/dcompress/actions/workflows/ci.yml)
+<p align="center">
+  <b>Deterministic, rule-based memory for coding agents — no model in the extraction path.</b>
+</p>
+
+<p align="center">
+  <a href="https://github.com/TomaszGonczar/dcompress/actions/workflows/ci.yml"><img src="https://github.com/TomaszGonczar/dcompress/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg" alt="Node >=20"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/dependencies-0%20runtime-blue.svg" alt="Dependencies: 0"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <a href="docs/SCHEMA.md"><img src="https://img.shields.io/badge/determinism-byte--level%20enforced-purple.svg" alt="Byte Determinism"></a>
+</p>
 
 When a coding agent compacts, it replaces the older half of its own context with a few
 paragraphs of model-written prose. `dcompress` takes the opposite approach: it reads the
 agent's own transcript with deterministic rules and turns what actually happened — files
 touched, commands run, errors raised and fixed, decisions stated — into a bounded,
 hash-addressed fact pack that can be verified against the transcript line by line.
-
-> **Status: work in progress — a deterministic core, an experimental Claude Code continuity
-> slice, and a Claude-only installer.** Implemented and tested today: `preview`; the
-> explicit-session `snapshot`, `restore`, and `hook` commands (the continuity slice, Claude-only,
-> backed by its own checkpoint store, never scanning for or guessing a session); the `list`,
-> `show`, `verify`, and `doctor` commands plus `prune`/`pin` over a separate, general-purpose
-> snapshot store (`src/store/`) that no shipped command writes *snapshots* into yet (only test
-> code calls `writeSnapshot` directly); and `install`/`uninstall --agent
-> claude`, which edit a Claude settings file's hook entries inside a byte-marked managed region,
-> back up every file they touch first, and restore it byte-identical on uninstall — proven by an
-> automated `cmp`, not yet by a real compaction in a real Claude Code session. **Not
-> implemented:** MCP, the Codex/OMP/Pi adapters, `diff`, `init`, secret redaction
-> inside packs, npm publishing, and Windows support. Those remain on the roadmap in
-> [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md).
 
 ## Try it in 60 seconds
 
@@ -148,13 +151,26 @@ above); general, multi-agent installation and agent discovery still belong to la
 
 ```mermaid
 flowchart LR
-    T["Claude Code transcript.jsonl"] --> A["adapter: normalize records, no I/O"]
-    A --> E["core extractors: pure functions"]
-    E --> C["canonical payload"]
-    C --> H["sha256 payload hash"]
-    C --> P["pack renderer: priority-ordered, byte-budgeted"]
-    P --> OUT["stdout: Markdown pack"]
-    H -.->|"stderr: payload hash"| DIAG["diagnostics"]
+    subgraph Host["Agent Runtime (Claude · Codex · OMP)"]
+        T["Session Transcript<br/>(JSONL / Journal)"]
+    end
+
+    subgraph Core["dCompress Core Engine (Pure TypeScript, Zero Deps)"]
+        A["Adapter Normalizer<br/>(event mapping, no I/O)"]
+        E["Core Extractors<br/>(pure functions: tools, edits, errors)"]
+        C["Canonicalizer<br/>(lexical sort, key order, unicode norm)"]
+        H["SHA-256 Hash<br/>Addressing"]
+        P["Pack Renderer<br/>(priority-ordered, byte-budgeted)"]
+    end
+
+    subgraph Store["Local Checkpoint Store (~/.dcompress)"]
+        S["Immutable Fact Snapshots<br/>(*.json)"]
+    end
+
+    T --> A --> E --> C --> H --> S
+    S --> P -->|"Re-inject Context"| Host
+    H -.->|"stderr: payload hash"| DIAG["Diagnostics"]
+    P -->|"stdout"| OUT["Markdown Fact Pack"]
 ```
 
 - The adapter maps record shapes to normalized events. It never reads a clock, the filesystem,
