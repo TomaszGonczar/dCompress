@@ -1614,10 +1614,17 @@ process.stdout.write(JSON.stringify({ threw, message }));
     expect(result.message).toContain("unparseable envelope");
   });
 
-  it("still rejects a non-zero exit", () => {
-    const result = invoke({ type: "result", subtype: "error_max_budget_usd", is_error: true }, 1);
+  it("still rejects a non-zero exit, diagnosing from the envelope when one parses", () => {
+    // Real bug, from the sixth --execute attempt: arm C's phase-2 work call
+    // exited status=1 with an empty stderr, but stdout held a full, valid
+    // envelope reporting a real, diagnosable 429 weekly-limit refusal. The
+    // exit-code-first check threw the opaque "status=1, stderr_bytes=0"
+    // instead, discarding the far more useful envelope diagnosis already sitting
+    // in `parsed`.
+    const result = invoke({ type: "result", subtype: "error_max_budget_usd", is_error: true, api_error_status: 429 }, 1);
     expect(result.threw).toBe(true);
-    expect(result.message).toContain("status=1");
+    expect(result.message).toContain("is_error=true");
+    expect(result.message).toContain("api_error_status=429");
   });
 
   it("rejects a successful envelope that is not an object", () => {

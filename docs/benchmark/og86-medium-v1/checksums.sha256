@@ -5,11 +5,11 @@ f35dd7386b6ed026f77e770166e25bf9a91a3d7fc0392c73b299462bb5172c01  ../../../packa
 ba05f7768af2b0439d11807e0684d6108de683c3d1c863a208a28ebc667c9f95  ../../../scripts/benchmark/generate-og86-inputs.mjs
 ddafa4da10e7ca026221b71650d9a95ca065f83c8b35d17b7a8d835d9b3e8f9f  ../../../scripts/benchmark/og86-binding.mjs
 f8ee6070342dc1afd5e5480f5d5ae91d7fa2190eb7a072a250571df8aa600222  ../../../scripts/benchmark/privacy-scan-og86.mjs
-b3cdb31c3af503cd091e7af92b2f32df11f672925c6222634cb0cc5c65634997  ../../../scripts/benchmark/run-og86-medium.mjs
+6c555b996248f0abc75776de6f9c9766df84f1ba93e48d2562d4153ecab4e28b  ../../../scripts/benchmark/run-og86-medium.mjs
 6b32632d8e11970647b5e1b986a9e0f294e2bcae95d11ef5004d275b46f07037  ../../../scripts/benchmark/run-og86-stage0.mjs
 38d77ee4c50750ba8adaaad7787b8aacaf7ec30864f3faa952e5076cfc3ca4df  ../../../scripts/benchmark/score-og86.mjs
 eda650fdb1f7051e6b57449d947e84e6ea43ebb362c88ceedeffed2d477926c7  ../../../test/og86-benchmark.spec.ts
-43bf6bfaf91872181a5b5df5ec2f9b45114f37408eaf7f9e854e35302d4e180c  ../../../test/og86-controller.spec.ts
+27f7fe74f153c2f7714532ddd5aa51345739da39a004423d8a400505721c57c1  ../../../test/og86-controller.spec.ts
 497a8269650ba633a0eb5ba1eddde3e79c7f7ab0582b9a68163b3b1648e288e2  ../../../tsconfig.json
 0475d0ae5f0153b1ac45a1601c86ee7f703ed5ed381f4ec558e1279cd3a6f091  ../../../vitest.config.ts
 cb818cd12814c4203e6706ccf4e1f7e02b7b37084a8db6cad31223b5f81fcc1b  artifact-schema.json

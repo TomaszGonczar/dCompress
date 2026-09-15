@@ -1222,28 +1222,36 @@ export function createClaudeDriver(options) {
     } catch (error) {
       parseError = error instanceof Error ? error.message : String(error);
     }
+    // The JSON envelope, when present, is the authoritative outcome -- including
+    // for a call that failed with a real, diagnosable API error (e.g. a 429
+    // weekly-limit refusal, observed for real in the medium series' sixth
+    // --execute attempt). The CLI's exit code duplicates that same signal and
+    // must never be checked ahead of a parseable envelope, or a real,
+    // diagnosable result reads as an opaque process crash ("status=1,
+    // stderr_bytes=0") instead of the named failure it actually is. Exit code
+    // is the fallback of last resort, only for a call that produced no usable
+    // envelope at all.
+    if (parseError === null && parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+      // A zero exit status is not success either: the envelope's own
+      // `is_error` is what decides, in both directions.
+      if (parsed.is_error !== false) {
+        throw new Error(`claude reported is_error=${parsed.is_error ?? "missing"}: subtype=${parsed.subtype ?? "unknown"}, api_error_status=${parsed.api_error_status ?? "none"}, errors=${JSON.stringify(parsed.errors ?? null)}`);
+      }
+      // Cost must be a finite, non-negative number; the tracker cannot police a
+      // ceiling against NaN or a missing figure.
+      if (typeof parsed.total_cost_usd !== "number" || !Number.isFinite(parsed.total_cost_usd) || parsed.total_cost_usd < 0) {
+        throw new Error(`claude reported an invalid total_cost_usd: ${JSON.stringify(parsed.total_cost_usd ?? null)}`);
+      }
+      budget(arm).record(parsed.total_cost_usd);
+      return parsed;
+    }
     if (result.error || result.status !== 0) {
       throw new Error(`claude failed: status=${result.status}, stderr_bytes=${Buffer.byteLength(result.stderr || "")}`);
     }
     if (parseError !== null) {
       throw new Error(`claude returned an unparseable envelope: ${parseError}`);
     }
-    // A successful envelope is a non-array object. An array, null, or a bare
-    // primitive parses cleanly but carries no fields, so accepting it would let
-    // a malformed call read as a successful one.
-    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-      throw new Error(`claude envelope is not an object: ${Array.isArray(parsed) ? "array" : parsed === null ? "null" : typeof parsed}`);
-    }
-    if (parsed.is_error !== false) {
-      throw new Error(`claude reported is_error=${parsed.is_error ?? "missing"}: subtype=${parsed.subtype ?? "unknown"}, api_error_status=${parsed.api_error_status ?? "none"}`);
-    }
-    // Cost must be a finite, non-negative number; the tracker cannot police a
-    // ceiling against NaN or a missing figure.
-    if (typeof parsed.total_cost_usd !== "number" || !Number.isFinite(parsed.total_cost_usd) || parsed.total_cost_usd < 0) {
-      throw new Error(`claude reported an invalid total_cost_usd: ${JSON.stringify(parsed.total_cost_usd ?? null)}`);
-    }
-    budget(arm).record(parsed.total_cost_usd);
-    return parsed;
+    throw new Error(`claude envelope is not an object: ${Array.isArray(parsed) ? "array" : parsed === null ? "null" : typeof parsed}`);
   }
 
   function common(settingsPath, tools) {
