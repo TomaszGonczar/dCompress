@@ -1,6 +1,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { normalize } from "./score-og86.mjs";
+
 const outputRoot = resolve("docs/benchmark/og86-medium-v1");
 
 const phases = [
@@ -20,7 +22,7 @@ const phases = [
     ],
     negative_constraint: [
       ["preserve parseReservation and addReservation signatures", "preserve exported signatures"],
-      ["add no dependency for the parser repair", "no dependency"],
+      ["add no dependency for the parser repair", "no parser dependency"],
       ["do not rewrite existing ledger history", "no history rewrite"],
       ["choose decimal-string parsing instead of floating-point multiplication", "reject floating point multiplication"],
     ],
@@ -39,7 +41,7 @@ const phases = [
     unresolved: [
       ["idempotent replay remains future work after phase one", "replay remains"],
       ["cancellation revenue remains future work after phase one", "cancellation remains"],
-      ["dry-run import remains future work after phase one", "dry run remains"],
+      ["dry-run import remains future work after phase one", "dry run import remains"],
     ],
     provenance: [
       ["the decimal regression is evidenced by phase1.test.js", "phase1.test.js decimal"],
@@ -223,6 +225,50 @@ const contradictions = new Map([
   ["do not write the unfinished atomicity task into repository files", "wrote the unfinished atomicity task into repository files"],
 ]);
 
+// Accepted phrases and partial evidence must stay atom-independent: a response may
+// contain several atoms from the same field, so no phrase may be a substring (or
+// superstring) of a sibling's evidence. Otherwise an absent atom still scores exact,
+// or a deleted atom decays to partial, and the denominator stops meaning 100 removals.
+// Partial phrases are non-overlapping canonical slices, never reconstructing the
+// canonical or any accepted phrase, so an atom carrying only partial evidence scores
+// partial and nothing more.
+const partialPhraseLimit = 3;
+const minimumPhraseLength = 4;
+
+const siblingText = (atom, group, { includePartial = false } = {}) => group
+  .filter((peer) => peer.id !== atom.id)
+  .flatMap((peer) => [...peer.accepted.flat(), ...peer.contradictions, ...(includePartial ? peer.partial : [])])
+  .map((phrase) => normalize(phrase));
+
+const exclusive = (phrase, siblings) => {
+  const value = normalize(phrase);
+  if (value.length < minimumPhraseLength) return false;
+  return siblings.every((sibling) => !sibling.includes(value) && !value.includes(sibling));
+};
+
+const partialTokens = (atom, group) => {
+  const siblings = siblingText(atom, group);
+  const accepted = atom.accepted.flat().map((phrase) => normalize(phrase));
+  const words = atom.canonical.split(" ");
+  const picks = [];
+  for (let size = 1; size <= partialPhraseLimit; size += 1) {
+    for (let start = 0; start + size <= words.length; start += 1) {
+      if (picks.length >= partialPhraseLimit) return picks.map((pick) => pick.phrase);
+      const spans = Array.from({ length: size }, (_, offset) => start + offset);
+      if (picks.some((pick) => pick.spans.some((span) => spans.includes(span)))) continue;
+      const phrase = words.slice(start, start + size).join(" ");
+      if (!exclusive(phrase, siblings)) continue;
+      const candidate = [...picks, { start, spans, phrase }];
+      const covered = new Set(candidate.flatMap((pick) => pick.spans));
+      if (covered.size === words.length) continue;
+      const joined = normalize(candidate.slice().sort((a, b) => a.start - b.start).map((pick) => pick.phrase).join(" "));
+      if (accepted.some((phrase) => joined.includes(phrase))) continue;
+      picks.push({ start, spans, phrase });
+    }
+  }
+  return picks.map((pick) => pick.phrase);
+};
+
 const atoms = [];
 for (const phase of phases) {
   for (const [category, count] of Object.entries(expectedCounts)) {
@@ -239,7 +285,7 @@ for (const phase of phases) {
         responseField,
         canonical,
         accepted: [[canonical], [alias]],
-        partial: canonical.split(" ").filter((word) => word.length >= 5).slice(0, 3),
+        partial: [],
         contradictions: contradictions.has(canonical) ? [contradictions.get(canonical)] : [],
         availableAfterCheckpoint: phase.phase,
         continuationCritical: category === "negative_constraint" || category === "unresolved" || category === "linkage",
@@ -249,8 +295,40 @@ for (const phase of phases) {
   }
 }
 
+for (const atom of atoms) {
+  const group = atoms.filter((peer) => peer.responseField === atom.responseField);
+  atom.partial = partialTokens(atom, group);
+  if (atom.partial.length === 0) throw new Error(`${atom.id}: no atom-independent partial phrase`);
+}
+
 if (atoms.length !== 100) throw new Error(`expected 100 atoms, got ${atoms.length}`);
 if (new Set(atoms.map((atom) => atom.id)).size !== 100) throw new Error("atom ids must be unique");
+
+// Regeneration must not silently reintroduce a collision, so assert the boundary here
+// rather than relying on the benchmark suite alone.
+for (const atom of atoms) {
+  const group = atoms.filter((peer) => peer.responseField === atom.responseField);
+  const siblings = siblingText(atom, group, { includePartial: true });
+  for (const [kind, phrase] of [
+    ...atom.accepted.flat().map((value) => ["accepted", value]),
+    ...atom.partial.map((value) => ["partial", value]),
+  ]) {
+    const value = normalize(phrase);
+    if (value.length < minimumPhraseLength) throw new Error(`${atom.id}: ${kind} phrase "${phrase}" is too short to be discriminative`);
+    if (siblings.some((sibling) => sibling !== value && (sibling.includes(value) || value.includes(sibling)))) {
+      throw new Error(`${atom.id}: ${kind} phrase "${phrase}" collides with a sibling in ${atom.responseField}`);
+    }
+  }
+  for (const contradiction of atom.contradictions) {
+    const value = normalize(contradiction);
+    if ([...atom.accepted.flat(), ...atom.partial].some((own) => normalize(own).includes(value))) {
+      throw new Error(`${atom.id}: contradiction "${contradiction}" is contained in its own accepted or partial evidence`);
+    }
+    if (siblings.some((sibling) => sibling.includes(value))) {
+      throw new Error(`${atom.id}: contradiction "${contradiction}" collides with a sibling in ${atom.responseField}`);
+    }
+  }
+}
 
 const rubric = {
   schemaVersion: 1,

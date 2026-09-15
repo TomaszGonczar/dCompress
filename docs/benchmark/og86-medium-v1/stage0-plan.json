@@ -1,19 +1,39 @@
 {
   "series": "OG86-medium-v1-stage0",
   "scored": false,
+  "status": "derived",
+  "generation": "fail-closed: the sanitized manifest is written only when every gate below holds; each check has an enforced assert label in run-og86-stage0.mjs, the structural preflights run before the first model call, and a false gate aborts generation with no result file produced",
   "checks": [
-    "dependency ancestry",
+    "dependency ancestry of the base and the explicit OG-84/OG-85 dependency commits from HEAD",
     "task-owned isolation and private modes",
     "Claude Haiku 4.5 model attribution for ordinary assistant turns",
+    "no fallback or model-switch record in any labeled process",
     "manual compact boundary",
-    "hook ordering and exact summary capture",
+    "hook ordering: PostCompact is observed after SessionStart(source=compact)",
+    "exact native summary capture with a digest recomputed from the captured file",
     "same next-resume additionalContext channel for B and C",
     "actual dcompact checkpoint and marked pack",
-    "two-step fork isolation",
-    "new-process explicit resume",
-    "restricted probe and continuation tool boundary",
-    "deterministic scorer mutations",
-    "public privacy scan"
+    "two-step fork isolation: distinct session id, parent unchanged at fork",
+    "one frozen treatment copy per active arm, zero for the control",
+    "new-process explicit resume with labeled process roles and incarnations",
+    "source transcript byte-identical through fork creation and probing, with before and after byte counts, line counts, and SHA-256",
+    "observed continuation tool boundary: every enabled capability against every forbidden location class, with the real hook deciding and the runner recording the observed denial class",
+    "Bash exact-command boundary: no argument-bearing, chained, or renamed command is allowed",
+    "Glob and Grep require an explicit in-workload path and traversal-inert pattern fields",
+    "forbidden location classes named in every denial: transcript, profile, store, rubric, scorer, capture",
+    "forbidden canary occurrence count of zero in the retained transcript",
+    "checkpoint evidence entries all matched against the retained prefix, with the required count recorded",
+    "checkpoint envelope byte and line boundary matched to the retained prefix",
+    "deterministic scorer mutation preflight run locally before any model call",
+    "wall time and advisory cost telemetry recorded",
+    "runner and scorer revision digests recorded",
+    "public privacy scan preflight run locally before any model call"
   ],
-  "stopOnFailure": true
+  "stopOnFailure": true,
+  "rerunRequired": "The existing public stage0-result.json predates this runner and is superseded for freeze purposes; a later authorized Stage-0 rerun produces the manifest that satisfies these gates. No rerun is authorized by this plan.",
+  "dependencyBaseCommit": "9ebd0a1130198d2d4aa85cd38cbea4e42844ea6d",
+  "dependencyCommits": [
+    "9614408e019f8a4ad1bad215c37ed0659b010237",
+    "9ebd0a1130198d2d4aa85cd38cbea4e42844ea6d"
+  ]
 }

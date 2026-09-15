@@ -54,10 +54,34 @@ if (event === "PreToolUse") {
     if (treatment.byteLength > 16_384) throw new Error("frozen treatment exceeds 16 KiB");
     writeFileSync(marker, `${expected}\n`, { mode: 0o600 });
     chmodSync(marker, 0o600);
-    audit({ event, source: input.source, treatmentBytes: treatment.byteLength, treatmentSha256: expected, duplicateSuppressed: false });
+    const treatmentText = treatment.toString("utf8");
     const output = treatment.byteLength === 0 ? {} : {
-      hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: treatment.toString("utf8") },
+      hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: treatmentText },
     };
+    // The channel is derived from the object actually emitted, not declared:
+    // the audit row names the event and the output field that carried the
+    // treatment, so a change to the emitted shape is visible in the record.
+    const specific = output.hookSpecificOutput;
+    const outputFields = specific === undefined ? [] : Object.keys(specific);
+    // Derived, not declared: the field that actually carries the treatment is
+    // the first whose value is the treatment text, whatever it is named.
+    const carrier = specific === undefined
+      ? undefined
+      : Object.entries(specific).find(([name, value]) => name !== "hookEventName" && value === treatmentText);
+    const treatmentField = carrier === undefined ? null : carrier[0];
+    audit({
+      event,
+      source: input.source,
+      treatmentBytes: treatment.byteLength,
+      treatmentSha256: expected,
+      duplicateSuppressed: false,
+      hookEventName: specific?.hookEventName ?? null,
+      outputFields,
+      treatmentField,
+      // The full output as emitted, so the recorded channel is checkable against
+      // the bytes that reached the host.
+      outputSha256: digest(Buffer.from(JSON.stringify(output), "utf8")),
+    });
     process.stdout.write(`${JSON.stringify(output)}\n`);
   }
 } else {

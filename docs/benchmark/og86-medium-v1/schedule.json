@@ -2,26 +2,70 @@
   "series": "OG86-medium-v1",
   "phases": 4,
   "manualCompactions": 4,
-  "armOrderSeedCommit": "fd1c5ed7e872243f94746402f5b61790614d4ea9",
+  "armOrderSeedCommit": null,
+  "armOrderDerivation": "sort A, B, C by sha256(\"OG86-medium-v1|<freezeCommit>|<arm>\"); no arm order is fixed before freezeCommit exists",
   "sequencePerPhase": [
     "send frozen phase prompt to source session",
     "run npm test and verify phase acceptance",
     "invoke native /compact once",
     "wait for PostCompact capture",
-    "explicitly resume source so treatment is delivered",
-    "fork without a probe, then explicitly resume fork with tools disabled",
-    "record neutral recall response and verify source transcript hash is unchanged"
+    "create score fork from the compacted source before any treatment reaches the source",
+    "resume score fork in a new process with exactly one frozen treatment and tools disabled, then record the neutral recall response",
+    "re-read source transcript and require byte-identical stability across fork creation and probing",
+    "resume source in a new process with exactly one arm treatment and continue"
   ],
+  "orderRationale": "The score fork is created, scored, and the parent verified byte-identical before any arm treatment reaches the source. Treatment is delivered only on the next explicit SessionStart(source=resume), which keeps a B/C fork from inheriting the parent treatment and then receiving the score-fork treatment again.",
   "probe": "Without using tools or external files, return one JSON object describing the current objective, files and symbols involved, requirements, decisions, negative constraints, errors with causes and fixes, commands and test outcomes, unresolved items, and the next action. State uncertainty instead of guessing.",
   "continuation": "Continue with the single highest-priority unfinished item. Preserve prior constraints, implement it, and run the relevant tests. Do not inspect conversation history, benchmark files, or session stores.",
-  "invalidation": [
-    "any automatic or unscheduled compaction",
-    "model id differs from claude-haiku-4-5-20251001",
-    "phase acceptance test fails",
-    "treatment is absent or late",
-    "source transcript changes during score-only fork",
-    "raw artifact access by a probe or continuation process",
-    "cost, time, or turn cap is exceeded",
-    "public privacy scan fails"
-  ]
+  "controller": {
+    "name": "OG86 medium-series controller",
+    "invocation": "node scripts/benchmark/run-og86-medium.mjs --execute --freeze-commit <40-hex revision>",
+    "dryRun": "node scripts/benchmark/run-og86-medium.mjs --dry-run --freeze-commit <40-hex revision> prints the derived order, blinding, checkpoint sequence, and stops without executing anything",
+    "enforcedOrder": "the controller records observations through a single ordered state machine and refuses any observation that arrives out of sequence",
+    "compactionCount": "exactly four operator-invoked manual compactions per arm, one per checkpoint",
+    "advisoryCostIsNeverAGate": true,
+    "generateFailsOnAnyFalseGate": true,
+    "budgetEnforcement": "a remaining-budget tracker asserts headroom before every Claude call and passes the remaining allowance as that call's own --max-budget-usd; the advisory 0.35 USD figure is never passed to the CLI and never blocks a call"
+  },
+  "ceilings": {
+    "perScoredArmMinutes": 60,
+    "mediumSeriesMinutes": 210,
+    "assistantTurnsPerArm": 48,
+    "manualCompactionsPerArm": 4
+  },
+  "advisoryCostTelemetry": {
+    "role": "advisory measurement, never a validity gate and never a stop condition",
+    "perScoredArmUsd": 0.35,
+    "mediumSeriesUsd": 1.2,
+    "reporting": "an advisory overage is disclosed as an observation alongside recorded token counts and the frozen pricing source, and never invalidates an arm or stops a run in progress",
+    "neverPassedToCli": true
+  },
+  "emergencyRunawayCeiling": {
+    "role": "operational resource guard, not an evidence rule; aborts only on a pathological loop and is reported as an operational stop with no admissible score for the affected arm",
+    "perScoredArmUsd": 5,
+    "mediumSeriesUsd": 15,
+    "separateFromAdvisory": "the runaway ceiling is a distinct operational stop, never recorded among scientific invalidations",
+    "enforcement": "enforced by the controller's remaining-budget tracker before every call, not by a fixed per-call budget flag at any advisory value"
+  },
+  "stops": {
+    "invalidations": [
+      "any automatic or unscheduled compaction",
+      "model id differs from claude-haiku-4-5-20251001",
+      "a fallback or model-switch record appears",
+      "phase acceptance test fails",
+      "treatment is absent, late, or duplicated",
+      "treatment exceeds the frozen byte budget",
+      "a phase's manual-compaction count or order is not the frozen four",
+      "source transcript changes during fork creation, probing, or after the fork",
+      "raw artifact access by a probe or continuation process",
+      "the continuation tool matrix is incomplete or reports an unexpected verdict",
+      "an arm C checkpoint is not bound to the retained transcript prefix",
+      "wall-clock or assistant-turn ceiling is exceeded",
+      "public privacy scan fails"
+    ],
+    "operationalStops": [
+      "emergency-runaway-ceiling-reached"
+    ],
+    "notes": "Cost is advisory telemetry and appears in neither list. The emergency runaway ceiling is an operational stop that produces no admissible score for the affected arm and does not invalidate the treatment."
+  }
 }

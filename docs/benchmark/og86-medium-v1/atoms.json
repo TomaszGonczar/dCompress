@@ -14,9 +14,7 @@
       ]
     ],
     "partial": [
-      "src/parser.js",
-      "defines",
-      "parseReservation"
+      "src/parser.js"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 1,
@@ -41,8 +39,6 @@
       ]
     ],
     "partial": [
-      "src/ledger.js",
-      "defines",
       "addReservation"
     ],
     "contradictions": [],
@@ -95,9 +91,9 @@
       ]
     ],
     "partial": [
-      "reservation",
-      "records",
-      "contain"
+      "contain",
+      "guest",
+      "cents"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 1,
@@ -123,8 +119,7 @@
     ],
     "partial": [
       "ledger.records",
-      "preserves",
-      "reservation"
+      "preserves reservation"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 1,
@@ -177,8 +172,8 @@
     ],
     "partial": [
       "duplicate",
-      "reservation",
-      "rejected"
+      "rejected",
+      "before"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 1,
@@ -203,9 +198,9 @@
       ]
     ],
     "partial": [
-      "serialized",
-      "reservation",
-      "shape"
+      "JSON",
+      "stays",
+      "the serialized"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 1,
@@ -230,7 +225,6 @@
       ]
     ],
     "partial": [
-      "preserve",
       "parseReservation",
       "addReservation"
     ],
@@ -255,13 +249,12 @@
         "add no dependency for the parser repair"
       ],
       [
-        "no dependency"
+        "no parser dependency"
       ]
     ],
     "partial": [
-      "dependency",
-      "parser",
-      "repair"
+      "for the",
+      "parser repair"
     ],
     "contradictions": [
       "added a parser dependency"
@@ -288,9 +281,8 @@
       ]
     ],
     "partial": [
-      "rewrite",
       "existing",
-      "ledger"
+      "ledger history"
     ],
     "contradictions": [
       "chose to rewrite existing ledger history"
@@ -400,9 +392,9 @@
       ]
     ],
     "partial": [
-      "duplicate",
       "overwrote",
-      "existing"
+      "existing",
+      "ledger"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 1,
@@ -428,8 +420,8 @@
     ],
     "partial": [
       "throwing",
-      "before",
-      "mutation"
+      "handling",
+      "mutation fixed"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 1,
@@ -456,7 +448,7 @@
     "partial": [
       "initial",
       "exposed",
-      "seeded"
+      "failures"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 1,
@@ -482,8 +474,8 @@
     ],
     "partial": [
       "final",
-      "passed",
-      "phase-one"
+      "phase-one",
+      "run passed"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 1,
@@ -509,8 +501,8 @@
     ],
     "partial": [
       "exact",
-      "fixture",
-      "remained"
+      "JSON",
+      "byte-for-byte"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 1,
@@ -537,7 +529,7 @@
     "partial": [
       "decimal",
       "duplicate",
-      "regression"
+      "both"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 1,
@@ -563,8 +555,7 @@
     ],
     "partial": [
       "idempotent",
-      "replay",
-      "remains"
+      "replay"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 1,
@@ -589,9 +580,7 @@
       ]
     ],
     "partial": [
-      "cancellation",
-      "revenue",
-      "remains"
+      "revenue remains future"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 1,
@@ -612,13 +601,11 @@
         "dry-run import remains future work after phase one"
       ],
       [
-        "dry run remains"
+        "dry run import remains"
       ]
     ],
     "partial": [
-      "dry-run",
-      "import",
-      "remains"
+      "import remains"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 1,
@@ -644,8 +631,7 @@
     ],
     "partial": [
       "decimal",
-      "regression",
-      "evidenced"
+      "phase1.test.js"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 1,
@@ -671,8 +657,8 @@
     ],
     "partial": [
       "duplicate",
-      "regression",
-      "evidenced"
+      "unchanged",
+      "ledger.records"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 1,
@@ -697,9 +683,7 @@
       ]
     ],
     "partial": [
-      "src/replay.js",
-      "defines",
-      "replay"
+      "src/replay.js"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 2,
@@ -724,9 +708,9 @@
       ]
     ],
     "partial": [
-      "src/ledger.js",
       "participates",
-      "replay"
+      "idempotence",
+      "in replay"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 2,
@@ -751,9 +735,9 @@
       ]
     ],
     "partial": [
-      "replay",
-      "tests",
-      "compare"
+      "compare",
+      "pass",
+      "with"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 2,
@@ -806,8 +790,8 @@
     ],
     "partial": [
       "first-seen",
-      "reservation",
-      "order"
+      "order",
+      "stays"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 2,
@@ -859,9 +843,9 @@
       ]
     ],
     "partial": [
-      "replay",
-      "preserves",
-      "stable"
+      "stable",
+      "first-seen",
+      "insertion"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 2,
@@ -887,8 +871,8 @@
     ],
     "partial": [
       "public",
-      "record",
-      "shape"
+      "remains",
+      "during"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 2,
@@ -913,9 +897,8 @@
       ]
     ],
     "partial": [
-      "reject",
       "process-global",
-      "replay"
+      "reject a"
     ],
     "contradictions": [
       "added a process-global replay cache"
@@ -943,8 +926,7 @@
     ],
     "partial": [
       "runtime",
-      "dependency",
-      "replay"
+      "for replay"
     ],
     "contradictions": [
       "added a runtime dependency for replay"
@@ -971,7 +953,7 @@
       ]
     ],
     "partial": [
-      "replay",
+      "keep",
       "state",
       "local"
     ],
@@ -1000,9 +982,9 @@
       ]
     ],
     "partial": [
-      "preserve",
       "phase-one",
-      "parser"
+      "duplicate",
+      "fixes"
     ],
     "contradictions": [
       "reverted the parser and duplicate fixes"
@@ -1030,8 +1012,8 @@
     ],
     "partial": [
       "reapplying",
-      "reservation",
-      "events"
+      "events",
+      "failures"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 2,
@@ -1137,9 +1119,8 @@
       ]
     ],
     "partial": [
-      "exercised",
-      "replay",
-      "idempotence"
+      "idempotence",
+      "exercised replay"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 2,
@@ -1165,8 +1146,7 @@
     ],
     "partial": [
       "replay-twice",
-      "equality",
-      "assertion"
+      "equality"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 2,
@@ -1192,8 +1172,7 @@
     ],
     "partial": [
       "stable",
-      "ordering",
-      "assertion"
+      "ordering"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 2,
@@ -1219,8 +1198,8 @@
     ],
     "partial": [
       "earlier",
-      "phase",
-      "tests"
+      "green",
+      "phase tests"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 2,
@@ -1245,9 +1224,7 @@
       ]
     ],
     "partial": [
-      "tombstone",
-      "compaction",
-      "policy"
+      "remains unresolved"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 2,
@@ -1272,9 +1249,9 @@
       ]
     ],
     "partial": [
-      "cancellation",
-      "revenue",
-      "remains"
+      "diagnosed",
+      "defect",
+      "remains the"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 2,
@@ -1299,9 +1276,8 @@
       ]
     ],
     "partial": [
-      "batch",
-      "import",
-      "dry-run"
+      "unimplemented",
+      "dry-run remains"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 2,
@@ -1328,7 +1304,7 @@
     "partial": [
       "replay",
       "idempotence",
-      "backed"
+      "one-pass"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 2,
@@ -1355,7 +1331,7 @@
     "partial": [
       "stable",
       "order",
-      "backed"
+      "first-seen"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 2,
@@ -1380,8 +1356,6 @@
       ]
     ],
     "partial": [
-      "src/ledger.js",
-      "defines",
       "cancelReservation"
     ],
     "contradictions": [],
@@ -1407,8 +1381,6 @@
       ]
     ],
     "partial": [
-      "src/report.js",
-      "defines",
       "activeRevenue"
     ],
     "contradictions": [],
@@ -1434,9 +1406,7 @@
       ]
     ],
     "partial": [
-      "src/report.js",
-      "defines",
-      "report"
+      "defines report"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 3,
@@ -1461,9 +1431,9 @@
       ]
     ],
     "partial": [
-      "cancellation",
-      "tests",
-      "ledger"
+      "span",
+      "behavior",
+      "cancellation tests"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 3,
@@ -1489,8 +1459,8 @@
     ],
     "partial": [
       "append-only",
-      "records",
-      "retain"
+      "retain",
+      "reservation and"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 3,
@@ -1543,8 +1513,7 @@
     ],
     "partial": [
       "cancellation",
-      "preserves",
-      "append-only"
+      "history"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 3,
@@ -1569,9 +1538,9 @@
       ]
     ],
     "partial": [
-      "integer",
-      "cents",
-      "serialized"
+      "cents and",
+      "serialized record",
+      "remain unchanged"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 3,
@@ -1597,8 +1566,7 @@
     ],
     "partial": [
       "delete",
-      "cancelled",
-      "records"
+      "cancelled"
     ],
     "contradictions": [
       "deleted cancelled records"
@@ -1625,9 +1593,8 @@
       ]
     ],
     "partial": [
-      "rewrite",
-      "stored",
-      "reservation"
+      "rewrite stored",
+      "reservation records"
     ],
     "contradictions": [
       "rewrote stored reservation records"
@@ -1654,9 +1621,8 @@
       ]
     ],
     "partial": [
-      "preserve",
-      "exported",
-      "report"
+      "report",
+      "and ledger"
     ],
     "contradictions": [
       "changed exported report and ledger signatures"
@@ -1683,9 +1649,9 @@
       ]
     ],
     "partial": [
-      "reject",
-      "history",
-      "mutation"
+      "mutation",
+      "cancellation",
+      "as the"
     ],
     "contradictions": [
       "used history mutation as the cancellation repair"
@@ -1820,9 +1786,9 @@
       ]
     ],
     "partial": [
-      "seeded",
-      "cancellation",
-      "report"
+      "report",
+      "failed",
+      "before"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 3,
@@ -1847,9 +1813,8 @@
       ]
     ],
     "partial": [
-      "passed",
-      "after",
-      "cancellation"
+      "after the",
+      "cancellation repair"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 3,
@@ -1875,8 +1840,7 @@
     ],
     "partial": [
       "append-only",
-      "history",
-      "assertion"
+      "history"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 3,
@@ -1902,8 +1866,8 @@
     ],
     "partial": [
       "stored",
-      "fixture",
-      "bytes"
+      "bytes",
+      "stayed"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 3,
@@ -1928,9 +1892,8 @@
       ]
     ],
     "partial": [
-      "tombstone",
-      "compaction",
-      "policy"
+      "still",
+      "policy is"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 3,
@@ -1955,9 +1918,9 @@
       ]
     ],
     "partial": [
-      "dry-run",
-      "batch",
-      "import"
+      "feature",
+      "dry-run batch",
+      "import is the"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 3,
@@ -1982,9 +1945,9 @@
       ]
     ],
     "partial": [
-      "atomic",
-      "mixed-validity",
-      "import"
+      "active",
+      "task",
+      "atomic mixed-validity"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 3,
@@ -2010,8 +1973,8 @@
     ],
     "partial": [
       "revenue",
-      "evidenced",
-      "cancellation"
+      "cancellation",
+      "report"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 3,
@@ -2037,8 +2000,8 @@
     ],
     "partial": [
       "append-only",
-      "behavior",
-      "evidenced"
+      "preserved",
+      "record-history"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 3,
@@ -2063,9 +2026,7 @@
       ]
     ],
     "partial": [
-      "src/import.js",
-      "defines",
-      "importBatch"
+      "src/import.js"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 4,
@@ -2091,8 +2052,8 @@
     ],
     "partial": [
       "src/cli.js",
-      "preserves",
-      "public"
+      "public",
+      "preserves the"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 4,
@@ -2117,9 +2078,9 @@
       ]
     ],
     "partial": [
-      "batch",
-      "import",
-      "tests"
+      "dry-run",
+      "invalid",
+      "input"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 4,
@@ -2144,9 +2105,9 @@
       ]
     ],
     "partial": [
-      "parseReservation",
       "validates",
-      "import"
+      "each",
+      "line"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 4,
@@ -2171,9 +2132,9 @@
       ]
     ],
     "partial": [
-      "ledger",
       "mutation",
-      "boundary"
+      "boundary",
+      "ledger is"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 4,
@@ -2198,9 +2159,9 @@
       ]
     ],
     "partial": [
-      "dry-run",
       "validates",
-      "every"
+      "every",
+      "without"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 4,
@@ -2252,9 +2213,9 @@
       ]
     ],
     "partial": [
-      "dry-run",
-      "reports",
-      "proposed"
+      "proposed",
+      "count",
+      "dry-run reports"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 4,
@@ -2279,7 +2240,6 @@
       ]
     ],
     "partial": [
-      "preserve",
       "public",
       "arguments"
     ],
@@ -2308,9 +2268,8 @@
       ]
     ],
     "partial": [
-      "preserve",
       "serialized",
-      "record"
+      "format"
     ],
     "contradictions": [
       "changed the serialized record format"
@@ -2337,9 +2296,8 @@
       ]
     ],
     "partial": [
-      "dependency",
-      "global",
-      "cache"
+      "dependency and",
+      "no global"
     ],
     "contradictions": [
       "added a dependency or global cache"
@@ -2366,9 +2324,9 @@
       ]
     ],
     "partial": [
-      "write",
       "unfinished",
-      "atomicity"
+      "atomicity",
+      "task"
     ],
     "contradictions": [
       "wrote the unfinished atomicity task into repository files"
@@ -2423,8 +2381,8 @@
     ],
     "partial": [
       "validation",
-      "before",
-      "mutation"
+      "pass",
+      "makes"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 4,
@@ -2476,9 +2434,9 @@
       ]
     ],
     "partial": [
-      "dry-run",
       "invalid-batch",
-      "tests"
+      "feature",
+      "dry-run and"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 4,
@@ -2503,9 +2461,8 @@
       ]
     ],
     "partial": [
-      "exercised",
-      "dry-run",
-      "import"
+      "import",
+      "exercised dry-run"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 4,
@@ -2531,8 +2488,7 @@
     ],
     "partial": [
       "no-mutation",
-      "dry-run",
-      "assertion"
+      "dry-run assertion"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 4,
@@ -2557,9 +2513,7 @@
       ]
     ],
     "partial": [
-      "invalid-line-number",
-      "assertion",
-      "passed"
+      "invalid-line-number"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 4,
@@ -2585,8 +2539,8 @@
     ],
     "partial": [
       "complete",
-      "regression",
-      "suite"
+      "suite",
+      "four"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 4,
@@ -2611,9 +2565,9 @@
       ]
     ],
     "partial": [
-      "mixed-validity",
       "non-dry-run",
-      "import"
+      "must",
+      "become"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 4,
@@ -2639,8 +2593,8 @@
     ],
     "partial": [
       "atomicity",
-      "single",
-      "highest-priority"
+      "item",
+      "single"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 4,
@@ -2665,9 +2619,8 @@
       ]
     ],
     "partial": [
-      "tombstone",
-      "compaction",
-      "policy"
+      "open",
+      "lower"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 4,
@@ -2693,8 +2646,8 @@
     ],
     "partial": [
       "dry-run",
-      "behavior",
-      "backed"
+      "batch",
+      "import"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 4,
@@ -2719,9 +2672,9 @@
       ]
     ],
     "partial": [
+      "next",
       "action",
-      "exists",
-      "phase-four"
+      "exists"
     ],
     "contradictions": [],
     "availableAfterCheckpoint": 4,

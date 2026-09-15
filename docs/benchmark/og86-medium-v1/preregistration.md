@@ -1,7 +1,10 @@
 # OG-86 medium benchmark v1 — preregistration
 
-Status: **inputs drafted; scored execution blocked until Stage 0 passes.** This benchmark is
-directional evidence with `n = 1` per arm. It is not a population rate or a vendor ranking.
+Status: **draft freeze revision. No scored call has started and scored execution is not
+authorized.** `stage0-result.json` records `status: pass` for the Stage-0 *execution* gates; that
+is neither a freeze authorization nor an authorization to start a scored arm, and the corrections
+in "Freeze blockers" are open. This benchmark is directional evidence with `n = 1` per arm, on one
+machine, one model, and one workload. It is not a population rate or a vendor ranking.
 
 ## Question
 
@@ -12,28 +15,64 @@ freshly resumed Haiku 4.5 process recover more useful, verifiable work state whe
 2. native compacted context plus the exact native summary re-surfaced (B); or
 3. native compacted context plus a deterministic dcompact checkpoint pack (C)?
 
-B separates representation from the freshness/salience effect. C versus B is interpretable as
-a representation comparison only while neither treatment exceeds 16,384 bytes and their byte
-sizes differ by no more than 2×. A versus B estimates salience; A versus C describes the total
-dcompact continuity treatment.
+A versus B estimates the salience/freshness of re-surfacing the host's own summary. A versus C
+describes the total dcompact continuity treatment.
+
+**C versus B is not a representation comparison in this series, at any size ratio.** B re-surfaces
+the host's own summary, whose length the protocol does not control; C injects a pack bounded by
+the pack budget. Equal 16,384-byte ceilings do not produce equal injected sizes, and no threshold
+on the observed ratio can restore control the design never had. Stage 0 measured B at 7,371 bytes
+and C at 1,246 bytes (approximately 5.9×) on a single micro-workload; that is one observation and
+not a prediction, but it is consistent with the structural reason. Per-checkpoint injected byte
+and token counts and their ratio are recorded and reported for every arm as a measured covariate;
+no representation claim is derived from them. A size-matched representation comparison requires a
+separate preregistration that controls injected size directly.
+
+## Primary evidence and separately labeled follow-up
+
+Primary evidence for OG-86 is the **controlled medium series** defined in this document: three
+independent arms, each with exactly four operator-invoked manual `/compact` events at the
+frozen checkpoints in "Frozen execution". Compaction timing is controlled and manual by
+construction, so this series measures retention across *controlled repeated compaction* only.
+It says nothing about natural trigger behavior, automatic compaction, or watermark thresholds,
+and it must never be described as if it did.
+
+**Organic natural-exhaustion testing is a separately labeled follow-up, not primary evidence.**
+That follow-up runs an organic workload until the host compacts on its own, three to six times, and
+is reported under its own label. It is not authorized by this document, it is not a substitute for
+this series, and it requires its own preregistration, its own freeze commit, and its own validity
+gates. The same holds for the staged 7–8 compaction large series, which also remains unauthorized.
 
 ## Frozen execution
 
 All arms use Claude Code 2.1.270, requested and record-verified
 `claude-haiku-4-5-20251001`, isolated owner-only profiles, the same committed
-`reservation-ledger` base, the four prompts in `phase-prompts.json`, and the sequence in
-`schedule.json`. The installed Claude version does not reveal the internal compaction
-summarizer model; that identity remains explicitly unproven and is symmetric across arms.
+`reservation-ledger` base, the four prompts in `phase-prompts.json`, and the checkpoint order
+below. The installed Claude version does not reveal the internal compaction summarizer model;
+that identity remains explicitly unproven and is symmetric across arms.
 
-Each phase is genuine agent-driven maintenance of a multi-file project. The harness verifies
-the test state, then invokes exactly one manual `/compact`. An automatic or extra compaction
-invalidates the complete three-arm series.
+Required order at every checkpoint, in every arm:
 
-Claude Code exposes `PostCompact.compact_summary` after `SessionStart(source=compact)`. The
-same compact event therefore cannot carry arm B's summary. Before scoring, Stage 0 changed the
-schedule for all arms: after `PostCompact`, create the score fork before resuming the parent;
-then deliver A's empty treatment, B's exact summary, or C's frozen pack through the next
-explicit `SessionStart(source=resume)`. No treatment is injected on `source=compact`.
+1. Send the frozen phase prompt to the source session, run `npm test`, and verify phase
+   acceptance.
+2. Invoke exactly one manual `/compact`.
+3. Wait for `PostCompact` and capture the native summary.
+4. Create the score fork from the compacted source **before any treatment reaches the source**,
+   and record the source transcript byte count, line count, and SHA-256.
+5. Resume the score fork in a new process with exactly one frozen treatment, tools disabled, and
+   ask the neutral probe.
+6. Re-read the source transcript and require byte-identical stability across fork creation and
+   probing.
+7. Resume the source in a new process with exactly one arm treatment and continue.
+
+`schedule.json` currently lists the source resume before fork creation. That order is superseded by
+step 4 above, is a freeze blocker, and must be corrected before the freeze commit. No treatment is
+injected on `source=compact`; treatment is delivered only on the next explicit
+`SessionStart(source=resume)`, because Claude Code 2.1.270 emits `SessionStart(compact)` before
+`PostCompact` and the same compact event therefore cannot carry arm B's summary. An automatic or
+extra compaction invalidates the complete three-arm series.
+
+Each phase is genuine agent-driven maintenance of a multi-file project.
 
 The score fork receives exactly one frozen treatment file and cannot read the raw session,
 profile, dcompact store, rubric, benchmark artifacts, or prior probes. It has no tools. The
@@ -64,33 +103,114 @@ decay between checkpoints, zero C false facts, exact C retention of all negative
 unresolved blockers, and error/fix links, and an 8/8 continuation result. Missing a target is a
 valid publishable result.
 
-## Validity gates and caps
+## Validity gates and limits
 
 Stage 0 must prove owner-only isolation, exact resume timing, one treatment copy, parent hash
 stability, new-process identity, the tool-denial matrix, assistant model counts, a recomputable
-C transcript/checkpoint binding, scorer mutations, and the privacy scan. The discarded
-exploration reached approximately 0.19 USD equivalent under an earlier provisional 0.15 USD
-cap. The replacement Stage-0 cap was fixed at 0.25 USD before execution; no scored call had
-started.
+C transcript/checkpoint binding, scorer mutations, and the privacy scan. Stage 0 has run:
+`stage0-result.json` records `status: pass` with `scoredCallsStarted: false`. The discarded
+exploration reached approximately 0.19 USD equivalent under an earlier provisional 0.15 USD cap;
+the replacement Stage-0 cap was fixed at 0.25 USD before execution, and the complete Stage-0 run
+recorded 0.143467 USD equivalent against it. No scored call had started.
 
-Each scored arm is capped at 60 minutes, 48 assistant turns, four compactions, and 0.35 USD
-equivalent. The medium series is capped at 210 minutes and 1.20 USD equivalent. Any rate limit,
-fallback model, unplanned compaction, permission failure, treatment mismatch, source/store
-mismatch, failed acceptance state, privacy leak, lost evidence, scorer error, or cap breach
-invalidates the whole series. A repair creates a new version and reruns all three arms.
+Hard validity stops, unchanged from the frozen design: any automatic or unscheduled compaction; a
+model id other than the frozen one; a failed phase acceptance state; absent or late treatment; a
+source transcript that changes during fork creation or probing; raw-artifact access by a probe or
+continuation process; raw session, path, or prose leakage into a public artifact; a lost or
+unverifiable evidence artifact; a scorer error; an exceeded wall-clock or assistant-turn limit; or
+a breach of the emergency runaway ceiling. **Cost figures are not a validity stop** — see "Cost".
 
-Arm order is derived only after the preregistration commit by sorting A/B/C on
-`sha256("OG86-medium-v1|<commit>|<arm>")`; public run artifacts use blinded labels X1/X2/X3
-until scores and false-fact adjudication are frozen.
+Each scored arm is limited to 60 wall-clock minutes, 48 assistant turns, and four manual
+compactions. The medium series is limited to 210 minutes. A repair creates a new version and
+reruns all three arms.
+
+Arm order is derived only once the **freeze** commit exists, by sorting A/B/C on
+`sha256("OG86-medium-v1|<freeze-commit>|<arm>")`. `protocol.json` carries `freezeCommit: null`
+until that commit exists, and no arm order is fixed before it. Public run artifacts use blinded
+labels X1/X2/X3 until scores and false-fact adjudication are frozen.
+
+## Cost
+
+Cost is **advisory telemetry, not a scientific validity gate.** These advisory figures are
+recorded and reported: 0.35 USD equivalent per scored arm and 1.20 USD equivalent for the medium
+series. Exceeding an advisory figure never invalidates an arm or the series and never stops a run
+in progress; it is disclosed in the verdict as an observation, alongside the recorded token
+counts, the frozen pricing source, and the observed value.
+
+A distinct **emergency runaway ceiling** exists as an operational resource guard, not an evidence
+rule: 5.00 USD equivalent per arm and 15.00 USD equivalent for the series. It is set far above the
+advisory figures so a legitimate arm cannot reach it, and it can only fire on a pathological loop.
+Reaching it aborts the affected arm and is reported as an operational stop with no admissible score
+for that arm. It is not a scientific invalidity of the treatment, and it is not a reason to enlarge
+the ceiling retroactively.
+
+## Durable sanitized evidence
+
+Every gate value that supports a public claim must be independently recomputable from a committed,
+sanitized artifact. A bare boolean is not evidence. Each arm's public result and the Stage-0
+manifest must carry, per checkpoint and per labeled process:
+
+- source transcript byte count, line count, and SHA-256 both before fork creation and after the
+  probe, together with the stability comparison, rather than a lone "stable" flag;
+- labeled process roles and incarnations (work, compact, probe, continuation), not only an
+  aggregate count;
+- elapsed wall time;
+- assistant record counts per labeled process, matching-model record counts, and
+  fallback/model-switch counts;
+- injected treatment bytes and SHA-256 per arm, and the cross-arm injected-size ratio;
+- for C, the retained-prefix byte/line/digest binding, the count of checkpoint evidence entries
+  whose hashes matched that prefix, the count required, and a path class that excludes fixture and
+  replay directories; `null` for A and B;
+- canary occurrence count, private-tree modes, advisory cost telemetry, and the pricing source;
+- the exact runner and scorer revision digests the result was produced by.
+
+Artifact generation fails when any gate value is false. Private raw material — session ids, host
+paths, hook payloads, native summaries, dcompact stores, and transcript prose — is never promoted
+into a sanitized artifact.
 
 ## Privacy and publication
 
 Raw Claude transcripts, hook payloads, session ids, absolute paths, native summaries,
 checkpoints, and source-to-placeholder maps remain outside Git. Only the synthetic workload,
 frozen inputs, sanitized manifests, neutral responses, recomputable scores, and limitations
-are commit-eligible. The benchmark directory and every commit added by its PR must pass the
-privacy/history scan before publication.
+are commit-eligible.
+
+Freeze scope is explicit. `checksums.sha256` must cover every frozen input **and** every execution
+utility that can change a result: the scorer, the Stage-0 runner, the input generator, the privacy
+scanner, the benchmark spec, and the Vitest and ESLint configuration, in addition to the workload,
+prompts, atoms, rubric, schedule, protocol, preregistration, schema, harness, and Stage-0 files it
+already covers. The current manifest omits the scorer, runner, generator, scanner, benchmark spec,
+and both configuration files; extending it is a freeze blocker.
+
+History privacy scope is equally explicit: the scan covers the benchmark directory, the complete
+diff of the PR that adds these inputs, and **every reachable history object that PR adds**,
+including commits reachable only through pull refs. Because those refs retain superseded commits,
+the current private repository is not the publication target: after the evidence is final, the
+sanitized HEAD is exported into a fresh public repository and verified while logged out.
+
+## Freeze blockers
+
+Open before the first scored call:
+
+1. `schedule.json` checkpoint order (fork and score before source resume), and its residual
+   cost clause in the invalidation list. Both live in `schedule.json`, outside this document.
+2. Scorer atom independence: absent atoms can still score `exact` because another atom accepts the
+   same alias, and most omissions receive partial credit from shared tokens. Accepted-phrase
+   collisions must be removed, and the mutation suite must exercise every atom rather than a
+   selected one.
+3. Continuation tool boundary: a Bash prefix allowance and unconstrained `Glob`/`Grep` are not an
+   exact boundary. The matrix must cover every enabled capability and every forbidden location
+   class with observed allow/deny probes.
+4. A regenerated durable Stage-0 manifest meeting "Durable sanitized evidence", including source
+   before/after digests, labeled processes, wall time, and prefix-binding counts.
+5. Freeze checksum scope extended per "Privacy and publication".
+6. The freeze commit itself, from which arm order, `protocol.json`'s `freezeCommit`, and the
+   checksum manifest are derived.
+
+`stage0-result.json`'s `status: pass` is a Stage-0 execution result. It closes none of the items
+above and does not authorize a scored arm.
 
 The large seven/eight-compaction stage is not authorized by this document. It receives a new
 preregistration only if the complete medium series is valid and the Wednesday publication
-margin remains safe.
+margin remains safe. Organic natural-exhaustion testing is separately labeled and independently
+preregistered for the same reason.
