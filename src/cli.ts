@@ -26,6 +26,7 @@ import type { ClaudeDiagnostic } from "./adapters/claude.js";
 import { AdapterDefinitionRefusal } from "./adapters/registry.js";
 import type { CoverageReport } from "./adapters/coverage.js";
 import { checkpoint, restore, runHook, ContinuityRefusal } from "./continuity.js";
+import { systemClock } from "./core/clock.js";
 import { payloadHash } from "./core/hash.js";
 import { DEFAULT_MAX_BYTES, formatDegradedStates, minimumPackBytes, renderPack } from "./core/pack.js";
 import type { AdapterId, DegradedState, PackOptions, Payload, Snapshot } from "./core/types.js";
@@ -35,11 +36,12 @@ import { EXIT_DEGRADED, EXIT_INTEGRITY_FAILURE, EXIT_OK, EXIT_OPERATIONAL_FAILUR
 import { installClaude } from "./install/apply.js";
 import { InstallRefusal } from "./install/refusal.js";
 import { uninstallClaude } from "./install/uninstall-apply.js";
-import { readManifest, snapshotId } from "./store/manifest.js";
+import { readManifest, snapshotId, writeManifest } from "./store/manifest.js";
 import { sessionPaths } from "./store/paths.js";
+import { applyRetention } from "./store/retention.js";
 import { listSnapshots, shortHash } from "./store/snapshot.js";
 import { StoreRefusal } from "./store/types.js";
-import type { ManifestSnapshotEntry, SessionPaths, SnapshotReadQuarantined } from "./store/types.js";
+import type { ManifestSnapshotEntry, RetentionResult, SessionPaths, SnapshotReadQuarantined } from "./store/types.js";
 import { checkPayloadHash, checkProvenance } from "./store/verify.js";
 
 /** The only adapter the store commands read today; `--adapter` for `doctor` is separate. */
@@ -107,6 +109,8 @@ function usage(): string {
     "  dcompact list --session <id> [--store <dir>] [--json]",
     "  dcompact show --session <id> --snapshot <id> [--store <dir>] [--json]",
     "  dcompact verify --session <id> [--snapshot <id>] [--store <dir>] [--provenance] [--json]",
+    "  dcompact prune --session <id> [--store <dir>] [--dry-run] [--json]",
+    "  dcompact pin --session <id> --snapshot <id> [--store <dir>] [--unpin] [--json]",
     "  dcompact doctor --session <id> --store <dir> [--adapter <name>] [--json]",
     "  dcompact install --agent claude --store <dir> [--settings <path>] [--dry-run]",
     "  dcompact uninstall --agent claude --store <dir> [--settings <path>] [--dry-run]",
@@ -120,6 +124,12 @@ function usage(): string {
     "  show      Print one stored snapshot's envelope, payload summary, and rendered pack.",
     "  verify    Recompute a snapshot's payload hash; --provenance re-checks it against the",
     "            transcript named in its envelope.",
+    "  prune     Apply the retention policy to one session's snapshots — fifteen snapshots",
+    "            or seventy-two hours, the newest and any pinned snapshot exempt — and",
+    "            record each deletion in the manifest. --dry-run reports the same set and",
+    "            deletes nothing.",
+    "  pin       Set one snapshot's pinned flag in the manifest, exempting it from retention;",
+    "            --unpin clears the flag again.",
     "  doctor    Report store, manifest, lock, quarantine, and adapter health for one session.",
     "  install   Write dcompact's Claude hook entries into a settings file, after copying",
     "            every file it edits to a byte backup under <store>/backups/.",
@@ -131,7 +141,7 @@ function usage(): string {
     "  --settings <path>     Claude settings file for install/uninstall to edit. Default:",
     "                        $CLAUDE_CONFIG_DIR/settings.json, else ~/.claude/settings.json.",
     "  --command <exec>      install only: executable Claude runs for a hook. Default: dcompact.",
-    "  --dry-run             install/uninstall only: print the plan and write nothing.",
+    "  --dry-run             install/uninstall/prune: report what would happen and write nothing.",
     `  --max-bytes <n>       Pack byte budget. Default ${DEFAULT_MAX_BYTES}. A value below the`,
     "                        mandatory header plus elision notice is refused with the exact",
     "                        minimum for that transcript (reported in the refusal message).",
@@ -139,14 +149,18 @@ function usage(): string {
     "  --include-evidence    Append evidence line numbers to each fact.",
     "  --session <id>        Explicit session id. Required by every command below preview;",
     "                        never guessed, never the most recent (AGENTS invariant 8).",
-    "  --store <dir>         Store root. list/show/verify default to the resolved XDG/",
-    "                        DCOMPACT_HOME store when omitted; snapshot/restore/hook/doctor",
-    "                        require it explicitly. install/uninstall write backups under it.",
+    "  --store <dir>         Store root. list/show/verify/prune/pin default to the resolved",
+    "                        XDG/DCOMPACT_HOME store when omitted; snapshot/restore/hook/",
+    "                        doctor require it explicitly. install/uninstall write backups",
+    "                        under it.",
     "  --snapshot <id>       A snapshot's short hash or full id, as printed by `list --json`.",
-    "                        Required for show; verify checks every snapshot when omitted.",
+    "                        Required for show and pin; verify checks every snapshot when",
+    "                        omitted.",
+    "  --unpin               pin only: clear the snapshot's pinned flag instead of setting it.",
     "  --provenance          verify only: re-read the transcript and check each fact's evidence.",
     "  --adapter <name>      Adapter id for doctor's session store. Default claude.",
-    "  --json                list/show/verify/doctor: print the documented JSON shape instead of text.",
+    "  --json                list/show/verify/prune/pin/doctor: print the documented JSON shape",
+    "                        instead of text.",
     "  --help, -h            Print this usage.",
     "",
     "Exit codes (CONCEPT §6.2):",
@@ -268,6 +282,86 @@ function parseStoreArgs(argv: readonly string[], command: "list" | "show" | "ver
   if (session === null) throw new UsageError("missing-session", `${command} requires an explicit --session <id>; no session is ever chosen for you.`);
   if (command === "show" && snapshot === undefined) throw new UsageError("missing-snapshot", "show requires an explicit --snapshot <id>.");
   return { session, store, snapshot, provenance, json };
+}
+
+interface PruneArgs {
+  readonly session: string;
+  readonly store?: string;
+  readonly dryRun: boolean;
+  readonly json: boolean;
+}
+
+/** `prune` is `list`'s store surface plus the two flags it adds: `--dry-run` and `--json`. */
+function parsePruneArgs(argv: readonly string[]): PruneArgs | "help" {
+  let session: string | null = null;
+  let store: string | undefined;
+  let dryRun = false;
+  let json = false;
+  for (let index = 0; index < argv.length; index += 1) {
+    const flag = argv[index];
+    if (flag === "--help" || flag === "-h") return "help";
+    if (flag === "--dry-run") {
+      dryRun = true;
+      continue;
+    }
+    if (flag === "--json") {
+      json = true;
+      continue;
+    }
+    if (flag === "--session" || flag === "--store") {
+      const value = argv[index + 1];
+      if (value === undefined) throw new UsageError("missing-value", `${flag} requires a value`);
+      if (flag === "--session") session = value;
+      else store = value;
+      index += 1;
+      continue;
+    }
+    throw new UsageError("unknown-argument", `Unknown argument: ${JSON.stringify(flag)}`);
+  }
+  if (session === null) throw new UsageError("missing-session", "prune requires an explicit --session <id>; no session is ever chosen for you.");
+  return { session, store, dryRun, json };
+}
+
+interface PinArgs {
+  readonly session: string;
+  readonly store?: string;
+  readonly snapshot: string;
+  readonly unpin: boolean;
+  readonly json: boolean;
+}
+
+/** The flag's presence clears the pin; its absence sets it. */
+function parsePinArgs(argv: readonly string[]): PinArgs | "help" {
+  let session: string | null = null;
+  let store: string | undefined;
+  let snapshot: string | null = null;
+  let unpin = false;
+  let json = false;
+  for (let index = 0; index < argv.length; index += 1) {
+    const flag = argv[index];
+    if (flag === "--help" || flag === "-h") return "help";
+    if (flag === "--unpin") {
+      unpin = true;
+      continue;
+    }
+    if (flag === "--json") {
+      json = true;
+      continue;
+    }
+    if (flag === "--session" || flag === "--store" || flag === "--snapshot") {
+      const value = argv[index + 1];
+      if (value === undefined) throw new UsageError("missing-value", `${flag} requires a value`);
+      if (flag === "--session") session = value;
+      else if (flag === "--store") store = value;
+      else snapshot = value;
+      index += 1;
+      continue;
+    }
+    throw new UsageError("unknown-argument", `Unknown argument: ${JSON.stringify(flag)}`);
+  }
+  if (session === null) throw new UsageError("missing-session", "pin requires an explicit --session <id>; no session is ever chosen for you.");
+  if (snapshot === null) throw new UsageError("missing-snapshot", "pin requires an explicit --snapshot <id>.");
+  return { session, store, snapshot, unpin, json };
 }
 
 interface DoctorArgs {
@@ -532,7 +626,7 @@ export function preview(options: PreviewOptions): PreviewResult {
   return { pack, payload, diagnostics: parse.diagnostics, degraded, coverage, report: `${lines.join("\n")}\n` };
 }
 
-function resolveSession(args: StoreArgs): SessionPaths {
+function resolveSession(args: { readonly session: string; readonly store?: string }): SessionPaths {
   return sessionPaths({ adapter: STORE_ADAPTER, sessionId: args.session, root: args.store });
 }
 
@@ -695,6 +789,113 @@ function runVerify(args: StoreArgs, io: CliIo): number {
   return integrityOk ? EXIT_OK : EXIT_INTEGRITY_FAILURE;
 }
 
+/**
+ * How the pass's manifest write is reported: the path it landed on, or why none was made. The
+ * distinction matters because a pass that pruned nothing is a no-op, not a silent repair.
+ */
+function manifestWriteState(result: RetentionResult): string {
+  if (result.manifest !== null) {
+    return `${result.manifest.path}${result.manifest.rebuilt ? ` (rebuilt: ${result.manifest.reason})` : ""}`;
+  }
+  return result.dryRun ? "not written (dry run)" : "not written (nothing changed)";
+}
+
+function runPrune(args: PruneArgs, io: CliIo): number {
+  const session = resolveSession(args);
+  // Which snapshots are eligible, in what order, and what gets recorded are the retention
+  // library's decisions (CONCEPT §10, SCHEMA §8). This command only supplies the real clock and
+  // hands `--dry-run` straight through, so the two modes cannot disagree about the set.
+  const result = applyRetention({ session, clock: systemClock, dryRun: args.dryRun });
+
+  if (args.json) {
+    io.stdout(`${JSON.stringify({
+      session: session.name,
+      store: session.root,
+      dryRun: result.dryRun,
+      now: result.now,
+      policy: result.policy,
+      pruned: result.pruned.map((entry) => ({
+        id: entry.id,
+        hash: entry.hash,
+        short: shortHash(entry.hash),
+        created_at: entry.created_at,
+        reason: entry.reason,
+        at: entry.at,
+        path: entry.path,
+      })),
+      kept: result.kept,
+      manifest: result.manifest === null ? null : { path: result.manifest.path, rebuilt: result.manifest.rebuilt, reason: result.manifest.reason },
+    })}\n`);
+    return EXIT_OK;
+  }
+
+  const lines: string[] = [];
+  lines.push(`session: ${session.name}`);
+  lines.push(`store: ${session.root}`);
+  lines.push(`dry-run: ${result.dryRun ? "yes — nothing was deleted" : "no"}`);
+  lines.push(`policy: ${result.policy.maxSnapshots} snapshots or ${result.policy.maxAgeMs / 60 / 60 / 1000} hours; newest and pinned exempt`);
+  if (result.pruned.length === 0) {
+    lines.push("pruned: none");
+  } else {
+    lines.push(`pruned: ${result.pruned.length}`);
+    for (const entry of result.pruned) {
+      lines.push(`  ${shortHash(entry.hash)}  ${entry.created_at}  reason=${entry.reason}  at=${entry.at}`);
+    }
+  }
+  lines.push(`kept: ${result.kept.length}`);
+  for (const id of result.kept) lines.push(`  ${id}`);
+  lines.push(`manifest: ${manifestWriteState(result)}`);
+  io.stdout(`${lines.join("\n")}\n`);
+  return EXIT_OK;
+}
+
+function runPin(args: PinArgs, io: CliIo): number {
+  const session = resolveSession(args);
+  const listed = listSnapshots(session);
+  const read = readManifest(session, listed.entries);
+  const entry = read.manifest.snapshots.find((candidate) => matchesSnapshotQuery(candidate, args.snapshot));
+  if (entry === undefined) {
+    const quarantined = listed.quarantined.find((candidate) => quarantineQueryId(candidate) === args.snapshot);
+    if (quarantined !== undefined) {
+      throw new StoreRefusal("snapshot-quarantined", `Snapshot ${JSON.stringify(args.snapshot)} is quarantined (${quarantined.code}: ${quarantined.reason}); inspect ${JSON.stringify(quarantined.quarantinePath)} to repair it.`);
+    }
+    throw notFoundRefusal(session, args.snapshot);
+  }
+
+  const pinned = !args.unpin;
+  const changed = entry.pinned !== pinned;
+  // A pin lives in the manifest, so it is written through the manifest path — and only when the
+  // flag actually changes, which keeps a repeated `pin` from rewriting the index for nothing.
+  if (changed) {
+    writeManifest(session, {
+      ...read.manifest,
+      snapshots: read.manifest.snapshots.map((candidate) => (candidate.id === entry.id ? { ...candidate, pinned } : candidate)),
+    });
+  }
+
+  if (args.json) {
+    io.stdout(`${JSON.stringify({
+      session: session.name,
+      store: session.root,
+      snapshot: { id: entry.id, hash: entry.hash, short: shortHash(entry.hash), created_at: entry.created_at },
+      pinned,
+      changed,
+      manifest: { path: read.path, rebuilt: read.rebuilt, reason: read.reason },
+    })}\n`);
+    return EXIT_OK;
+  }
+
+  const lines: string[] = [];
+  lines.push(`session: ${session.name}`);
+  lines.push(`store: ${session.root}`);
+  lines.push(`snapshot: ${shortHash(entry.hash)} (${entry.created_at})`);
+  lines.push(`pinned: ${pinned ? "yes" : "no"}`);
+  lines.push(`changed: ${changed ? "yes" : "no — already in that state"}`);
+  lines.push(`manifest: ${read.rebuilt ? `${read.path} (rebuilt: ${read.reason})` : changed ? read.path : `${read.path} (unchanged)`}`);
+  io.stdout(`${lines.join("\n")}\n`);
+  return EXIT_OK;
+}
+
 /** Output sinks, injected so a test can assert the exact streams without spawning a process. */
 export interface CliIo {
   readonly stdout: (text: string) => void;
@@ -736,7 +937,7 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
     io.stderr(`Unknown command: ${JSON.stringify(command)}\n\n${usage()}\n`);
     return EXIT_USAGE;
   }
-  if (command !== "preview" && command !== "snapshot" && command !== "restore" && command !== "hook" && command !== "list" && command !== "show" && command !== "verify" && command !== "doctor" && command !== "install" && command !== "uninstall") {
+  if (command !== "preview" && command !== "snapshot" && command !== "restore" && command !== "hook" && command !== "list" && command !== "show" && command !== "verify" && command !== "prune" && command !== "pin" && command !== "doctor" && command !== "install" && command !== "uninstall") {
     io.stderr(`Unknown command: ${JSON.stringify(command)}\n\n${usage()}\n`);
     return EXIT_USAGE;
   }
@@ -809,6 +1010,22 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
       if (command === "list") return runList(parsed, io);
       if (command === "show") return runShow(parsed, io);
       return runVerify(parsed, io);
+    }
+    if (command === "prune") {
+      const parsed = parsePruneArgs(argv.slice(1));
+      if (parsed === "help") {
+        io.stdout(`${usage()}\n`);
+        return EXIT_OK;
+      }
+      return runPrune(parsed, io);
+    }
+    if (command === "pin") {
+      const parsed = parsePinArgs(argv.slice(1));
+      if (parsed === "help") {
+        io.stdout(`${usage()}\n`);
+        return EXIT_OK;
+      }
+      return runPin(parsed, io);
     }
     if (command === "doctor") {
       const parsed = parseDoctorArgs(argv.slice(1));
