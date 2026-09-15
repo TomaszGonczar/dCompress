@@ -1,5 +1,5 @@
 /**
- * `dcompact doctor` — a health report over one explicitly named session's store (CONCEPT
+ * `dcompress doctor` — a health report over one explicitly named session's store (CONCEPT
  * §6.2, §11.2; DEVELOPMENT_PLAN P7/D7).
  *
  * Every value here is read from the store's own return values — `listSnapshots`,

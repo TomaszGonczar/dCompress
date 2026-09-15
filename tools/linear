@@ -3,7 +3,7 @@
 #
 # Works on the host and inside the sandbox container. Reads LINEAR_API_KEY from the
 # environment, or from .env in the repo root when running locally, and requires
-# DCOMPACT_LINEAR_PROJECT (the project id is workspace-specific and is not committed).
+# DCOMPRESS_LINEAR_PROJECT (the project id is workspace-specific and is not committed).
 #
 #   linear next                 next unstarted issue in execution order
 #   linear list [--all]         issues in execution order
@@ -17,7 +17,7 @@ set -euo pipefail
 API="https://api.linear.app/graphql"
 
 if [[ -z "${LINEAR_API_KEY:-}" ]]; then
-  for f in "$(dirname "$0")/../.env" "$HOME/.dcompact-agent.env"; do
+  for f in "$(dirname "$0")/../.env" "$HOME/.dcompress-agent.env"; do
     if [[ -f "$f" ]]; then
       # shellcheck disable=SC1090
       LINEAR_API_KEY="$(grep -E '^LINEAR_API_KEY=' "$f" | head -1 | cut -d= -f2- | tr -d '"'"'"' ')"
@@ -27,17 +27,17 @@ if [[ -z "${LINEAR_API_KEY:-}" ]]; then
 fi
 
 if [[ -z "${LINEAR_API_KEY:-}" ]]; then
-  echo "error: LINEAR_API_KEY not set (env, .env, or ~/.dcompact-agent.env)" >&2
+  echo "error: LINEAR_API_KEY not set (env, .env, or ~/.dcompress-agent.env)" >&2
   exit 2
 fi
 
-if [[ -z "${DCOMPACT_LINEAR_PROJECT:-}" ]]; then
-  echo "error: DCOMPACT_LINEAR_PROJECT not set (the Linear project id is workspace-specific and is not committed)" >&2
+if [[ -z "${DCOMPRESS_LINEAR_PROJECT:-}" ]]; then
+  echo "error: DCOMPRESS_LINEAR_PROJECT not set (the Linear project id is workspace-specific and is not committed)" >&2
   exit 2
 fi
 
-PROJECT_ID="$DCOMPACT_LINEAR_PROJECT"
-TEAM_KEY="${DCOMPACT_LINEAR_TEAM:-OG}"
+PROJECT_ID="$DCOMPRESS_LINEAR_PROJECT"
+TEAM_KEY="${DCOMPRESS_LINEAR_TEAM:-OG}"
 
 gql() {
   local query="$1" vars="${2:-{\}}"

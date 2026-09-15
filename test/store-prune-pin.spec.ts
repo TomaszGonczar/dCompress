@@ -238,7 +238,7 @@ describe("pin", () => {
 
     expect(status).toBe(1);
     expect(output.stderr.join("")).toContain('No snapshot "deadbeefcafe"');
-    expect(output.stderr.join("")).toContain("dcompact list --session session-1");
+    expect(output.stderr.join("")).toContain("dcompress list --session session-1");
     expect(readFileSync(session.manifest, "utf8")).toBe(manifestBefore);
   });
 });

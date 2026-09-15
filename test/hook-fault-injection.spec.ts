@@ -62,7 +62,7 @@ function assertHookFailOpen(result: HookProcessResult, description: string): voi
 describe("hook fault injection", () => {
   describe("stdin faults", () => {
     it("accepts empty stdin", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const result = runHookProcess(["hook", "--event", "session-start", "--store", root], "");
         assertHookFailOpen(result, "empty stdin");
@@ -73,7 +73,7 @@ describe("hook fault injection", () => {
     });
 
     it("fails open on malformed JSON stdin", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const result = runHookProcess(["hook", "--event", "session-start", "--store", root], "{not-json");
         assertHookFailOpen(result, "malformed JSON");
@@ -84,7 +84,7 @@ describe("hook fault injection", () => {
     });
 
     it("fails open on JSON of wrong shape", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const result = runHookProcess(["hook", "--event", "precompact", "--store", root], JSON.stringify({ wrong: "shape" }));
         assertHookFailOpen(result, "wrong JSON shape");
@@ -95,7 +95,7 @@ describe("hook fault injection", () => {
     });
 
     it("fails open on JSON with wrong types", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const result = runHookProcess(
           ["hook", "--event", "precompact", "--store", root],
@@ -109,7 +109,7 @@ describe("hook fault injection", () => {
     });
 
     it("fails open on truncated JSON", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const result = runHookProcess(["hook", "--event", "precompact", "--store", root], '{"session_id": "test", "transcript_path": "/path"');
         assertHookFailOpen(result, "truncated JSON");
@@ -122,7 +122,7 @@ describe("hook fault injection", () => {
 
   describe("transcript path faults", () => {
     it("fails open when transcript path does not exist", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const input = JSON.stringify({
           session_id: "test-session",
@@ -137,7 +137,7 @@ describe("hook fault injection", () => {
     });
 
     it("fails open when transcript path is a directory", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const input = JSON.stringify({
           session_id: "test-session",
@@ -152,7 +152,7 @@ describe("hook fault injection", () => {
     });
 
     it("fails open when transcript path is a symlink", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const linkPath = join(root, "link");
         const targetPath = join(root, "target");
@@ -172,7 +172,7 @@ describe("hook fault injection", () => {
     });
 
     it("fails open when transcript is unreadable", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const transcriptPath = join(root, "unreadable.jsonl");
         writeFileSync(transcriptPath, "");
@@ -195,7 +195,7 @@ describe("hook fault injection", () => {
 
   describe("store root faults", () => {
     it("fails open when store root is a file", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const filePath = join(root, "store-file");
         writeFileSync(filePath, "not a directory");
@@ -213,7 +213,7 @@ describe("hook fault injection", () => {
     });
 
     it("fails open when store root is a symlink", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const realDir = join(root, "real-store");
         const linkPath = join(root, "link-store");
@@ -234,7 +234,7 @@ describe("hook fault injection", () => {
     });
 
     it("fails open when store root is unwritable", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const storeDir = join(root, "store");
         mkdirSync(storeDir);
@@ -258,7 +258,7 @@ describe("hook fault injection", () => {
 
   describe("transcript content faults", () => {
     it("fails open on empty transcript", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const transcriptPath = join(root, "empty.jsonl");
         writeFileSync(transcriptPath, "");
@@ -276,7 +276,7 @@ describe("hook fault injection", () => {
     });
 
     it("fails open on malformed transcript JSON", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const transcriptPath = join(root, "malformed.jsonl");
         writeFileSync(transcriptPath, '{"not valid json}\n');
@@ -294,7 +294,7 @@ describe("hook fault injection", () => {
     });
 
     it("fails open on transcript with wrong shape", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const transcriptPath = join(root, "wrong-shape.jsonl");
         writeFileSync(transcriptPath, '{"wrong":"shape"}\n');
@@ -314,7 +314,7 @@ describe("hook fault injection", () => {
 
   describe("pathological input", () => {
     it("returns within a few hundred milliseconds on the committed fixture", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const input = JSON.stringify({
           session_id: "test-session",
@@ -332,7 +332,7 @@ describe("hook fault injection", () => {
     });
 
     it("stays fail-open on a transcript large enough to dominate the hook's work", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const transcriptPath = join(root, "large.jsonl");
         const entries: string[] = [];
@@ -371,7 +371,7 @@ describe("hook fault injection", () => {
 
   describe("hook commands under normal conditions", () => {
     it("precompact hook succeeds and returns empty object", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const input = JSON.stringify({
           session_id: "test-session",
@@ -386,7 +386,7 @@ describe("hook fault injection", () => {
     });
 
     it("session-start hook succeeds and returns context when snapshot exists", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const precompactInput = JSON.stringify({
           session_id: "test-session",
@@ -411,7 +411,7 @@ describe("hook fault injection", () => {
 
   describe("hook configuration errors", () => {
     it("fails open on missing --event argument", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const input = JSON.stringify({
           session_id: "test-session",
@@ -426,7 +426,7 @@ describe("hook fault injection", () => {
     });
 
     it("fails open on invalid --event value", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const input = JSON.stringify({
           session_id: "test-session",
@@ -441,7 +441,7 @@ describe("hook fault injection", () => {
     });
 
     it("fails open on missing --store argument", () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-hook-fault-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-hook-fault-"));
       try {
         const input = JSON.stringify({
           session_id: "test-session",

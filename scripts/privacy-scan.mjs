@@ -81,7 +81,7 @@ const ALLOWLIST = [
   },
   {
     id: "sandbox-git-identity",
-    literal: "agent@dcompact.local",
+    literal: "agent@dcompress.local",
     reason: "the sandbox's throwaway git identity, committed by tools/agent-run; a non-routable mDNS name, not an address",
   },
 ];
@@ -408,7 +408,7 @@ export class UsageError extends Error {}
 
 function usage() {
   return [
-    "dcompact privacy scan — the repository publication gate",
+    "dcompress privacy scan — the repository publication gate",
     "",
     "Usage:",
     "  node scripts/privacy-scan.mjs [path ...] [--json]",

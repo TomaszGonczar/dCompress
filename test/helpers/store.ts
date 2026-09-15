@@ -14,7 +14,7 @@ export function tempRoots(): { readonly next: () => string; readonly clean: () =
   const roots: string[] = [];
   return {
     next: () => {
-      const root = mkdtempSync(join(tmpdir(), "dcompact-og58-"));
+      const root = mkdtempSync(join(tmpdir(), "dcompress-og58-"));
       roots.push(root);
       return root;
     },

@@ -16,9 +16,9 @@ coverage/
 .nyc_output/
 *.lcov
 
-# dcompact runtime state — never commit snapshots or local stores
-.dcompact/
-dcompact.local.json
+# dcompress runtime state — never commit snapshots or local stores
+.dcompress/
+dcompress.local.json
 *.corrupt
 snapshots/
 manifest.json
@@ -30,7 +30,7 @@ transcripts/
 !test/fixtures/**/*.jsonl
 test/fixtures/**/*.real.jsonl
 
-# Install backups from `dcompact install`
+# Install backups from `dcompress install`
 backups/
 *.backup
 

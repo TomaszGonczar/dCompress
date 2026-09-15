@@ -142,7 +142,7 @@ function perturbationFor(fixture: VectorFixture): HostPerturbation {
       TZ: "Pacific/Kiritimati",
       LANG: "tr_TR.UTF-8",
       LC_ALL: "C",
-      HOME: "/tmp/dcompact-determinism-home",
+      HOME: "/tmp/dcompress-determinism-home",
     },
   };
 }

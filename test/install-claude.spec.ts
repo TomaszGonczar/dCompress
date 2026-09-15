@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { run } from "../src/cli.js";
 
 function tempRoot(): string {
-  return mkdtempSync(join(tmpdir(), "dcompact-og65-"));
+  return mkdtempSync(join(tmpdir(), "dcompress-og65-"));
 }
 
 function cli(argv: readonly string[]): { readonly status: number; readonly stdout: string; readonly stderr: string } {
@@ -48,7 +48,7 @@ function backedUpSettings(store: string): string {
 function entry(event: string, hookEvent: string, store: string): unknown {
   return {
     matcher: event === "PreCompact" ? "manual|auto" : "resume|compact|startup",
-    hooks: [{ type: "command", command: `dcompact hook --event ${hookEvent} --store ${store}` }],
+    hooks: [{ type: "command", command: `dcompress hook --event ${hookEvent} --store ${store}` }],
   };
 }
 
@@ -105,7 +105,7 @@ describe("install --agent claude", () => {
     }
   });
 
-  it("keeps a hand-added entry beside dcompact's own and records the backup byte-identically", () => {
+  it("keeps a hand-added entry beside dcompress's own and records the backup byte-identically", () => {
     const root = tempRoot();
     const settings = join(root, "settings.json");
     const store = join(root, "store");

@@ -50,12 +50,12 @@ describe("src/core dependency policy", () => {
     'let load; ({ ["require"]: load } = globalThis); load("node:fs");',
   ])("rejects %s", async (source) => {
     const [result] = await lintCore(source);
-    expect(result.messages.some((message) => message.ruleId === "dcompact/core-purity")).toBe(true);
+    expect(result.messages.some((message) => message.ruleId === "dcompress/core-purity")).toBe(true);
   });
 
   it("allows pure core code", async () => {
     const [result] = await lintCore("export const answer: number = 42;");
-    expect(result.messages.some((message) => message.ruleId === "dcompact/core-purity")).toBe(false);
+    expect(result.messages.some((message) => message.ruleId === "dcompress/core-purity")).toBe(false);
   });
 
   it.each([
@@ -77,12 +77,12 @@ describe("src/core dependency policy", () => {
     'const require = (name: string) => name; require("./clock.js");',
   ])("allows non-host lookalikes: %s", async (source) => {
     const [result] = await lintCore(source);
-    expect(result.messages.filter((message) => message.ruleId?.startsWith("dcompact/"))).toEqual([]);
+    expect(result.messages.filter((message) => message.ruleId?.startsWith("dcompress/"))).toEqual([]);
   });
 
   it("allows Date.now only in the clock boundary module", async () => {
     const [result] = await lintCore("export const now = Date.now();", "src/core/clock.ts");
-    expect(result.messages.some((message) => message.ruleId === "dcompact/clock-boundary")).toBe(false);
+    expect(result.messages.some((message) => message.ruleId === "dcompress/clock-boundary")).toBe(false);
   });
 
   it.each([
@@ -104,7 +104,7 @@ describe("src/core dependency policy", () => {
     'let current; ({ ["now"]: current } = globalThis.Date); current();',
   ])("rejects host clock reads outside the clock boundary module: %s", async (source) => {
     const [result] = await lintCore(source);
-    expect(result.messages.some((message) => message.ruleId === "dcompact/clock-boundary")).toBe(true);
+    expect(result.messages.some((message) => message.ruleId === "dcompress/clock-boundary")).toBe(true);
   });
 
   it.each([
@@ -116,6 +116,6 @@ describe("src/core dependency policy", () => {
     'const load = require; load("./clock.js");',
   ])("rejects canonical.ts loading the clock boundary: %s", async (source) => {
     const [result] = await lintCore(source, "src/core/canonical.ts");
-    expect(result.messages.some((message) => message.ruleId === "dcompact/clock-boundary")).toBe(true);
+    expect(result.messages.some((message) => message.ruleId === "dcompress/clock-boundary")).toBe(true);
   });
 });

@@ -103,7 +103,7 @@ function writeRecord(plan: InstallPlan, state: "prepared" | "installed", install
 /**
  * Re-read and re-parse what was written, and assert the managed region is exactly the planned one.
  *
- * This is CONCEPT §7.6 step 5: a write dcompact cannot read back as its own managed region is a
+ * This is CONCEPT §7.6 step 5: a write dcompress cannot read back as its own managed region is a
  * failed install even when the write "succeeded".
  */
 function verifyWrittenSettings(plan: InstallPlan): void {
@@ -116,7 +116,7 @@ function verifyWrittenSettings(plan: InstallPlan): void {
   if (written === null || written.text !== plan.settingsText) {
     throw new InstallRefusal(
       "verify-bytes",
-      `Refusing to report success: ${JSON.stringify(settings)} does not read back as the bytes dcompact just wrote. ${recovery}`,
+      `Refusing to report success: ${JSON.stringify(settings)} does not read back as the bytes dcompress just wrote. ${recovery}`,
     );
   }
   let parsed: unknown;
@@ -140,7 +140,7 @@ function verifyWrittenSettings(plan: InstallPlan): void {
     if (wanted === undefined || !isDeepStrictEqual(groups[entry.entry_index], wanted)) {
       throw new InstallRefusal(
         "verify-managed-region",
-        `Refusing to report success: hooks.${entry.event}[${entry.entry_index}] in ${JSON.stringify(settings)} is not the entry dcompact wrote. ${recovery}`,
+        `Refusing to report success: hooks.${entry.event}[${entry.entry_index}] in ${JSON.stringify(settings)} is not the entry dcompress wrote. ${recovery}`,
       );
     }
   }

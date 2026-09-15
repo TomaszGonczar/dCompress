@@ -8,8 +8,8 @@
 
 ## Context
 
-dcompact runs at lifecycle boundaries owned by another agent. A malformed transcript, a
-rotated file, a full disk, a changed hook payload, a lock timeout, or a dcompact bug must not
+dcompress runs at lifecycle boundaries owned by another agent. A malformed transcript, a
+rotated file, a full disk, a changed hook payload, a lock timeout, or a dcompress bug must not
 prevent the user from continuing their coding session. Recording continuity is valuable, but
 the availability of the host agent is more important.
 
@@ -19,7 +19,7 @@ is worse than no snapshot.
 
 ## Decision
 
-Every dcompact hook entry point wraps its internal work in a failure boundary and exits `0`
+Every dcompress hook entry point wraps its internal work in a failure boundary and exits `0`
 for internal errors. It reports the result using only the following finite hook outcomes:
 `ok`; `degraded: schema-drift`, `degraded: extraction-empty`,
 `degraded: provenance-broken`, `degraded: budget-exceeded`, `degraded: internal-error`, or
@@ -42,7 +42,7 @@ an untrusted installed hook maps to `untrusted: hook-pending-review`; lack of a 
 hook maps to `degraded: no-pre-compaction-hook`; and a lock timeout or wall-clock exhaustion
 maps to `degraded: budget-exceeded`. A disk-full or other store-write
 failure maps to `unavailable:store`: the hook reports it through its output, `doctor`, or a
-safe local diagnostic and does not claim that an envelope was persisted. An unexpected dcompact
+safe local diagnostic and does not claim that an envelope was persisted. An unexpected dcompress
 bug maps to `degraded: internal-error`. An unmapped tool is not a hook failure: it is counted
 in the payload and does not itself change the state. Otherwise a completed hook is `ok`. There
 is no blocking mode; installed hooks always return `0`, even when they emit a degraded or
@@ -50,7 +50,7 @@ unavailable result.
 
 ## Consequences
 
-- The agent remains usable during dcompact outages and integration drift.
+- The agent remains usable during dcompress outages and integration drift.
 - A missed snapshot is visible rather than silently presented as complete continuity.
 - Hook code must be small, bounded, defensive, and independently fault-tested.
 - Users may occasionally get no fresh snapshot after an error; this is safer than a partial

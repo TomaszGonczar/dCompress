@@ -47,9 +47,9 @@ describe("clean-clone reproduction gate", () => {
     // The gate's own contract is "clean up the temporary clone"; a leaked directory under the
     // OS temp root is exactly the kind of side effect that a byte-comparison assertion would
     // never catch, so it is checked directly against the filesystem.
-    const before = spawnSync("bash", ["-c", "ls -d \"${TMPDIR:-/tmp}\"/dcompact-clean-clone-* 2>/dev/null | wc -l"], { encoding: "utf8" });
+    const before = spawnSync("bash", ["-c", "ls -d \"${TMPDIR:-/tmp}\"/dcompress-clean-clone-* 2>/dev/null | wc -l"], { encoding: "utf8" });
     const result = spawnSync(process.execPath, [gate, "--json"], { encoding: "utf8" });
-    const after = spawnSync("bash", ["-c", "ls -d \"${TMPDIR:-/tmp}\"/dcompact-clean-clone-* 2>/dev/null | wc -l"], { encoding: "utf8" });
+    const after = spawnSync("bash", ["-c", "ls -d \"${TMPDIR:-/tmp}\"/dcompress-clean-clone-* 2>/dev/null | wc -l"], { encoding: "utf8" });
 
     expect(result.status).toBe(0);
     expect(after.stdout.trim()).toBe(before.stdout.trim());
@@ -61,8 +61,8 @@ describe("parseReadme", () => {
     "## Try it in 60 seconds",
     "",
     "```sh",
-    "git clone https://example.com/dcompact.git",
-    "cd dcompact",
+    "git clone https://example.com/dcompress.git",
+    "cd dcompress",
     "npm ci",
     "npm run build",
     "node dist/cli.js preview --transcript test/fixtures/claude/slice-0001/transcript.jsonl",
@@ -71,7 +71,7 @@ describe("parseReadme", () => {
     "Expected stdout — a Markdown pack, 42 bytes for this fixture:",
     "",
     "```text",
-    "## dcompact context [dcompact:abc]",
+    "## dcompress context [dcompress:abc]",
     "```",
     "",
     "and on stderr:",
@@ -88,12 +88,12 @@ describe("parseReadme", () => {
     expect(claim.finalArgv).toEqual(["node", "dist/cli.js", "preview", "--transcript", "test/fixtures/claude/slice-0001/transcript.jsonl"]);
     expect(claim.transcript).toBe("test/fixtures/claude/slice-0001/transcript.jsonl");
     expect(claim.expectedBytes).toBe(42);
-    expect(claim.expectedStdoutPrefix).toBe("## dcompact context [dcompact:abc]\n");
+    expect(claim.expectedStdoutPrefix).toBe("## dcompress context [dcompress:abc]\n");
     expect(claim.expectedHash).toBe("sha256:abc123");
   });
 
   it("throws a usage error when the 60-second section is missing", () => {
-    expect(() => parseReadme("# dcompact\n\nNo quickstart here.\n")).toThrow(UsageError);
+    expect(() => parseReadme("# dcompress\n\nNo quickstart here.\n")).toThrow(UsageError);
   });
 
   it("throws a usage error when the documented command block has no node invocation", () => {
@@ -118,7 +118,7 @@ describe("isolatedEnv", () => {
       NODE_PATH: "/opt/dev-checkout/node_modules",
       INIT_CWD: "/opt/dev-checkout",
       npm_config_registry: "https://example.com",
-      npm_package_name: "dcompact",
+      npm_package_name: "dcompress",
       PATH: "/usr/bin",
       HOME: "/opt/tester-home",
     });

@@ -1,4 +1,4 @@
-# Sandbox image for autonomous dcompact work.
+# Sandbox image for autonomous dcompress work.
 #
 # The whole point: the agent works on a repository whose *product* rewrites agent config
 # files. It must never be able to reach the host's ~/.claude, ~/.codex, ~/.omp or ~/.gemini.
@@ -43,7 +43,7 @@ RUN set -eux; \
     /usr/local/bin/omp --version
 
 ENV HOME=/home/agent
-ENV DCOMPACT_HOME=/home/agent/work/.sandbox/dcompact
+ENV DCOMPRESS_HOME=/home/agent/work/.sandbox/dcompress
 ENV npm_config_cache=/home/agent/.npm
 ENV TZ=UTC
 ENV LANG=C.UTF-8

@@ -152,7 +152,7 @@ function verifyManagedRegionUnchanged(
           : `The pre-install bytes are at ${JSON.stringify(backupFile)}.`;
       throw new InstallRefusal(
         "managed-entry-edited",
-        `Refusing to uninstall: the dcompact entry at hooks.${entry.event}[${entry.entry_index}] in ${JSON.stringify(settingsPath)} was edited after it was installed. ${recovery}`,
+        `Refusing to uninstall: the dcompress entry at hooks.${entry.event}[${entry.entry_index}] in ${JSON.stringify(settingsPath)} was edited after it was installed. ${recovery}`,
       );
     }
   }
@@ -170,7 +170,7 @@ function verifyManagedRegionUnchanged(
         : `The pre-install bytes are at ${JSON.stringify(backupFile)}.`;
     throw new InstallRefusal(
       "managed-entry-removed",
-      `Refusing to uninstall: some dcompact entries are missing from ${JSON.stringify(settingsPath)}. ${recovery}`,
+      `Refusing to uninstall: some dcompress entries are missing from ${JSON.stringify(settingsPath)}. ${recovery}`,
     );
   }
 

@@ -1,15 +1,15 @@
 # Benchmark note — native compaction retention
 
 **Status: exploratory observation, n = 1 per cell. Not a rate, not a ranking, and not evidence
-that `dcompact` is better than native compaction.** One machine, 2026-09-13. Nothing here is a
+that `dcompress` is better than native compaction.** One machine, 2026-09-13. Nothing here is a
 supported capability or a product claim, and none of it runs in CI.
 
 Two experiments are reported, and they are not comparable to each other:
 
-- **§2 Organic** — a real bug-fix task, compacted natively by Claude and by Codex. `dcompact`
+- **§2 Organic** — a real bug-fix task, compacted natively by Claude and by Codex. `dcompress`
   was **not** run on these transcripts, so this is native-versus-native only.
 - **§3 Synthetic** — the committed fixture's task replayed, where native Claude `/compact` and
-  `dcompact preview` were both scored on the same event sets. This is a synthetic replay, not
+  `dcompress preview` were both scored on the same event sets. This is a synthetic replay, not
   the organic arm, so the two experiments are **not apples-to-apples**.
 
 Sanitization: no session id, credential, host path, real transcript text, or personal
@@ -22,13 +22,13 @@ identifier appears below. Quoted model output concerns disposable synthetic benc
 | Host combination | Status |
 |---|---|
 | Claude native `/compact`, synthetic workload | Measured, one session |
-| `dcompact preview` on the same synthetic event sets | Measured |
+| `dcompress preview` on the same synthetic event sets | Measured |
 | Claude native `/compact`, organic workload | Measured, one session |
-| Codex native compaction, organic workload | Measured native; **no `dcompact` cell** |
+| Codex native compaction, organic workload | Measured native; **no `dcompress` cell** |
 | Codex native, synthetic | **Unsupported** — no readable summary to score; effective model unprovable |
 | OMP native `/compact` | **Unsupported** — arm cancelled; invocation proven only |
-| `dcompact` on Codex / OMP / Pi transcripts | **Unsupported** — no adapter exists |
-| `dcompact` + native side by side, live sustained session | **Inconclusive** |
+| `dcompress` on Codex / OMP / Pi transcripts | **Unsupported** — no adapter exists |
+| `dcompress` + native side by side, live sustained session | **Inconclusive** |
 
 **Models** are named only where proven from the run's own records. Claude: **Haiku 4.5**,
 resolved `claude-haiku-4-5-20251001`, effective in both experiments (every assistant record in
@@ -108,7 +108,7 @@ run's saved probe logs.
 
 ---
 
-## 3. Synthetic experiment — native Claude `/compact` vs `dcompact preview`
+## 3. Synthetic experiment — native Claude `/compact` vs `dcompress preview`
 
 The committed fixture's task was replayed as a real session and compacted manually. Ground
 truth is the **observed** event set, not the intended one: in the small arm the shell tool was
@@ -130,7 +130,7 @@ The single small-cycle-1 false fact is a **scorer artifact, reported rather than
 the summary lists the *requested* plan under "Primary Request" while correctly stating under
 "Errors and fixes" that no errors occurred.
 
-**`dcompact preview` on the identical event sets**
+**`dcompress preview` on the identical event sets**
 
 | Event set | `--max-bytes` | Pack bytes | Recall | False facts | Provenance | Fix linkage |
 |---|---|---:|---:|---:|:---:|:---:|
@@ -140,7 +140,7 @@ the summary lists the *requested* plan under "Primary Request" while correctly s
 | medium | 900 | 223 | 0.000 | 0 | no | no |
 | medium | 400 | 223 | 0.000 | 0 | no | no |
 
-Summary: **at the default budget `dcompact` recovered 75–80% of the rubric with 0 false facts**
+Summary: **at the default budget `dcompress` recovered 75–80% of the rubric with 0 false facts**
 on these synthetic event sets. Its misses are structural: it does not emit `decision.stated`
 for a non-cue plan statement, and it reports `file.modified` once per file rather than per edit.
 Byte pressure affects the two event sets differently — on the small set a 400-byte budget still
@@ -176,8 +176,8 @@ demo fixture gives different byte counts because it is a different transcript.
   tool facts without hashing compact-summary prose or metadata. No live session was rerun for
   this change, so this removes a reproducible parser false positive for the covered shape but
   does not claim a new retention result.
-- **`dcompact` on Codex, OMP, or Pi — unsupported.** No adapter exists, so no cross-host
-  `dcompact` cell is possible.
+- **`dcompress` on Codex, OMP, or Pi — unsupported.** No adapter exists, so no cross-host
+  `dcompress` cell is possible.
 - **Synthetic Codex cell — not claimed.** `gpt-5.6-luna` was exercised, but the effective model
   for the compaction itself was not provable from that probe.
 
@@ -218,7 +218,7 @@ Re-derived when this note was written: the organic matrix (every §2 figure repr
 from the raw score file), the rubric hash, the model counts from the sessions' own records, the
 pytest progression, and the quoted false statements from the saved probe logs.
 
-Not re-verifiable, stated explicitly: **§3's `dcompact` rows** cannot be re-derived because
+Not re-verifiable, stated explicitly: **§3's `dcompress` rows** cannot be re-derived because
 their task-owned transcripts no longer exist; the §3 native arm runners are gone, leaving the
 results matrix and predeclared rubric; and the report's claim that Claude's summary still
 *contained* the fix — which would make the observed failure a retrieval rather than a

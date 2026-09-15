@@ -113,18 +113,18 @@ are those of the printed text with the placeholder substituted.
 |---|---|---|---|---|
 | 1 | `snapshot` (epoch 1) | stdout | 228 | `4bcfe68ec922e5250b6525d810690410346905aed21a582c3b34a5fd78b7fe9d` |
 | 2 | `hook --event precompact` (epoch 1) | stdout | 3 | `ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356` |
-| 3 | `hook --event session-start` compact (epoch 1) | stdout | 1324 | `2be02875b28c0b07431248cc1bd767b28573125504b8b2fa029c3d9b17a67ac9` |
+| 3 | `hook --event session-start` compact (epoch 1) | stdout | 1326 | `49b85abe9fcca186e7cdd19301bf5bf7781aa42e27109cd212eda9282226f47c` |
 | 4 | `hook --event session-start` compact, repeated (epoch 1) | stdout | 3 | `ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356` |
 | 5 | `hook --event precompact` (epoch 2) | stdout | 3 | `ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356` |
-| 6 | `hook --event session-start` compact (epoch 2) | stdout | 1669 | `0fae26b7d02f23c1687e9ea75ead69a72ea59db2e90e7ed0aa12e3de146b0933` |
+| 6 | `hook --event session-start` compact (epoch 2) | stdout | 1671 | `b9c6d8233dafe5a2250780b60e34a596df67df46f207acc77a61d0379613c9a4` |
 | 7 | `hook --event session-start` compact, repeated (epoch 2) | stdout | 3 | `ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356` |
-| 8 | `hook --event session-start` resume (epoch 2) | stdout | 1669 | `0fae26b7d02f23c1687e9ea75ead69a72ea59db2e90e7ed0aa12e3de146b0933` |
+| 8 | `hook --event session-start` resume (epoch 2) | stdout | 1671 | `b9c6d8233dafe5a2250780b60e34a596df67df46f207acc77a61d0379613c9a4` |
 | 9 | `snapshot` (epoch 2, the hook's own checkpoint) | stdout | 229 | `a74ee22a385ad253c1a2430d7bac74f9ece224fa25e5198093a973a25fb11e8f` |
-| 10 | `restore` (default budget) | stdout | 1550 | `ab05babc9e25af96cde9904b156bffb4c93b3ab83da5173416a2d685f3cb09f5` |
-| 11 | `restore --max-bytes 1400` | stdout | 1365 | `1602fe656a55705b6cc163ab27a367c019b9762a3a7a5e911b1bf10d01f3bec4` |
-| 12 | `restore --max-bytes 640` | stdout | 633 | `3766c03782f2a8409f41baffa1c5cf49e0d28889f82385e23ea5c7d5652f022e` |
-| 13 | `restore --include-evidence` | stdout | 1757 | `5ef5d4f721528eca98950e0dc34631afa76260af34b437eb56a1ba2bd3b83da4` |
-| 14 | `restore --max-bytes 200` | stderr | 204 | `2b24b9567088249becb5b28fb09ed9a1ac3748d098e6be0c8ba11c0af02b3bd9` |
+| 10 | `restore` (default budget) | stdout | 1552 | `8ffcd886cb61e9216063c6fea7a748d31ab3ebf0427ec6263ffe7bad07eac62d` |
+| 11 | `restore --max-bytes 1400` | stdout | 1368 | `efaf9ba6f5a0c54f0b8f17e61429f76816e88d7b001615d652ecee15fb5336bd` |
+| 12 | `restore --max-bytes 640` | stdout | 636 | `e13d7728ffad433f5ff4e233e076f17183fc75fd72402e1b229c91322dc8289f` |
+| 13 | `restore --include-evidence` | stdout | 1759 | `80d3380b428f3e588c168cadd457450322d4519c2a11716504dc5023b29ae9ce` |
+| 14 | `restore --max-bytes 200` | stderr | 204 | `52782f848f06e7b3d5878457105069e761906a1ff788f4126a8c2ce593fe2b81` |
 <!-- demo:checksums:end -->
 
 The checkpoint files themselves are deliberately absent from that table: a checkpoint carries an
@@ -137,8 +137,8 @@ asserts each equality rather than publishing the same pack a third time.
 
 | Payload | Hash | Where it is visible |
 |---|---|---|
-| Checkpoint 1, `precompact.jsonl` | `sha256:695e81f9226ecb5e02dafe35f94dd713f2649af8d5366c2fa837ea3d5a3400fd` | `[dcompact:695e81f9226e]` in step 3 |
-| Checkpoint 2, `transcript.jsonl` | `sha256:3da26aee53f9b49b773f8e86756c3a39cc8161f068cdcae3b92a57b3a106ebd1` | `[dcompact:3da26aee53f9]` in every pack from step 6 on |
+| Checkpoint 1, `precompact.jsonl` | `sha256:695e81f9226ecb5e02dafe35f94dd713f2649af8d5366c2fa837ea3d5a3400fd` | `[dcompress:695e81f9226e]` in step 3 |
+| Checkpoint 2, `transcript.jsonl` | `sha256:3da26aee53f9b49b773f8e86756c3a39cc8161f068cdcae3b92a57b3a106ebd1` | `[dcompress:3da26aee53f9]` in every pack from step 6 on |
 
 ## Step 1 — the first checkpoint
 
@@ -166,12 +166,12 @@ A checkpoint with no delivery: `PreCompact` has nothing to inject, and Claude ex
 
 <!-- demo:session-start-1:start -->
 ```text
-{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"## dcompact context [dcompact:695e81f9226e]\nStatus: ok\nFacts: 7 | external: 0 | unmapped: 0 | coverage: 1000000 ppm\nSource entries: 8 | tool calls: 5\n### Decisions\n- **decision.stated** `We must keep the export helper free of new dependencies.`: cue=we must — We must keep the export helper free of new dependencies.\n\n### Errors\n- **error.raised** `assertion:AssertionError \\[ERR\\_ASSERTION\\]: src/export.ts does not export formatRow at checkExport (scripts/check-export.mjs:N:N)`: class=assertion count=1 — AssertionError \\[ERR\\_ASSERTION\\]: src/export.ts does not export formatRow at checkExport (scripts/check-export.mjs:4:9)\n\n### File changes\n- **file.modified** `src/export.ts`: edits=1 tools=Edit — Edit src/export.ts\n\n### Failed commands\n- **cmd.failed** `node scripts/check-export.mjs`: last\\_error\\_class=assertion runs=1 — Run the export check script\n\n### Reads\n- **file.read** `notes.md`: reads=1 — Read notes.md\n\n### Todo and plan\n- **todo.state** `item:2`: text=Export formatRow and re-run the export check script — Export formatRow and re-run the export check script\n- **todo.state** `item:1`: text=Add the Windows path fallback to formatRow — Add the Windows path fallback to formatRow\n"}}
+{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"## dcompress context [dcompress:695e81f9226e]\nStatus: ok\nFacts: 7 | external: 0 | unmapped: 0 | coverage: 1000000 ppm\nSource entries: 8 | tool calls: 5\n### Decisions\n- **decision.stated** `We must keep the export helper free of new dependencies.`: cue=we must — We must keep the export helper free of new dependencies.\n\n### Errors\n- **error.raised** `assertion:AssertionError \\[ERR\\_ASSERTION\\]: src/export.ts does not export formatRow at checkExport (scripts/check-export.mjs:N:N)`: class=assertion count=1 — AssertionError \\[ERR\\_ASSERTION\\]: src/export.ts does not export formatRow at checkExport (scripts/check-export.mjs:4:9)\n\n### File changes\n- **file.modified** `src/export.ts`: edits=1 tools=Edit — Edit src/export.ts\n\n### Failed commands\n- **cmd.failed** `node scripts/check-export.mjs`: last\\_error\\_class=assertion runs=1 — Run the export check script\n\n### Reads\n- **file.read** `notes.md`: reads=1 — Read notes.md\n\n### Todo and plan\n- **todo.state** `item:2`: text=Export formatRow and re-run the export check script — Export formatRow and re-run the export check script\n- **todo.state** `item:1`: text=Add the Windows path fallback to formatRow — Add the Windows path fallback to formatRow\n"}}
 ```
 <!-- demo:session-start-1:end -->
 
 The `additionalContext` value is the pack with its newlines escaped; rendered as Markdown it is the
-pack whose marker is `[dcompact:695e81f9226e]`, 7 facts from 8 events. Read it as the answer to the
+pack whose marker is `[dcompress:695e81f9226e]`, 7 facts from 8 events. Read it as the answer to the
 question a compaction poses: what did this session already establish? The user's constraint, the
 failure that is still open, the file that was touched — and no fix, because at the boundary there
 was none yet.
@@ -204,11 +204,11 @@ shown from the explicit surface in step 9.
 
 <!-- demo:session-start-2:start -->
 ```text
-{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"## dcompact context [dcompact:3da26aee53f9]\nStatus: ok\nFacts: 9 | external: 0 | unmapped: 0 | coverage: 1000000 ppm\nSource entries: 13 | tool calls: 8\n### Decisions\n- **decision.stated** `We must keep the export helper free of new dependencies.`: cue=we must — We must keep the export helper free of new dependencies.\n\n### Errors\n- **error.raised** `assertion:AssertionError \\[ERR\\_ASSERTION\\]: src/export.ts does not export formatRow at checkExport (scripts/check-export.mjs:N:N)`: class=assertion count=1 — AssertionError \\[ERR\\_ASSERTION\\]: src/export.ts does not export formatRow at checkExport (scripts/check-export.mjs:4:9)\n\n### Error fixes\n- **error.fixed** `assertion:AssertionError \\[ERR\\_ASSERTION\\]: src/export.ts does not export formatRow at checkExport (scripts/check-export.mjs:N:N)`: count=1 fixed\\_by=node scripts/check-export.mjs — fixed by node scripts/check-export.mjs\n\n### File changes\n- **file.modified** `src/export.ts`: edits=2 tools=Edit — Edit src/export.ts\n\n### Failed commands\n- **cmd.failed** `node scripts/check-export.mjs`: last\\_error\\_class=assertion runs=1 — Run the export check script\n\n### Commands\n- **cmd.run** `node scripts/check-export.mjs`: failed=false runs=1 — Re-run the export check script\n\n### Reads\n- **file.read** `notes.md`: reads=1 — Read notes.md\n\n### Todo and plan\n- **todo.state** `item:2`: text=completed — Export formatRow and re-run the export check script\n- **todo.state** `item:1`: text=Add the Windows path fallback to formatRow — Add the Windows path fallback to formatRow\n"}}
+{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"## dcompress context [dcompress:3da26aee53f9]\nStatus: ok\nFacts: 9 | external: 0 | unmapped: 0 | coverage: 1000000 ppm\nSource entries: 13 | tool calls: 8\n### Decisions\n- **decision.stated** `We must keep the export helper free of new dependencies.`: cue=we must — We must keep the export helper free of new dependencies.\n\n### Errors\n- **error.raised** `assertion:AssertionError \\[ERR\\_ASSERTION\\]: src/export.ts does not export formatRow at checkExport (scripts/check-export.mjs:N:N)`: class=assertion count=1 — AssertionError \\[ERR\\_ASSERTION\\]: src/export.ts does not export formatRow at checkExport (scripts/check-export.mjs:4:9)\n\n### Error fixes\n- **error.fixed** `assertion:AssertionError \\[ERR\\_ASSERTION\\]: src/export.ts does not export formatRow at checkExport (scripts/check-export.mjs:N:N)`: count=1 fixed\\_by=node scripts/check-export.mjs — fixed by node scripts/check-export.mjs\n\n### File changes\n- **file.modified** `src/export.ts`: edits=2 tools=Edit — Edit src/export.ts\n\n### Failed commands\n- **cmd.failed** `node scripts/check-export.mjs`: last\\_error\\_class=assertion runs=1 — Run the export check script\n\n### Commands\n- **cmd.run** `node scripts/check-export.mjs`: failed=false runs=1 — Re-run the export check script\n\n### Reads\n- **file.read** `notes.md`: reads=1 — Read notes.md\n\n### Todo and plan\n- **todo.state** `item:2`: text=completed — Export formatRow and re-run the export check script\n- **todo.state** `item:1`: text=Add the Windows path fallback to formatRow — Add the Windows path fallback to formatRow\n"}}
 ```
 <!-- demo:session-start-2:end -->
 
-Nine facts now, marker `[dcompact:3da26aee53f9]`. Against step 3 the pack gained the successful
+Nine facts now, marker `[dcompress:3da26aee53f9]`. Against step 3 the pack gained the successful
 re-run and the `error.fixed` that closes the line-9 failure, and `file.modified src/export.ts` moved
 from `edits=1` to `edits=2`. That is the claim of the project in one comparison: the post-compaction
 context is handed back the work of the session, keyed by identity rather than by prose, and the
@@ -249,7 +249,7 @@ records its size and hash, and the spec asserts the equality against the step 6 
 
 <!-- demo:restore-mid:start -->
 ```text
-## dcompact context [dcompact:3da26aee53f9]
+## dcompress context [dcompress:3da26aee53f9]
 Status: ok
 Facts: 9 | external: 0 | unmapped: 0 | coverage: 1000000 ppm
 Source entries: 13 | tool calls: 8
@@ -274,7 +274,7 @@ Source entries: 13 | tool calls: 8
 ### Reads
 - **file.read** `notes.md`: reads=1 — Read notes.md
 
-> [dcompact] elided 2 facts to fit 1400 UTF-8 bytes.
+> [dcompress] elided 2 facts to fit 1400 UTF-8 bytes.
 ```
 <!-- demo:restore-mid:end -->
 
@@ -288,7 +288,7 @@ the kind, so nothing in the pack itself says *what* was dropped.
 
 <!-- demo:restore-bounded:start -->
 ```text
-## dcompact context [dcompact:3da26aee53f9]
+## dcompress context [dcompress:3da26aee53f9]
 Status: ok
 Facts: 9 | external: 0 | unmapped: 0 | coverage: 1000000 ppm
 Source entries: 13 | tool calls: 8
@@ -298,7 +298,7 @@ Source entries: 13 | tool calls: 8
 ### Error fixes
 - **error.fixed** `assertion:AssertionError \[ERR\_ASSERTION\]: src/export.ts does not export formatRow at checkExport (scripts/check-export.mjs:N:N)`: count=1 fixed\_by=node scripts/check-export.mjs — fixed by node scripts/check-export.mjs
 
-> [dcompact] elided 7 facts to fit 640 UTF-8 bytes.
+> [dcompress] elided 7 facts to fit 640 UTF-8 bytes.
 ```
 <!-- demo:restore-bounded:end -->
 
@@ -314,7 +314,7 @@ pack is the only signal that 7 facts are missing.
 
 <!-- demo:restore-evidence:start -->
 ```text
-## dcompact context [dcompact:3da26aee53f9]
+## dcompress context [dcompress:3da26aee53f9]
 Status: ok
 Facts: 9 | external: 0 | unmapped: 0 | coverage: 1000000 ppm
 Source entries: 13 | tool calls: 8
@@ -354,11 +354,11 @@ and 6 *and* lines 16 and 17 — one identity, two epochs — and `error.fixed` c
 
 <!-- demo:restore-too-small:start -->
 ```text
-Refusing continuity operation: --max-bytes must be at least 203 for this restore (the mandatory header plus the elision notice); received 200. Pass --max-bytes 203 or omit the flag for the default 16384.
+Refusing continuity operation: --max-bytes must be at least 206 for this restore (the mandatory header plus the elision notice); received 200. Pass --max-bytes 206 or omit the flag for the default 16384.
 ```
 <!-- demo:restore-too-small:end -->
 
-The refusal prints the floor for this payload (203 bytes) and the exact next step, and exits `1`
+The refusal prints the floor for this payload (206 bytes) and the exact next step, and exits `1`
 rather than falling back to a silent default.
 
 ## What the loop leaves in the store
