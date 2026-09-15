@@ -13,13 +13,14 @@ hash-addressed fact pack that can be verified against the transcript line by lin
 > **Status: work in progress — a deterministic core, an experimental Claude Code continuity
 > slice, and a Claude-only installer.** Implemented and tested today: `preview`; the
 > explicit-session `snapshot`, `restore`, and `hook` commands (the continuity slice, Claude-only,
-> backed by its own checkpoint store, never scanning for or guessing a session); the read-only
-> `list`, `show`, `verify`, and `doctor` commands over a separate, general-purpose snapshot store
-> (`src/store/`) that no shipped command writes into yet; and `install`/`uninstall --agent
+> backed by its own checkpoint store, never scanning for or guessing a session); the `list`,
+> `show`, `verify`, and `doctor` commands plus `prune`/`pin` over a separate, general-purpose
+> snapshot store (`src/store/`) that no shipped command writes *snapshots* into yet (only test
+> code calls `writeSnapshot` directly); and `install`/`uninstall --agent
 > claude`, which edit a Claude settings file's hook entries inside a byte-marked managed region,
 > back up every file they touch first, and restore it byte-identical on uninstall — proven by an
 > automated `cmp`, not yet by a real compaction in a real Claude Code session. **Not
-> implemented:** `prune`/`pin`, MCP, the Codex/OMP/Pi adapters, `diff`, `init`, secret redaction
+> implemented:** MCP, the Codex/OMP/Pi adapters, `diff`, `init`, secret redaction
 > inside packs, npm publishing, and Windows support. Those remain on the roadmap in
 > [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md).
 
@@ -116,9 +117,9 @@ under a reduced byte budget the todo facts are the first the renderer drops.
 | Explicit-session durable checkpoint store | **Works — experimental Claude-only slice** |
 | `restore` / bounded pack for the named session | **Works — experimental Claude-only slice** |
 | Claude `PreCompact` / `SessionStart` hook bridge | **Works — Claude only.** `install` writes the real hook command into a live settings file; the checkpoint → compact → resume → inject loop itself is demonstrated only against an explicit session and a synthetic fixture ([`docs/demo/claude-continuity-0001.md`](docs/demo/claude-continuity-0001.md)), not yet inside a real Claude Code session |
-| Store: XDG path resolution, atomic snapshot write, hash-verified read, quarantine, manifest, advisory lock, retention | **Works** — `src/store/`, exposed read-only by `list`/`show`/`verify`/`doctor`; it is a separate format from the continuity checkpoint store above, and nothing shipped writes into it yet (only test code calls `writeSnapshot` directly) |
+| Store: XDG path resolution, atomic snapshot write, hash-verified read, quarantine, manifest, advisory lock, retention | **Works** — `src/store/`, exposed by `list`/`show`/`verify`/`doctor` and written by `prune`/`pin` (retention deletions and the pinned flag); it is a separate format from the continuity checkpoint store above, and no shipped command writes snapshots into it yet (only test code calls `writeSnapshot` directly) |
 | `list` / `show` / `verify` / `doctor` (read-only store commands, `--json` supported) | **Works** — `verify --provenance` re-checks facts against the transcript named in the envelope; `doctor` reports the same store's manifest, lock, quarantine, and adapter coverage for one session |
-| `prune` / `pin` commands | **Not implemented** — the retention and manifest policy they would call exists; the command surface does not |
+| `prune` / `pin` | **Works** — `prune` applies the existing retention policy (15 snapshots or 72 h, newest and pinned exempt) to one explicitly named session and records each deletion in `manifest.json`; `--dry-run` reports the same set and deletes nothing. `pin`/`--unpin` sets or clears one snapshot's `pinned` flag through the manifest. Both require an explicit `--session`, and `--json` is supported |
 | `install` / `uninstall --agent claude` | **Works — Claude only.** Writes or removes dcompact's hook entries in a settings.json inside a byte-marked managed region; every file it edits or creates is backed up first under `<store>/backups/`, and `uninstall` restores it byte-identical (`cmp`-verified in an automated test, D4) or removes a file dcompact created; `--dry-run` prints the plan without writing. Not yet exercised against a real Claude Code session and a real compaction (D2) |
 | MCP server | **Not implemented** |
 | Codex, OMP, Pi, or any second adapter | **Not implemented** |
