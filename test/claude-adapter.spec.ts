@@ -13,7 +13,7 @@ import {
   parseClaudeTranscript,
 } from "../src/adapters/claude.js";
 import { claudeDefinition } from "../src/adapters/mappers.js";
-import { parsePreviewArgs, preview, run, UsageError, type CliIo } from "../src/cli.js";
+import { parsePreviewArgs, preview, run, UsageError, type CliIo, type PreviewJson } from "../src/cli.js";
 import { canonicalize } from "../src/core/canonical.js";
 import { extractPayload } from "../src/core/extract/index.js";
 import { lineHash, payloadHash } from "../src/core/hash.js";
@@ -1034,6 +1034,12 @@ describe("preview CLI", () => {
     expect(parsePreviewArgs(["--transcript", "a.jsonl", "--max-facts", "3", "--include-evidence"])).toEqual({
       transcript: "a.jsonl",
       pack: { maxFacts: 3, includeEvidence: true },
+      json: false,
+    });
+    expect(parsePreviewArgs(["--transcript", "a.jsonl", "--json"])).toEqual({
+      transcript: "a.jsonl",
+      pack: {},
+      json: true,
     });
     expect(() => parsePreviewArgs(["--nope"])).toThrow(UsageError);
   });
@@ -1091,6 +1097,40 @@ describe("preview CLI", () => {
     expect(result.diagnostics).toEqual([]);
     expect(result.payload.counters.facts).toBe(9);
     expect(payloadHash(result.payload)).toMatch(/^sha256:[0-9a-f]{64}$/);
+  });
+
+  it("emits the documented --json shape, with a per-tool-name coverage gap and no separate text stream", () => {
+    // Same synthetic vocabulary-drift shape as the unit-level coverage test above (ADAPTER-SPEC
+    // §2): a real, deliberately unmapped tool name, not a guess at what a missed call looks like.
+    const bytes = source([
+      { type: "assistant", uuid: "a", timestamp: null, cwd: "/fixture/repo", sessionId: "s", message: { role: "assistant", content: [] } },
+      ...pair("c1", "QuantumRefactor", { target: "everything" }, { content: "done" }),
+    ]);
+    const directory = mkdtempSync(join(tmpdir(), "dcompress-preview-json-"));
+    try {
+      const transcript = join(directory, "drift.jsonl");
+      writeFileSync(transcript, bytes);
+      const result = capture(["preview", "--transcript", transcript, "--json"]);
+
+      expect(result.status).toBe(0);
+      // --json replaces text output entirely, the same "instead of text" contract every other
+      // command's --json flag documents: no separate report also lands on stderr.
+      expect(result.stderr).toBe("");
+      const parsed = JSON.parse(result.stdout) as PreviewJson;
+
+      expect(parsed.coverage.unmapped_by_tool).toEqual({ QuantumRefactor: 1 });
+      expect(parsed.coverage.unmapped_tool_calls).toBe(1);
+      expect(parsed.coverage.source_tool_calls).toBe(1);
+      expect(parsed.coverage.coverage_ppm).toBe(0);
+      expect(parsed.payload.counters.unmapped_tool_calls).toBe(1);
+      // Proves the published hash actually names the payload sitting beside it in the same
+      // object, not a stale or independently computed value.
+      expect(parsed.payload_hash).toBe(payloadHash(parsed.payload));
+      expect(parsed.diagnostics).toEqual([]);
+      expect(parsed.degraded).toEqual([]);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 });
 

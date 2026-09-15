@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { preview } from "../src/cli.js";
+import { preview, run, type CliIo } from "../src/cli.js";
 import { payloadHash } from "../src/core/hash.js";
 
 /**
@@ -54,10 +54,34 @@ function documentedReport(): string {
   return `${fenced![1]}\n`;
 }
 
+const JSON_START = "<!-- demo-json:start -->";
+const JSON_END = "<!-- demo-json:end -->";
+
+/** The fenced ```json block between its two HTML markers, as `--json` writes it to stdout. */
+function documentedJson(): string {
+  const start = demo.indexOf(JSON_START);
+  const end = demo.indexOf(JSON_END);
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(start);
+  const body = demo.slice(start + JSON_START.length, end);
+  const fenced = /```json\n([\s\S]*?)\n```\n?$/.exec(body);
+  expect(fenced).not.toBeNull();
+  return `${fenced![1]}\n`;
+}
+
+function runCapture(argv: readonly string[]): { readonly stdout: string; readonly stderr: string } {
+  let stdout = "";
+  let stderr = "";
+  const io: CliIo = { stdout: (text) => (stdout += text), stderr: (text) => (stderr += text) };
+  run(argv, io);
+  return { stdout, stderr };
+}
+
 describe("demo document", () => {
   // The documented command passes this exact repository-relative path, and `preview` echoes it
   // into the report. Using the same string here is what makes the assertion byte-faithful.
   const result = preview({ transcript: fixturePath, pack: {} });
+  const jsonRun = runCapture(["preview", "--transcript", fixturePath, "--json"]);
 
   it("quotes the pack byte-for-byte as the CLI renders it", () => {
     expect(documentedPack()).toBe(result.pack);
@@ -67,10 +91,16 @@ describe("demo document", () => {
     expect(documentedReport()).toBe(result.report);
   });
 
+  it("quotes the --json output byte-for-byte as the CLI renders it, with no separate stderr stream", () => {
+    expect(jsonRun.stderr).toBe("");
+    expect(documentedJson()).toBe(jsonRun.stdout);
+  });
+
   it("documents the checksums it publishes, and each one matches the rendered bytes", () => {
     const encoder = new TextEncoder();
     const packSha = createHash("sha256").update(result.pack).digest("hex");
     const reportSha = createHash("sha256").update(result.report).digest("hex");
+    const jsonSha = createHash("sha256").update(jsonRun.stdout).digest("hex");
     const fixtureSha = createHash("sha256").update(readFileSync(fixturePath)).digest("hex");
     const hash = payloadHash(result.payload);
 
@@ -80,7 +110,9 @@ describe("demo document", () => {
     expect(demo).toContain(`| stdout pack size | ${encoder.encode(result.pack).byteLength} bytes, ${result.pack.split("\n").length - 1} lines |`);
     expect(demo).toContain(`| stdout pack SHA-256 | \`${packSha}\` |`);
     expect(demo).toContain(`| stderr report SHA-256 | \`${reportSha}\` |`);
-    expect(demo).toContain(`| Payload hash (in the stderr report) | \`${hash}\` |`);
+    expect(demo).toContain(`| stdout json size (\`--json\`) | ${encoder.encode(jsonRun.stdout).byteLength} bytes, ${jsonRun.stdout.split("\n").length - 1} lines |`);
+    expect(demo).toContain(`| stdout json SHA-256 (\`--json\`) | \`${jsonSha}\` |`);
+    expect(demo).toContain(`| Payload hash (in the stderr report and the \`--json\` output) | \`${hash}\` |`);
     expect(demo).toContain(`[dcompress:${hash.slice(7, 19)}]`);
   });
 
@@ -94,6 +126,7 @@ describe("demo document", () => {
 
   it("labels the demo input as synthetic and names the reproduction command", () => {
     expect(demo).toContain("node dist/cli.js preview --transcript test/fixtures/claude/slice-0001/transcript.jsonl");
+    expect(demo).toContain("node dist/cli.js preview --transcript test/fixtures/claude/slice-0001/transcript.jsonl --json");
     expect(demo).toContain("synthetic");
     // A published demo must not leak a real host path or a resolved private transcript location.
     expect(demo).not.toMatch(/\/Users\/[^<\s]/);
@@ -115,6 +148,7 @@ describe("demo document", () => {
       const after = preview({ transcript: fixturePath, pack: {} });
 
       expect(after.pack).toBe(before.pack);
+      expect(after.coverage).toEqual(before.coverage);
       expect(payloadHash(after.payload)).toBe(payloadHash(before.payload));
     } finally {
       for (const [key, value] of saved) {
