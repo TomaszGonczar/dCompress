@@ -72,6 +72,9 @@ node dist/cli.js preview --help
 - `--max-bytes <n>` bounds the pack size (default 16384). A value too small to hold the
   mandatory header is refused with the exact minimum rather than failing internally.
 - `--max-facts <n>` caps how many facts are rendered.
+- `--json` prints the payload, the payload hash, per-tool-name coverage (which tool names, if
+  any, account for a coverage gap), diagnostics, and degraded state as one JSON object, instead
+  of the pack and the text report.
 
 To run it against your own session, pass the `transcript_path` that Claude Code hands its
 hooks, under `~/.claude/projects/<slug>/<session>.jsonl`. The command **never** scans for a

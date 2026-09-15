@@ -350,7 +350,7 @@ describe("the Claude adapter through the framework", () => {
     // framework's own entry point is what makes "byte-identical through the framework" a claim
     // about the framework rather than about the CLI.
     const demo = readFileSync(join(repositoryRoot, "docs", "demo", "claude-slice-0001.md"), "utf8");
-    const documented = /\| Payload hash \(in the stderr report\) \| `(sha256:[0-9a-f]{64})` \|/.exec(demo);
+    const documented = /\| Payload hash \(in the stderr report and the `--json` output\) \| `(sha256:[0-9a-f]{64})` \|/.exec(demo);
     const bytes = new Uint8Array(readFileSync(join(repositoryRoot, "test", "fixtures", "claude", "slice-0001", "transcript.jsonl")));
 
     expect(documented).not.toBeNull();
