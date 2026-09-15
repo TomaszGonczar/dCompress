@@ -1022,6 +1022,35 @@ process.stdout.write(JSON.stringify(out));
     expect(refusals.validEmptyObject).toBeNull();
   });
 
+  it("repairs a stray backslash escape before a backtick and materialises the response", () => {
+    // Real bug, from the seventh --execute attempt: arm C's phase-1 probe
+    // response quoted a JS template literal inside a "fix" field and escaped
+    // the backtick as if writing JS source -- valid inside a JS template
+    // literal, but not a valid JSON escape at all -- refusing an otherwise
+    // complete, on-topic, correctly-shaped response as "probe-result-not-json".
+    const bs = String.fromCharCode(92);
+    const bt = String.fromCharCode(96);
+    const malformed = `{"objective":"fix","errors":[{"cause":"x","fix":"call ${bs}${bt}f()${bs}${bt}"}]}`;
+    const result = evaluate<{ response: Record<string, unknown> | null; refusal: string | null }>(`
+process.stdout.write(JSON.stringify(controller.materializeProbeResponse(ARGS.malformed)));
+`, { malformed });
+    expect(result.refusal).toBeNull();
+    expect(result.response).toEqual({ objective: "fix", errors: [{ cause: "x", fix: `call ${bs}${bt}f()${bs}${bt}` }] });
+  });
+
+  it("still refuses when the repair pass cannot produce valid JSON either", () => {
+    // The repair is narrowly scoped to one class of mistake. Genuinely
+    // truncated or structurally broken output -- even with a stray escape
+    // present -- must still refuse rather than silently invent structure.
+    const bs = String.fromCharCode(92);
+    const bt = String.fromCharCode(96);
+    const truncated = `{"objective":"fix","errors":[{"cause":"x","fix":"call ${bs}${bt}f()`;
+    const result = evaluate<{ refusal: string | null }>(`
+process.stdout.write(JSON.stringify(controller.materializeProbeResponse(ARGS.truncated)));
+`, { truncated });
+    expect(result.refusal).toBe("probe-result-not-json");
+  });
+
   it("materialises a real scorer response end to end", () => {
     // The materialised object is exactly what the scorer consumes, so this
     // exercises the whole path: CLI result text -> object -> scored points.

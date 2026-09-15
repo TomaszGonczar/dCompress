@@ -547,6 +547,32 @@ export function modelReadingValid(reading) {
 }
 
 /**
+ * A backslash JSON.parse cannot place into any recognised escape (`\"`, `\\`,
+ * `\/`, `\b`, `\f`, `\n`, `\r`, `\t`, `\uXXXX`) is repaired as a literal
+ * backslash, leaving the following character untouched. A real model
+ * sometimes escapes a backtick as though writing JS source -- quoting a code
+ * snippet's template literal inside a `fix` field -- which is valid inside a
+ * JS template literal but not a valid JSON escape at all (measured: phase-1
+ * arm C, seventh medium-series --execute attempt: `` \` `` where a bare
+ * backtick, needing no escaping in JSON, was meant). An already-valid escape
+ * pair is never touched, so a well-formed response is repaired
+ * byte-for-byte identically to the original.
+ */
+const JSON_ESCAPE_TARGETS = new Set(["\"", "\\", "/", "b", "f", "n", "r", "t", "u"]);
+function repairStrayEscapes(text) {
+  let out = "";
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === "\\" && i + 1 < text.length && !JSON_ESCAPE_TARGETS.has(text[i + 1])) {
+      out += "\\\\";
+      continue;
+    }
+    out += ch;
+  }
+  return out;
+}
+
+/**
  * Turn the CLI's `--output-format json` `result` text into the object the
  * scorer reads. The neutral probe is asked for one JSON object, so anything
  * else is a refusal rather than a zero score: scoring an empty or malformed body
@@ -569,7 +595,13 @@ export function materializeProbeResponse(text) {
   try {
     parsed = JSON.parse(candidate);
   } catch {
-    return { response: null, refusal: "probe-result-not-json" };
+    // One narrow repair attempt for a stray, invalid backslash escape before
+    // refusing outright -- see repairStrayEscapes above.
+    try {
+      parsed = JSON.parse(repairStrayEscapes(candidate));
+    } catch {
+      return { response: null, refusal: "probe-result-not-json" };
+    }
   }
   if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
     return { response: null, refusal: "probe-result-not-a-json-object" };
