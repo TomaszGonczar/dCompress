@@ -256,7 +256,7 @@ describe("doctor: unreachable states (not producible by any path in this checkou
 
 describe("doctor: never guesses a session", () => {
   it("refuses a doctor invocation without an explicit --session", () => {
-    const root = mkdtempSync(join(tmpdir(), "dcompact-doctor-cli-"));
+    const root = mkdtempSync(join(tmpdir(), "dcompress-doctor-cli-"));
     try {
       const result = cliCapture(["doctor", "--store", root]);
       expect(result.status).toBe(2);
@@ -269,7 +269,7 @@ describe("doctor: never guesses a session", () => {
 
 describe("doctor: CLI wiring", () => {
   it("prints stable, parseable --json with no unexpected host path text and the documented exit code", () => {
-    const root = mkdtempSync(join(tmpdir(), "dcompact-doctor-cli-"));
+    const root = mkdtempSync(join(tmpdir(), "dcompress-doctor-cli-"));
     try {
       const session = sessionPaths({ adapter: "claude", sessionId: "session-1", root });
       writeSnapshot({ session, snapshot: makeSnapshot() });
@@ -292,7 +292,7 @@ describe("doctor: CLI wiring", () => {
   });
 
   it("prints human-readable text by default and exits operational-failure for an unusable store", () => {
-    const root = mkdtempSync(join(tmpdir(), "dcompact-doctor-cli-"));
+    const root = mkdtempSync(join(tmpdir(), "dcompress-doctor-cli-"));
     try {
       const session = sessionPaths({ adapter: "claude", sessionId: "session-1", root });
       ensureSessionDirectories(session);

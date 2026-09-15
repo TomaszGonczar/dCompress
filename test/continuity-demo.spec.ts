@@ -168,7 +168,7 @@ interface Recorded {
   readonly status: number;
 }
 
-const store = mkdtempSync(join(tmpdir(), "dcompact-continuity-demo-"));
+const store = mkdtempSync(join(tmpdir(), "dcompress-continuity-demo-"));
 const rendered = new Map<string, Recorded>();
 
 beforeAll(() => {
@@ -341,8 +341,8 @@ describe("continuity demo document", () => {
     // The pack marker is the first 12 hex digits of the payload hash, and the document prints both.
     const pack = (JSON.parse(outputOf("session-start-2", "stdout")) as { hookSpecificOutput: { additionalContext: string } })
       .hookSpecificOutput.additionalContext;
-    expect(pack).toContain(`[dcompact:${second.hash.slice(7, 19)}]`);
-    expect(demo).toContain(`[dcompact:${second.hash.slice(7, 19)}]`);
+    expect(pack).toContain(`[dcompress:${second.hash.slice(7, 19)}]`);
+    expect(demo).toContain(`[dcompress:${second.hash.slice(7, 19)}]`);
     expect(demo).toContain(manifest.sanitizedSha256.replace(/^sha256:/, ""));
   });
 
@@ -350,7 +350,7 @@ describe("continuity demo document", () => {
     const checkpoints = join(store, "claude", sessionId, "checkpoints");
     const first = JSON.parse(outputOf("snapshot-1", "stdout")) as { hash: string };
     const second = JSON.parse(outputOf("snapshot-2", "stdout")) as { hash: string };
-    const marker = `## dcompact context [dcompact:${second.hash.slice(7, 19)}]`;
+    const marker = `## dcompress context [dcompress:${second.hash.slice(7, 19)}]`;
 
     expect(readdirSync(checkpoints).sort()).toEqual([
       ".injection-epoch",

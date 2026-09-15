@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * `dcompact` CLI — deterministic preview plus the OG-85 explicit-session continuity slice.
+ * `dcompress` CLI — deterministic preview plus the OG-85 explicit-session continuity slice.
  *
  * `preview` reads one transcript, maps it, extracts facts, and prints the pack. The continuity
  * and store commands use an explicit session and an explicit store; `install`/`uninstall` edit
@@ -99,21 +99,21 @@ export class UsageError extends Error {
 
 function usage(): string {
   return [
-    "dcompact — deterministic session continuity for coding agents",
+    "dcompress — deterministic session continuity for coding agents",
     "",
     "Usage:",
-    "  dcompact preview --transcript <path> [options]",
-    "  dcompact snapshot --session <id> --transcript <path> --store <dir>",
-    "  dcompact restore --session <id> --store <dir> [options]",
-    "  dcompact hook --event precompact|session-start --store <dir>",
-    "  dcompact list --session <id> [--store <dir>] [--json]",
-    "  dcompact show --session <id> --snapshot <id> [--store <dir>] [--json]",
-    "  dcompact verify --session <id> [--snapshot <id>] [--store <dir>] [--provenance] [--json]",
-    "  dcompact prune --session <id> [--store <dir>] [--dry-run] [--json]",
-    "  dcompact pin --session <id> --snapshot <id> [--store <dir>] [--unpin] [--json]",
-    "  dcompact doctor --session <id> --store <dir> [--adapter <name>] [--json]",
-    "  dcompact install --agent claude --store <dir> [--settings <path>] [--dry-run]",
-    "  dcompact uninstall --agent claude --store <dir> [--settings <path>] [--dry-run]",
+    "  dcompress preview --transcript <path> [options]",
+    "  dcompress snapshot --session <id> --transcript <path> --store <dir>",
+    "  dcompress restore --session <id> --store <dir> [options]",
+    "  dcompress hook --event precompact|session-start --store <dir>",
+    "  dcompress list --session <id> [--store <dir>] [--json]",
+    "  dcompress show --session <id> --snapshot <id> [--store <dir>] [--json]",
+    "  dcompress verify --session <id> [--snapshot <id>] [--store <dir>] [--provenance] [--json]",
+    "  dcompress prune --session <id> [--store <dir>] [--dry-run] [--json]",
+    "  dcompress pin --session <id> --snapshot <id> [--store <dir>] [--unpin] [--json]",
+    "  dcompress doctor --session <id> --store <dir> [--adapter <name>] [--json]",
+    "  dcompress install --agent claude --store <dir> [--settings <path>] [--dry-run]",
+    "  dcompress uninstall --agent claude --store <dir> [--settings <path>] [--dry-run]",
     "",
     "Commands:",
     "  preview   Map a transcript to normalized events, extract facts, print the pack.",
@@ -131,16 +131,16 @@ function usage(): string {
     "  pin       Set one snapshot's pinned flag in the manifest, exempting it from retention;",
     "            --unpin clears the flag again.",
     "  doctor    Report store, manifest, lock, quarantine, and adapter health for one session.",
-    "  install   Write dcompact's Claude hook entries into a settings file, after copying",
+    "  install   Write dcompress's Claude hook entries into a settings file, after copying",
     "            every file it edits to a byte backup under <store>/backups/.",
-    "  uninstall Remove dcompact's Claude hook entries from a settings file, restoring",
-    "            byte-identical pre-install files or removing files dcompact created.",
+    "  uninstall Remove dcompress's Claude hook entries from a settings file, restoring",
+    "            byte-identical pre-install files or removing files dcompress created.",
     "Options:",
     "  --transcript <path>   Claude Code JSONL transcript to read. Required for preview/snapshot.",
     "  --agent <name>        Agent to install/uninstall for. Only \"claude\" is supported.",
     "  --settings <path>     Claude settings file for install/uninstall to edit. Default:",
     "                        $CLAUDE_CONFIG_DIR/settings.json, else ~/.claude/settings.json.",
-    "  --command <exec>      install only: executable Claude runs for a hook. Default: dcompact.",
+    "  --command <exec>      install only: executable Claude runs for a hook. Default: dcompress.",
     "  --dry-run             install/uninstall/prune: report what would happen and write nothing.",
     `  --max-bytes <n>       Pack byte budget. Default ${DEFAULT_MAX_BYTES}. A value below the`,
     "                        mandatory header plus elision notice is refused with the exact",
@@ -150,7 +150,7 @@ function usage(): string {
     "  --session <id>        Explicit session id. Required by every command below preview;",
     "                        never guessed, never the most recent (AGENTS invariant 8).",
     "  --store <dir>         Store root. list/show/verify/prune/pin default to the resolved",
-    "                        XDG/DCOMPACT_HOME store when omitted; snapshot/restore/hook/",
+    "                        XDG/DCOMPRESS_HOME store when omitted; snapshot/restore/hook/",
     "                        doctor require it explicitly. install/uninstall write backups",
     "                        under it.",
     "  --snapshot <id>       A snapshot's short hash or full id, as printed by `list --json`.",
@@ -650,7 +650,7 @@ function describeQuarantine(entry: SnapshotReadQuarantined): Record<string, unkn
 }
 
 function notFoundRefusal(session: SessionPaths, query: string): StoreRefusal {
-  return new StoreRefusal("snapshot-not-found", `No snapshot ${JSON.stringify(query)} in session ${JSON.stringify(session.name)}. Run "dcompact list --session ${session.sessionId}" to see what exists.`);
+  return new StoreRefusal("snapshot-not-found", `No snapshot ${JSON.stringify(query)} in session ${JSON.stringify(session.name)}. Run "dcompress list --session ${session.sessionId}" to see what exists.`);
 }
 
 function runList(args: StoreArgs, io: CliIo): number {

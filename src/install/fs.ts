@@ -91,7 +91,7 @@ export function readExistingFile(path: string, label: string): ExistingFile | nu
   if (stat.isSymbolicLink()) {
     throw new InstallRefusal(
       "symlink-target",
-      `Refusing to edit symlinked ${label} ${JSON.stringify(path)}; dcompact never follows a symlink target. Replace it with a regular file or point --settings at the real file, then re-run.`,
+      `Refusing to edit symlinked ${label} ${JSON.stringify(path)}; dcompress never follows a symlink target. Replace it with a regular file or point --settings at the real file, then re-run.`,
     );
   }
   if (!stat.isFile()) {
@@ -195,7 +195,7 @@ function fsyncDirectory(directory: string): void {
 export function atomicWriteFile(path: string, bytes: string | Uint8Array, mode: number): void {
   const directory = dirname(path);
   stagingCounter += 1;
-  const staging = join(directory, `.${basename(path)}.dcompact-${process.pid}-${stagingCounter}`);
+  const staging = join(directory, `.${basename(path)}.dcompress-${process.pid}-${stagingCounter}`);
   const payload = typeof bytes === "string" ? Buffer.from(bytes, "utf8") : bytes;
   let fd: number;
   try {

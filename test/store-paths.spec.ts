@@ -10,31 +10,31 @@ const temp = tempRoots();
 afterEach(temp.clean);
 
 describe("store root resolution", () => {
-  it("prefers DCOMPACT_HOME over XDG_DATA_HOME over the home-relative default", () => {
+  it("prefers DCOMPRESS_HOME over XDG_DATA_HOME over the home-relative default", () => {
     const home = join(temp.next(), "home");
 
-    expect(storeRoot({ DCOMPACT_HOME: join(home, "explicit"), XDG_DATA_HOME: join(home, "xdg"), HOME: home })).toBe(join(home, "explicit"));
-    // DCOMPACT_HOME alone is enough: HOME is not consulted, let alone required.
-    expect(storeRoot({ DCOMPACT_HOME: join(home, "explicit") })).toBe(join(home, "explicit"));
-    expect(storeRoot({ XDG_DATA_HOME: join(home, "xdg"), HOME: home })).toBe(join(home, "xdg", "dcompact"));
-    expect(storeRoot({ HOME: home })).toBe(join(home, ".local", "share", "dcompact"));
+    expect(storeRoot({ DCOMPRESS_HOME: join(home, "explicit"), XDG_DATA_HOME: join(home, "xdg"), HOME: home })).toBe(join(home, "explicit"));
+    // DCOMPRESS_HOME alone is enough: HOME is not consulted, let alone required.
+    expect(storeRoot({ DCOMPRESS_HOME: join(home, "explicit") })).toBe(join(home, "explicit"));
+    expect(storeRoot({ XDG_DATA_HOME: join(home, "xdg"), HOME: home })).toBe(join(home, "xdg", "dcompress"));
+    expect(storeRoot({ HOME: home })).toBe(join(home, ".local", "share", "dcompress"));
   });
 
   it("normalizes a trailing separator instead of keeping two spellings of one root", () => {
     const home = join(temp.next(), "home");
 
-    expect(storeRoot({ HOME: `${home}/` })).toBe(join(home, ".local", "share", "dcompact"));
+    expect(storeRoot({ HOME: `${home}/` })).toBe(join(home, ".local", "share", "dcompress"));
   });
 
   it("refuses when no environment variable names a store root", () => {
     const refusal = refusalFrom(() => storeRoot({}));
 
     expect(refusal.code).toBe("home-unset");
-    expect(refusal.message).toContain("DCOMPACT_HOME");
+    expect(refusal.message).toContain("DCOMPRESS_HOME");
   });
 
   it.each([
-    ["DCOMPACT_HOME", { DCOMPACT_HOME: "relative/dir" }],
+    ["DCOMPRESS_HOME", { DCOMPRESS_HOME: "relative/dir" }],
     ["XDG_DATA_HOME", { XDG_DATA_HOME: "relative/dir" }],
     ["HOME", { HOME: "relative/dir" }],
   ])("refuses a relative %s rather than resolving it against the working directory", (_variable, env) => {
@@ -42,7 +42,7 @@ describe("store root resolution", () => {
   });
 
   it.each([
-    ["DCOMPACT_HOME", { DCOMPACT_HOME: "   " }],
+    ["DCOMPRESS_HOME", { DCOMPRESS_HOME: "   " }],
     ["XDG_DATA_HOME", { XDG_DATA_HOME: "" }],
     ["HOME", { HOME: " " }],
   ])("refuses an empty or blank %s", (_variable, env) => {
@@ -50,7 +50,7 @@ describe("store root resolution", () => {
   });
 
   it("refuses a root with surrounding whitespace instead of trimming it", () => {
-    expect(refusalFrom(() => storeRoot({ DCOMPACT_HOME: "/tmp/dcompact " })).code).toBe("invalid-store-root");
+    expect(refusalFrom(() => storeRoot({ DCOMPRESS_HOME: "/tmp/dcompress " })).code).toBe("invalid-store-root");
   });
 });
 

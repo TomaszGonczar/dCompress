@@ -8,13 +8,13 @@
 
 ## Context
 
-An early version of the plan assumed dcompact would be driven by a bare terminal command: the
-user types `dcompact snapshot`, or a hook shells out to it. Working from inside a coding
+An early version of the plan assumed dcompress would be driven by a bare terminal command: the
+user types `dcompress snapshot`, or a hook shells out to it. Working from inside a coding
 agent — which is where the user actually is when they want this — that model breaks in two
 ways:
 
 1. **A bare CLI cannot know which session it belongs to.** Several agent sessions run at once
-   (multiple terminals, multiple projects, subagents). `dcompact snapshot` with no argument
+   (multiple terminals, multiple projects, subagents). `dcompress snapshot` with no argument
    would have to guess, and every guess is wrong: newest-by-mtime picks whichever session
    wrote last, and "all of them" is not what the user asked for.
 2. **A terminal command is the wrong affordance.** The user is inside the agent's TUI. Asking
@@ -26,7 +26,7 @@ reachable there, must act on **their** session, and must not silently act on any
 
 ## Decision
 
-### 1. dcompact never guesses a session. Identity is supplied, or the command fails.
+### 1. dcompress never guesses a session. Identity is supplied, or the command fails.
 
 There is no fallback lookup, no "most recent", no "all sessions". When the session is unknown,
 the command exits 2 with the list of candidate sessions and the flag to disambiguate.
@@ -37,7 +37,7 @@ else's work, and the user has no way to tell.
 
 ### 2. Invocation happens through the agent's own surface, in two tiers.
 
-**Tier A — identity-carrying channels (preferred).** The host agent launches dcompact in a
+**Tier A — identity-carrying channels (preferred).** The host agent launches dcompress in a
 context that already names the session:
 
 | Agent | Channel | Identity source | Verified |
@@ -51,9 +51,9 @@ context that already names the session:
 given one explicitly:
 
 ```bash
-dcompact snapshot --session <id>        # explicit
-dcompact snapshot --transcript <path>   # explicit, agent-agnostic
-dcompact snapshot                        # ERROR: lists candidates, exits 2
+dcompress snapshot --session <id>        # explicit
+dcompress snapshot --transcript <path>   # explicit, agent-agnostic
+dcompress snapshot                        # ERROR: lists candidates, exits 2
 ```
 
 Tier B is fully supported — it is what the tests and CI use — but it is never *automatic*.
@@ -62,7 +62,7 @@ Tier B is fully supported — it is what the tests and CI use — but it is neve
 
 Each supported agent gets, in this order of preference:
 
-1. **A slash command inside the agent** (`/dcompact:restore`, `/dcompact:snapshot`) — the user
+1. **A slash command inside the agent** (`/dcompress:restore`, `/dcompress:snapshot`) — the user
    never leaves the TUI. This is the primary affordance and it must not be a replacement for
    `/compact`, only an addition beside it.
 2. **A native tool / MCP tool** the model can call, for the same operations.
@@ -77,7 +77,7 @@ The terminal binary is the *last* of the three, not the first.
 - The "which session?" question is answered by the only party that knows: the agent.
 - No ambiguity to get wrong, because an unknown session is an error rather than a guess.
 - The user stays in their TUI, which is where the problem occurs.
-- `/compact` is untouched. dcompact sits beside it.
+- `/compact` is untouched. dcompress sits beside it.
 
 ### Negative / accepted risks
 
@@ -87,14 +87,14 @@ The terminal binary is the *last* of the three, not the first.
 - **OMP cannot use MCP for this.** Measured: OMP hands MCP children 14 env vars and no session
   identifier. The OMP integration must be an in-process extension, which is a different
   artifact from the MCP server and must be maintained separately.
-- **Tier B is a poor experience**, deliberately. A bare `dcompact snapshot` that worked by
+- **Tier B is a poor experience**, deliberately. A bare `dcompress snapshot` that worked by
   guessing would be worse than one that refuses.
 
 ### Neutral
 
 - MCP remains valuable for reach (nine agents) but is explicitly **pull, not push** — it
   cannot deliver continuity, only on-demand recall. That distinction is unchanged; this ADR
-  only concerns *how dcompact is invoked and how it learns its session*, not what it does
+  only concerns *how dcompress is invoked and how it learns its session*, not what it does
   afterwards.
 
 ## Open questions this ADR does not settle
@@ -103,8 +103,8 @@ The terminal binary is the *last* of the three, not the first.
    Tier A; if not, it takes the `.md`-command-with-`$ARGUMENTS` route.
 2. Whether Claude's `.md` commands can read `CLAUDE_CODE_SESSION_ID` from the shell at
    expansion time, which would let a plain command reach Tier A without MCP.
-3. Whether the slash command should be namespaced (`/dcompact:restore`) or bare
-   (`/dcompact`). Namespacing avoids collisions with the agent's built-ins; bare is shorter.
+3. Whether the slash command should be namespaced (`/dcompress:restore`) or bare
+   (`/dcompress`). Namespacing avoids collisions with the agent's built-ins; bare is shorter.
    Leaning namespaced, decided in the phase that implements it.
 
 ## Evidence

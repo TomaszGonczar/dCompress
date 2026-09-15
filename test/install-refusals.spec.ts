@@ -9,7 +9,7 @@ import { applyInstall } from "../src/install/apply.js";
 import { planInstall } from "../src/install/plan.js";
 
 function tempRoot(): string {
-  return mkdtempSync(join(tmpdir(), "dcompact-og65-refusal-"));
+  return mkdtempSync(join(tmpdir(), "dcompress-og65-refusal-"));
 }
 
 function cli(argv: readonly string[]): { readonly status: number; readonly stdout: string; readonly stderr: string } {
@@ -75,14 +75,14 @@ describe("install refusals", () => {
     }
   });
 
-  it("refuses a dcompact hook that targets another store, leaving the file unchanged", () => {
+  it("refuses a dcompress hook that targets another store, leaving the file unchanged", () => {
     const root = tempRoot();
     const settings = join(root, "settings.json");
     const store = join(root, "store");
     try {
       const foreign = {
         matcher: "manual|auto",
-        hooks: [{ type: "command", command: `dcompact hook --event precompact --store ${join(root, "other-store")}` }],
+        hooks: [{ type: "command", command: `dcompress hook --event precompact --store ${join(root, "other-store")}` }],
       };
       writeFileSync(settings, settingsText({ PreCompact: [foreign] }));
       const before = readFileSync(settings);
@@ -105,7 +105,7 @@ describe("install refusals", () => {
     try {
       expect(cli(installArgs(settings, store)).status).toBe(0);
       const installed = JSON.parse(readFileSync(settings, "utf8")) as { hooks: Record<string, unknown> };
-      installed.hooks.PreCompact = [{ matcher: "auto", hooks: [{ type: "command", command: `dcompact hook --event precompact --store ${store}` }] }];
+      installed.hooks.PreCompact = [{ matcher: "auto", hooks: [{ type: "command", command: `dcompress hook --event precompact --store ${store}` }] }];
       writeFileSync(settings, `${JSON.stringify(installed, null, 2)}\n`);
       const before = readFileSync(settings);
 

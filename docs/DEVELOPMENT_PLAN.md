@@ -1,4 +1,4 @@
-# dcompact — Development plan A→Z
+# dcompress — Development plan A→Z
 
 Target: a public, installable tool that works on a stranger's machine, with a bug policy
 that assumes bugs and environment drift as certainties rather than exceptions.
@@ -15,10 +15,10 @@ checkout by someone who is not the author:
 
 | # | Criterion | Proof |
 |---|---|---|
-| D1 | `npm i -g dcompact` then `dcompact doctor` works on macOS and Linux with no config | CI log on both OSes |
-| D2 | `dcompact install --agent claude` then a real compaction in a real Claude Code session produces a snapshot and a working pack | Recorded terminal session, committed under `docs/demo/` |
+| D1 | `npm i -g dcompress` then `dcompress doctor` works on macOS and Linux with no config | CI log on both OSes |
+| D2 | `dcompress install --agent claude` then a real compaction in a real Claude Code session produces a snapshot and a working pack | Recorded terminal session, committed under `docs/demo/` |
 | D3 | Same criterion for `codex` and `omp` | Same |
-| D4 | `dcompact uninstall --agent <x>` restores every touched file byte-identical | `cmp` of backup vs restored, in an automated test |
+| D4 | `dcompress uninstall --agent <x>` restores every touched file byte-identical | `cmp` of backup vs restored, in an automated test |
 | D5 | Determinism suite green: identical hashes across perturbed `TZ`/`LANG`/`HOME`/cwd/clock | CI job, both OSes |
 | D6 | All 10 test vectors in `SCHEMA.md` §10 pass | CI |
 | D7 | Every degraded state in CONCEPT §11.2 is reachable in a test and visible in `doctor --json` | Test matrix |
@@ -54,7 +54,7 @@ WAVE 3  Close the loop end-to-end (gate D2)
 WAVE 4  Generalize from two real implementations
         P5  Adapter framework   ── extracted from Claude, then validated by Codex
         P8  Codex adapter       ── hooks.json + trust flow
-        P9  OMP adapter         ── session hooks + /dcompact
+        P9  OMP adapter         ── session hooks + /dcompress
         P11 MCP server          ── portable pull tier: 9 agents, one stdio server
 
 WAVE 5  Ship
@@ -73,7 +73,7 @@ TIMEBOXED PORTFOLIO VALIDATION LANE  (2026-09-14 → 2026-09-16)
 The portfolio lane is a deliberate vertical slice through P3, P6b, and P7. It does **not**
 mark those production phases complete or weaken their exit criteria. It exists to answer the
 product question before Wednesday: can a real Claude session retain useful, verifiable facts
-through repeated native compactions when dcompact checkpoints and reinjects them? The slice
+through repeated native compactions when dcompress checkpoints and reinjects them? The slice
 uses an explicitly named session and a documented development integration; it does not add the
 general installer, production retention policy, MCP, or another adapter.
 
@@ -86,8 +86,8 @@ publication surface are safe. An unfinished large run may not hold the portfolio
 Workloads, rubrics, scoring code, schedules, and cost/time stop conditions are frozen before
 execution. All arms use Claude Haiku 4.5 on the same task. The design distinguishes three
 effects: native `/compact` alone; native `/compact` with its own summary deliberately
-re-surfaced at the same checkpoint (a salience control); and native `/compact` plus dcompact
-checkpoint/reinjection. Without the salience control, a dcompact win could mean only that its
+re-surfaced at the same checkpoint (a salience control); and native `/compact` plus dcompress
+checkpoint/reinjection. Without the salience control, a dcompress win could mean only that its
 pack was newer, not that its representation preserved more. The coding work is organic; the
 compaction timing is controlled and manual, and must be described that way. OG-86 owns the
 exact acceptance and honesty rules.
@@ -163,7 +163,7 @@ ADRs to write now:
 6. **TypeScript on Node.** Rationale: hooks are shell commands; a single-file CLI with no
    runtime deps installs everywhere; OMP extensions are already TS.
 7. **Storage location.** Resolve CONCEPT §13.1 here. Recommendation: XDG on all platforms,
-   documented, with a `DCOMPACT_HOME` override; do not use `~/Library/Application Support`
+   documented, with a `DCOMPRESS_HOME` override; do not use `~/Library/Application Support`
    on macOS — one path is easier to document, back up, and `rm`.
 
 Exit criteria: `npm test` green on a fixture-free repo; CI matrix runs; dependency policy
@@ -221,7 +221,7 @@ temporarily adding one and confirming the failure, then reverting.
 **Goal:** durable, crash-safe, concurrent-safe snapshot storage.
 
 Deliverables (`src/store/`):
-- Path resolution: `DCOMPACT_HOME` → XDG data dir → `~/.local/share/dcompact`.
+- Path resolution: `DCOMPRESS_HOME` → XDG data dir → `~/.local/share/dcompress`.
 - `writeSnapshot` — temp file, fsync, atomic rename; never a partial file.
 - `readSnapshot` — parse, validate against schema, verify hash on read by default.
 - `manifest.ts` — rebuild-from-directory when inconsistent; report the rebuild.
@@ -326,7 +326,7 @@ adapter registry.**
 Deliverables:
 - Claude transcript mapper → `NormalizedEvent[]`
 - Extractors for the tool vocabulary observed in P4
-- `dcompact preview --transcript <path>` → pack on stdout
+- `dcompress preview --transcript <path>` → pack on stdout
 - One real (anonymized) transcript committed as a fixture
 
 The product's entire claim is *"rule-based extraction from a transcript yields facts worth
@@ -346,7 +346,7 @@ and rethink the fact vocabulary. That is the cheap moment for it.
 ### P6b — Full integration (Wave 3, executed 8th, with P7)
 
 `install` generating hook entries for `PreCompact`, `PostCompact`, `SessionStart`,
-`SessionEnd`; `sessions/<adapter>-<id>/` store wiring; `dcompact snapshot --session <id>`
+`SessionEnd`; `sessions/<adapter>-<id>/` store wiring; `dcompress snapshot --session <id>`
 against real transcripts.
 
 Critical-path detail: `PreCompact` is the only event that runs *before* history is dropped,
@@ -354,8 +354,8 @@ so it is the only one that can capture a pre-compaction snapshot of a session ab
 shape. It must therefore be fast and non-blocking (CONCEPT §13.3).
 
 Exit criteria (this is D2): in a real Claude Code session — modify files, `/compact`, confirm
-a snapshot with the expected `file.modified` facts appears in `dcompact list`,
-`dcompact verify --provenance` reports them `backed`, and the resumed session receives the
+a snapshot with the expected `file.modified` facts appears in `dcompress list`,
+`dcompress verify --provenance` reports them `backed`, and the resumed session receives the
 pack (verified with a marker string visible in the transcript). Terminal session recorded
 into `docs/demo/`.
 
@@ -370,12 +370,12 @@ Deliverables:
   ordering per CONCEPT §8.
 - Injection wiring per adapter (Claude `SessionStart.additionalContext`; OMP `context`
   hook; Codex `SessionStart.additionalContext` if supported — confirm in P4).
-- Idempotence marker `[dcompact:<hash>]`; re-injection skipped when present.
+- Idempotence marker `[dcompress:<hash>]`; re-injection skipped when present.
 - `doctor` (human + `--json`): stores found, adapters and their versions, hook integrity
   (markers present, command strings unchanged), trust state where exposed, last successful
   hook timestamp per adapter, degraded states, disk usage, retention summary, drift
   warnings, budgets.
-- `dcompact diff <a> <b>` — fact-level diff; the fastest way for a human to judge whether a
+- `dcompress diff <a> <b>` — fact-level diff; the fastest way for a human to judge whether a
   snapshot is good.
 
 Exit criteria: budget enforcement tested at 1×/2×/10× the fact volume; elision notice
@@ -386,7 +386,7 @@ produces it.
 ### 7.1 Continuity fidelity test
 
 A pack that validates and injects can still be useless if it drops what the next session needs.
-This measures whether dcompact actually delivers continuity, rather than merely producing
+This measures whether dcompress actually delivers continuity, rather than merely producing
 well-formed output. It belongs here because it needs a working `restore` and injection path.
 
 **Method — pre-registered detail recall, not judgement.** Before the session, plant a fixed list
@@ -399,10 +399,10 @@ anyone rather than an impression.
 | Arm | Measured |
 |---|---|
 | A — built-in compaction | planted details surviving in the host's compacted context |
-| B — dcompact | planted details surviving in the injected pack |
+| B — dcompress | planted details surviving in the injected pack |
 | C — control, neither | what the model still knows cold, with no compaction |
 
-Without C the test cannot distinguish "dcompact works" from "compaction never hurt here."
+Without C the test cannot distinguish "dcompress works" from "compaction never hurt here."
 
 **Three artifacts are needed, not one.** A raw transcript alone gives one side of a two-sided
 claim:
@@ -411,7 +411,7 @@ claim:
 |---|---|
 | Raw transcript (ground truth) | agent JSONL via `transcript_path` |
 | Built-in compaction summary | **`PostCompact` receives `compact_summary`** — capture it there; not otherwise retrievable |
-| dcompact pack | `restore` |
+| dcompress pack | `restore` |
 
 The `compact_summary` capture is what makes arm A scorable. Without it the comparison is a vibe.
 
@@ -435,7 +435,7 @@ completion contract, no liveness signal, no attribution.
 
 **Scale, stated honestly.** Six terminals is anecdote, not evidence. Pick one and say so:
 
-1. **Directional only** — three runs per arm, reported as *"in these runs dcompact retained N
+1. **Directional only** — three runs per arm, reported as *"in these runs dcompress retained N
    more planted details"*, with sample size named as a limitation.
 2. **Powered** — if a rate is the claim, size the sample first. The DS-3 experience is directly
    relevant: a correlation at n=22 looked real, was not significant, and the fix was more data
@@ -443,7 +443,7 @@ completion contract, no liveness signal, no attribution.
 
 Exit criteria for §7.1: planted list committed before the runs; all three arms run including the
 control; `compact_summary` captured; per-arm counts recomputed from committed artifacts; a
-written verdict — or an explicit statement that the sample was too small to tell. **If dcompact
+written verdict — or an explicit statement that the sample was too small to tell. **If dcompress
 does not beat built-in compaction, that is the finding.** Do not tune the test around it.
 
 Scope note: this measures **retention of planted specifics**, not semantic correctness of the
@@ -477,14 +477,14 @@ trust flow documented with screenshots; hook latency reported in `doctor`.
 **Goal:** the richest integration, and the author's daily driver — so it gets the hardest
 bar.
 
-Deliverables: `dcompact.ts` extension registering `session_before_compact`,
+Deliverables: `dcompress.ts` extension registering `session_before_compact`,
 `session.compacting`, `session_compact`, `context`, `session_start`, `session_shutdown`,
-plus `/dcompact` command; journal reader over `ctx.sessionManager.getBranch()` with
+plus `/dcompress` command; journal reader over `ctx.sessionManager.getBranch()` with
 camelCase `role` matching (`toolResult`, not `tool_result` — a documented silent-failure
 trap).
 
 Exit criteria (D3, OMP half): compaction in a real OMP session produces a snapshot; the
-pack is injected via the `context` hook; `/dcompact` reports status inside the TUI; no
+pack is injected via the `context` hook; `/dcompress` reports status inside the TUI; no
 extension error in `~/.omp/logs` after a full session.
 
 ---
@@ -516,27 +516,27 @@ Exit criteria (D4): all of the above green, including the byte-identical restore
 **Goal:** reach every MCP-capable agent with one implementation, reusing the whole engine.
 
 The server exposes the engine over stdio. No new extraction code, no new protocol design, no
-network: `npx -y dcompact mcp` (or the resolved local binary) as a `stdio` server.
+network: `npx -y dcompress mcp` (or the resolved local binary) as a `stdio` server.
 
 Tools exposed (v1):
-- `dcompact_restore` — bounded pack, same renderer and byte budget as the CLI
-- `dcompact_list` — snapshots for the current session
-- `dcompact_show` — one snapshot (`--json` shape)
-- `dcompact_verify` — hash and provenance check
-- `dcompact_diff` — fact-level diff between two snapshots
+- `dcompress_restore` — bounded pack, same renderer and byte budget as the CLI
+- `dcompress_list` — snapshots for the current session
+- `dcompress_show` — one snapshot (`--json` shape)
+- `dcompress_verify` — hash and provenance check
+- `dcompress_diff` — fact-level diff between two snapshots
 
-Plus MCP **prompts** where the host surfaces them, so `/dcompact:restore` exists as a slash
+Plus MCP **prompts** where the host surfaces them, so `/dcompress:restore` exists as a slash
 command in hosts that expose MCP prompts.
 
 **Two things this phase must state and not blur:**
 
 1. **MCP is pull, not push.** A tool runs only when something calls it. An unattended agent
    that has lost context does not know it has forgotten anything, so it will not call
-   `dcompact_restore` unprompted. MCP is recovery and inspection, never continuity.
+   `dcompress_restore` unprompted. MCP is recovery and inspection, never continuity.
 2. **Tier labelling.** `doctor --json` reports `tier: "hooks"` or `tier: "mcp-only"` per
    agent. An MCP-only agent must never be described as having continuity.
 
-Why it is cheap: one server definition (`{"command":"npx","args":["-y","dcompact","mcp"]}`)
+Why it is cheap: one server definition (`{"command":"npx","args":["-y","dcompress","mcp"]}`)
 is portable across eight MCP clients — Claude Code, Codex, OMP, Cursor, Windsurf, Gemini CLI,
 OpenCode, VS Code — and the same JSON shape works in `~/.cursor/mcp.json`,
 `.vscode/mcp.json`, and project `.mcp.json`. Note that an MCP client is not necessarily an
@@ -544,7 +544,7 @@ agent: VS Code is an editor hosting Copilot, and Cursor and Windsurf carry their
 Reach is counted in clients because that is what the server definition attaches to.
 
 Exit criteria:
-- Server starts, lists tools, and `dcompact_restore` returns the identical pack the CLI
+- Server starts, lists tools, and `dcompress_restore` returns the identical pack the CLI
   renders for the same snapshot (byte-compare)
 - Verified working end-to-end in at least two hosts (Claude Code and OMP, since both read
   `.mcp.json`)
@@ -559,8 +559,8 @@ Exit criteria:
 **Goal:** do something honest when no integration exists at all.
 
 Deliverables:
-- `dcompact snapshot --from <transcript>` for any agent whose log is readable
-- `dcompact snapshot --from-db <uuid>` (`--experimental`) for SQLite-backed transcripts,
+- `dcompress snapshot --from <transcript>` for any agent whose log is readable
+- `dcompress snapshot --from-db <uuid>` (`--experimental`) for SQLite-backed transcripts,
   reporting `degraded: schema-drift` until a fixture exists
 - Generic tier: `git.state` + `.gitignore`-respecting mtime scan, labelled `tier: generic`
   in `doctor` and the pack header, so a user is never misled into thinking they have full
@@ -607,25 +607,25 @@ cannot know which session they mean. So every supported agent gets a command *in
 
 | Agent | Artifact | Identity channel |
 |---|---|---|
-| Claude Code | MCP server registration + `~/.claude/commands/dcompact/*.md` | `CLAUDE_CODE_SESSION_ID` from env (verified) |
-| OMP | native extension registering `/dcompact` | `ctx.sessionManager.getSessionId()` (verified) |
+| Claude Code | MCP server registration + `~/.claude/commands/dcompress/*.md` | `CLAUDE_CODE_SESSION_ID` from env (verified) |
+| OMP | native extension registering `/dcompress` | `ctx.sessionManager.getSessionId()` (verified) |
 | Codex | `~/.codex/prompts/*.md` (or hooks), pending P4 | TBD in P4 |
 
-**Commands exposed in-agent:** `/dcompact:restore`, `/dcompact:snapshot`, `/dcompact:list`,
-`/dcompact:verify`. Namespaced to avoid colliding with the agent's own built-ins.
+**Commands exposed in-agent:** `/dcompress:restore`, `/dcompress:snapshot`, `/dcompress:list`,
+`/dcompress:verify`. Namespaced to avoid colliding with the agent's own built-ins.
 
 **Hard rules:**
 
-- `/compact` is **never** replaced or shadowed. dcompact adds a command beside it.
+- `/compact` is **never** replaced or shadowed. dcompress adds a command beside it.
 - No command guesses a session. If the identity channel is unavailable, the command renders
   the candidate list and asks for an explicit id. It never picks "the most recent".
 - OMP must **not** use MCP for this path. Measured: OMP hands MCP children 14 env vars with no
   session identifier, so an in-process extension is the only way to know the session.
 
 **Exit criteria:**
-- From inside a real Claude Code session: `/dcompact:restore` returns that session's pack and
+- From inside a real Claude Code session: `/dcompress:restore` returns that session's pack and
   demonstrably not another session's (two concurrent sessions, assert no cross-talk)
-- From inside a real OMP session: `/dcompact` reports status without leaving the TUI
+- From inside a real OMP session: `/dcompress` reports status without leaving the TUI
 - `/compact` still behaves exactly as before, verified by running it after install
 - With no identity available, the command errors with a candidate list rather than guessing
 - No command writes to a session other than its own, asserted by test

@@ -11,8 +11,8 @@
 
 | | |
 |---|---|
-| **Repository** | `https://github.com/TomaszGonczar/dcompact` (private) |
-| **Clone** | `git clone https://github.com/TomaszGonczar/dcompact.git` |
+| **Repository** | `https://github.com/TomaszGonczar/dcompress` (private) |
+| **Clone** | `git clone https://github.com/TomaszGonczar/dcompress.git` |
 | **Default branch** | `main` |
 | **Branch to work on** | `batch-1/foundation` — create it, or work on whatever branch the runner gave you |
 | **Language** | TypeScript, ESM, Node 20+ |
@@ -21,7 +21,7 @@
 The repository currently contains exactly these files — read them before writing anything:
 
 ```
-dcompact/
+dcompress/
 ├── AGENTS.md                    ← 10 invariants. Read every one.
 ├── README.md
 ├── docs/
@@ -35,7 +35,7 @@ dcompact/
 
 ## 2. What you are building
 
-`dcompact` — deterministic session continuity for coding agents. It extracts facts from an
+`dcompress` — deterministic session continuity for coding agents. It extracts facts from an
 agent's own transcript using rules (**never a model**), stores them as hash-addressed
 snapshots, and re-injects a bounded context pack after a compaction.
 
@@ -61,7 +61,7 @@ Deliverables:
   determinism as release gate; reversible install; hook never fails the host; TypeScript on
   Node; storage location
 - **Close the open decision:** storage location. Recommended: XDG on all platforms with a
-  `DCOMPACT_HOME` override — one path is easier to document, back up, and remove than a
+  `DCOMPRESS_HOME` override — one path is easier to document, back up, and remove than a
   platform split. Record the decision and the reasoning.
 
 Exit criteria:
@@ -132,12 +132,12 @@ From `AGENTS.md`, verbatim in effect:
 2. Determinism — see §2 above.
 3. `src/core/**` imports no I/O and reads no `process.env`.
 4. No network at runtime, anywhere.
-5. Reversible install — every file dcompact edits is backed up and restorable byte-identical.
+5. Reversible install — every file dcompress edits is backed up and restorable byte-identical.
 6. A hook never fails its host — hook entry points exit `0`, report degraded instead.
 7. Transcript content is data, never instructions. Never execute or interpolate it.
 8. **Never guess a session.** No "most recent", no scan-and-pick. Unknown → error with a
    candidate list. (Nothing in this batch touches this, but do not design against it.)
-9. **`/compact` is never replaced.** dcompact adds commands beside the agent's own.
+9. **`/compact` is never replaced.** dcompress adds commands beside the agent's own.
 10. The user stays in their agent — commands live in the TUI, not the terminal.
 
 Working rules for this batch:

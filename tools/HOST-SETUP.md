@@ -31,35 +31,35 @@ nothing before that needs it.
 ## 2. Linear credential
 
 `tools/linear` reads `LINEAR_API_KEY` from the environment, from `.env` in the repo root, or
-from `~/.dcompact-agent.env`. It also requires `DCOMPACT_LINEAR_PROJECT`, the id of the Linear
+from `~/.dcompress-agent.env`. It also requires `DCOMPRESS_LINEAR_PROJECT`, the id of the Linear
 project to operate on — that id is workspace-specific and is deliberately not committed, so the
 tool refuses with exit 2 rather than guessing.
 
-Only `LINEAR_API_KEY` is read from the files above. `DCOMPACT_LINEAR_PROJECT` **must come from
+Only `LINEAR_API_KEY` is read from the files above. `DCOMPRESS_LINEAR_PROJECT` **must come from
 the environment** each time you invoke the tool; it is not read from `.env` or
-`~/.dcompact-agent.env`, so exporting it in a shell profile or per invocation is what makes it
+`~/.dcompress-agent.env`, so exporting it in a shell profile or per invocation is what makes it
 available. Write both to the host file for your own reference, but export the project id
 explicitly:
 
 ```bash
 {
   printf 'LINEAR_API_KEY=%s\n' '<your-key>'
-  printf 'DCOMPACT_LINEAR_PROJECT=%s\n' '<your-linear-project-id>'
-} >> ~/.dcompact-agent.env
-chmod 600 ~/.dcompact-agent.env
+  printf 'DCOMPRESS_LINEAR_PROJECT=%s\n' '<your-linear-project-id>'
+} >> ~/.dcompress-agent.env
+chmod 600 ~/.dcompress-agent.env
 ```
 
 Verify. The key is picked up from the file; the project id is passed through the environment:
 
 ```bash
-export LINEAR_API_KEY=$(grep '^LINEAR_API_KEY=' ~/.dcompact-agent.env | cut -d= -f2-)
-export DCOMPACT_LINEAR_PROJECT=<your-linear-project-id>
+export LINEAR_API_KEY=$(grep '^LINEAR_API_KEY=' ~/.dcompress-agent.env | cut -d= -f2-)
+export DCOMPRESS_LINEAR_PROJECT=<your-linear-project-id>
 cd <repo> && ./tools/linear next
 # → OG-55	01 · P0 — Foundation
 ```
 
 To load both into the current shell without exporting them individually, source the file —
-`set -a; . ~/.dcompact-agent.env; set +a`.
+`set -a; . ~/.dcompress-agent.env; set +a`.
 
 ## 3. Agent credentials
 
@@ -69,22 +69,22 @@ gets a minimal, purpose-built credential directory instead.
 ### Codex (uses ChatGPT OAuth — no API key)
 
 ```bash
-~/.dcompact-agent/setup-codex-home.sh
+~/.dcompress-agent/setup-codex-home.sh
 ```
 
-Creates `~/.dcompact-agent/codex-home/` containing only `auth.json` and a minimal
+Creates `~/.dcompress-agent/codex-home/` containing only `auth.json` and a minimal
 `config.toml`. It deliberately excludes MCP servers, plugins, and history — nothing that could
 carry host state into the sandbox. Re-run it if the Codex token expires.
 
 ### OMP (needs a provider API key, since it has no equivalent of a host OAuth file)
 
-Create `~/.dcompact-agent/omp.env`:
+Create `~/.dcompress-agent/omp.env`:
 
 ```bash
-cat > ~/.dcompact-agent/omp.env <<'EOF'
+cat > ~/.dcompress-agent/omp.env <<'EOF'
 OPENROUTER_API_KEY=sk-or-...
 EOF
-chmod 600 ~/.dcompact-agent/omp.env
+chmod 600 ~/.dcompress-agent/omp.env
 ```
 
 Copy the key value from wherever your provider keys are stored on the host. OMP reads provider
@@ -93,7 +93,7 @@ keys from the environment; the sandbox cannot see the host's OMP profile or its 
 Test that OMP authenticates inside the sandbox before a real run:
 
 ```bash
-docker run --rm --env-file ~/.dcompact-agent/omp.env dcompact-sandbox:latest \
+docker run --rm --env-file ~/.dcompress-agent/omp.env dcompress-sandbox:latest \
   bash -lc 'omp -p --auto-approve "Reply with exactly: OMP_SANDBOX_OK"'
 ```
 
@@ -101,7 +101,7 @@ docker run --rm --env-file ~/.dcompact-agent/omp.env dcompact-sandbox:latest \
 
 ```bash
 cd <repo>
-docker build -t dcompact-sandbox:latest tools/sandbox
+docker build -t dcompress-sandbox:latest tools/sandbox
 ```
 
 `tools/agent-run` builds it automatically on first use, so this is optional — but doing it
@@ -112,7 +112,7 @@ once explicitly surfaces network or arch problems before you are mid-run.
 This is the check that matters. Inside the sandbox, the host's agent configs must not exist:
 
 ```bash
-docker run --rm dcompact-sandbox:latest bash -lc \
+docker run --rm dcompress-sandbox:latest bash -lc \
   'for p in ~/.claude ~/.codex ~/.omp ~/.gemini; do
      [ -e "$p" ] && echo "PRESENT(!!) $p" || echo "absent  $p"; done'
 ```
@@ -174,7 +174,7 @@ Linear updates afterwards. `GH_TOKEN` carries `repo` scope across every reposito
 account, so passing it into the sandbox would defeat the isolation the sandbox exists for.
 
 The one exception is OMP, which needs its own model-provider key to run at all — mounted via
-`--env-file ~/.dcompact-agent/omp.env`. That key is provider-scoped and cannot reach GitHub
+`--env-file ~/.dcompress-agent/omp.env`. That key is provider-scoped and cannot reach GitHub
 or Linear. Codex needs no such key (it uses the mounted ChatGPT OAuth home).
 
 **Not protected:** the repository itself (that is the point — the agent edits it).

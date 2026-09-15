@@ -81,7 +81,7 @@ describe("demo document", () => {
     expect(demo).toContain(`| stdout pack SHA-256 | \`${packSha}\` |`);
     expect(demo).toContain(`| stderr report SHA-256 | \`${reportSha}\` |`);
     expect(demo).toContain(`| Payload hash (in the stderr report) | \`${hash}\` |`);
-    expect(demo).toContain(`[dcompact:${hash.slice(7, 19)}]`);
+    expect(demo).toContain(`[dcompress:${hash.slice(7, 19)}]`);
   });
 
   it("publishes the fixture hash that the committed manifest records", () => {
@@ -111,7 +111,7 @@ describe("demo document", () => {
       process.env.TZ = "Pacific/Kiritimati";
       process.env.LANG = "tr_TR.UTF-8";
       process.env.LC_ALL = "C";
-      process.env.HOME = join(tmpdir(), "dcompact-demo-no-such-home");
+      process.env.HOME = join(tmpdir(), "dcompress-demo-no-such-home");
       const after = preview({ transcript: fixturePath, pack: {} });
 
       expect(after.pack).toBe(before.pack);

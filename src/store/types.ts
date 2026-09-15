@@ -28,7 +28,7 @@ export class StoreRefusal extends Error {
 
 /** The environment a store root is resolved from. Read at the I/O boundary, never in core. */
 export interface StoreEnvironment {
-  readonly DCOMPACT_HOME?: string;
+  readonly DCOMPRESS_HOME?: string;
   readonly XDG_DATA_HOME?: string;
   readonly HOME?: string;
 }
@@ -36,7 +36,7 @@ export interface StoreEnvironment {
 export interface SessionLocator {
   readonly adapter: string;
   readonly sessionId: string;
-  /** An explicit store root (`--store`, `dcompact init`) wins over the environment. */
+  /** An explicit store root (`--store`, `dcompress init`) wins over the environment. */
   readonly root?: string;
   readonly env?: StoreEnvironment;
 }
@@ -275,7 +275,7 @@ const LOCK_RECORD_FIELDS: Record<string, true> = { host: true, pid: true, starte
 /**
  * A lock holder record (SCHEMA §8): the shape both `manifest.lock` and the session lock file
  * carry, so one reader can be sure of what the other wrote. Unknown fields are rejected: a
- * record dcompact does not understand is not a holder it can reason about.
+ * record dcompress does not understand is not a holder it can reason about.
  */
 export function isLockRecord(value: unknown): value is ManifestLock {
   if (!isRecord(value)) return false;

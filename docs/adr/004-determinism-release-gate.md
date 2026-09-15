@@ -13,7 +13,7 @@ the same canonical snapshot payload bytes and the same payload hash on any suppo
 Without that property, `verify`
 cannot distinguish an input change from a sampler, clock, locale, host, or implementation
 accident. An unverifiable snapshot is just another summary, which is not a useful product
-boundary for dcompact.
+boundary for dcompress.
 
 Nondeterminism can enter through global environment reads, wall-clock values, host paths,
 unordered traversal, locale-sensitive operations, unstable fact merging, or a change to

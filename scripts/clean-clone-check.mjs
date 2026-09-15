@@ -135,7 +135,7 @@ export function runCleanCloneCheck() {
   const claim = parseReadme(readme);
   const env = isolatedEnv();
 
-  const cloneRoot = mkdtempSync(join(tmpdir(), "dcompact-clean-clone-"));
+  const cloneRoot = mkdtempSync(join(tmpdir(), "dcompress-clean-clone-"));
   try {
     // A local path clone reads the same commit graph a network clone would fetch for HEAD; it
     // never contacts a remote, and the working tree it checks out never includes the developer
@@ -186,7 +186,7 @@ export function runCleanCloneCheck() {
 
 function usage() {
   return [
-    "dcompact clean-clone reproduction gate",
+    "dcompress clean-clone reproduction gate",
     "",
     "Usage:",
     "  node scripts/clean-clone-check.mjs [--json]",

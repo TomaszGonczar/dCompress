@@ -1,11 +1,11 @@
-# dcompact
+# dcompress
 
 Deterministic, rule-based memory for coding agents — no model in the extraction path.
 
-[![CI](https://github.com/TomaszGonczar/dcompact/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/TomaszGonczar/dcompact/actions/workflows/ci.yml)
+[![CI](https://github.com/TomaszGonczar/dcompress/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/TomaszGonczar/dcompress/actions/workflows/ci.yml)
 
 When a coding agent compacts, it replaces the older half of its own context with a few
-paragraphs of model-written prose. `dcompact` takes the opposite approach: it reads the
+paragraphs of model-written prose. `dcompress` takes the opposite approach: it reads the
 agent's own transcript with deterministic rules and turns what actually happened — files
 touched, commands run, errors raised and fixed, decisions stated — into a bounded,
 hash-addressed fact pack that can be verified against the transcript line by line.
@@ -30,20 +30,20 @@ Requires **Node 20 or newer** (`package.json` declares `engines.node >= 20`; CI 
 22) and npm. No account, no network at runtime, no configuration.
 
 ```sh
-git clone https://github.com/TomaszGonczar/dcompact.git
-cd dcompact
+git clone https://github.com/TomaszGonczar/dcompress.git
+cd dcompress
 npm ci
 npm run build
 node dist/cli.js preview --transcript test/fixtures/claude/slice-0001/transcript.jsonl
 ```
 
 The build step is required: nothing generates `dist/` for you, and `npm ci` does not link a
-`dcompact` binary into the repository root. Run the CLI through `node dist/cli.js`.
+`dcompress` binary into the repository root. Run the CLI through `node dist/cli.js`.
 
-Expected stdout — a Markdown pack, 1694 bytes for this fixture:
+Expected stdout — a Markdown pack, 1696 bytes for this fixture:
 
 ```text
-## dcompact context [dcompact:1ebd2c27a646]
+## dcompress context [dcompress:1ebd2c27a646]
 Status: ok
 Facts: 9 | external: 0 | unmapped: 0 | coverage: 1000000 ppm
 Source entries: 8 | tool calls: 7
@@ -120,14 +120,14 @@ under a reduced byte budget the todo facts are the first the renderer drops.
 | Store: XDG path resolution, atomic snapshot write, hash-verified read, quarantine, manifest, advisory lock, retention | **Works** — `src/store/`, exposed by `list`/`show`/`verify`/`doctor` and written by `prune`/`pin` (retention deletions and the pinned flag); it is a separate format from the continuity checkpoint store above, and no shipped command writes snapshots into it yet (only test code calls `writeSnapshot` directly) |
 | `list` / `show` / `verify` / `doctor` (read-only store commands, `--json` supported) | **Works** — `verify --provenance` re-checks facts against the transcript named in the envelope; `doctor` reports the same store's manifest, lock, quarantine, and adapter coverage for one session |
 | `prune` / `pin` | **Works** — `prune` applies the existing retention policy (15 snapshots or 72 h, newest and pinned exempt) to one explicitly named session and records each deletion in `manifest.json`; `--dry-run` reports the same set and deletes nothing. `pin`/`--unpin` sets or clears one snapshot's `pinned` flag through the manifest. Both require an explicit `--session`, and `--json` is supported |
-| `install` / `uninstall --agent claude` | **Works — Claude only.** Writes or removes dcompact's hook entries in a settings.json inside a byte-marked managed region; every file it edits or creates is backed up first under `<store>/backups/`, and `uninstall` restores it byte-identical (`cmp`-verified in an automated test, D4) or removes a file dcompact created; `--dry-run` prints the plan without writing. Not yet exercised against a real Claude Code session and a real compaction (D2) |
+| `install` / `uninstall --agent claude` | **Works — Claude only.** Writes or removes dcompress's hook entries in a settings.json inside a byte-marked managed region; every file it edits or creates is backed up first under `<store>/backups/`, and `uninstall` restores it byte-identical (`cmp`-verified in an automated test, D4) or removes a file dcompress created; `--dry-run` prints the plan without writing. Not yet exercised against a real Claude Code session and a real compaction (D2) |
 | MCP server | **Not implemented** |
 | Codex, OMP, Pi, or any second adapter | **Not implemented** |
 | `doctor` | **Works** — reports store, manifest, lock, quarantine, and adapter coverage health for one explicitly named session; `--json` supported |
 | `diff`, `init` | **Not implemented** |
 | `git.state` facts for Claude | **Not implemented** — the core supports them, the Claude adapter does not emit them |
 | Secret redaction | **Not implemented** — planned for the hardening phase |
-| npm publish / `npm i -g dcompact` / `npx dcompact` | **Not available** — the package is `private: true` |
+| npm publish / `npm i -g dcompress` / `npx dcompress` | **Not available** — the package is `private: true` |
 | Windows | **Not tested** — CI covers Ubuntu and macOS only |
 
 The continuity commands are intentionally narrow: they require an explicit session, transcript
@@ -184,7 +184,7 @@ Determinism is the point of the project, so it is enforced rather than asserted:
 
 ## Privacy
 
-> **Read this before pointing it at a real session.** The facts dcompact prints carry short,
+> **Read this before pointing it at a real session.** The facts dcompress prints carry short,
 > bounded snippets of transcript text, and **secret redaction is not implemented yet**. Treat a
 > generated pack as potentially sensitive: read it before pasting it anywhere. Nothing is
 > uploaded — there is no network code in the runtime path — but a pack printed to your terminal
@@ -224,7 +224,7 @@ What this gate is not:
   is safe to publish. Binary files are counted and skipped, and a file the scan cannot read fails
   the run rather than passing quietly.
 - **Not redaction.** Secret redaction inside packs is still unimplemented (the box above and
-  CONCEPT §9); this gate protects this repository's own commits, not the packs dcompact prints.
+  CONCEPT §9); this gate protects this repository's own commits, not the packs dcompress prints.
 - **Not a broad exemption list.** Each allowlist entry is one exact literal with the reason it is
   not a leak — test placeholders, the development sandbox's own paths — and every run reports how
   many occurrences each entry suppressed.
@@ -260,7 +260,7 @@ What this gate is not:
   it says nothing about what a stranger's `git clone <url>` over the network would fetch.
 
 Related design decisions:
-[ADR 003 — facts, not transcripts](docs/adr/003-facts-not-transcripts.md) (dcompact stores
+[ADR 003 — facts, not transcripts](docs/adr/003-facts-not-transcripts.md) (dcompress stores
 extracted facts, never conversations) and CONCEPT §9 for the full security model.
 
 ## The OG-61 preview verdict
@@ -317,7 +317,7 @@ work. In wave order:
 ## Design documents
 
 - [`docs/CONCEPT.md`](docs/CONCEPT.md) — the problem, the architecture, the integration matrix,
-  and an explicit list of what dcompact is not.
+  and an explicit list of what dcompress is not.
 - [`docs/SCHEMA.md`](docs/SCHEMA.md) — **normative.** The snapshot format and the
   canonicalization rules that make hashes reproducible. If code and this document disagree,
   code is wrong.
@@ -332,8 +332,8 @@ work. In wave order:
 
 [`docs/benchmark/native-compaction-retention.md`](docs/benchmark/native-compaction-retention.md)
 is an exploratory note on how much context agents' own compaction retains across repeated
-cycles, and how `dcompact preview` compared on synthetic event sets. It is explicitly **not** a
-product claim: one session per cell, several cells unmeasurable, `dcompact` never run against
+cycles, and how `dcompress preview` compared on synthetic event sets. It is explicitly **not** a
+product claim: one session per cell, several cells unmeasurable, `dcompress` never run against
 the organic transcripts, and the document states which figures are reproducible and which are
 not. Nothing in it runs in CI.
 

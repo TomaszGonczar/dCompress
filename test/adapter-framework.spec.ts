@@ -275,7 +275,7 @@ describe("adapter framework", () => {
   });
 
   it("reports an unusable definition as degraded without disabling a working one", () => {
-    const directory = mkdtempSync(join(tmpdir(), "dcompact-adapters-"));
+    const directory = mkdtempSync(join(tmpdir(), "dcompress-adapters-"));
     try {
       const valid = readFileSync(join(adaptersDirectory, "fake.json"), "utf8");
       writeFileSync(join(directory, "fake.json"), valid);

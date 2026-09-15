@@ -528,7 +528,7 @@ export default [
   {
     files: ["src/core/**/*.{js,mjs,cjs,ts,mts,cts}"],
     plugins: {
-      dcompact: {
+      dcompress: {
         rules: {
           "core-purity": corePurityRule,
           "clock-boundary": clockBoundaryRule,
@@ -536,8 +536,8 @@ export default [
       },
     },
     rules: {
-      "dcompact/core-purity": "error",
-      "dcompact/clock-boundary": "error",
+      "dcompress/core-purity": "error",
+      "dcompress/clock-boundary": "error",
     },
   },
 ];
