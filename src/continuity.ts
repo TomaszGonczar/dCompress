@@ -1,10 +1,11 @@
 import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 
-import { parseClaudeTranscript, claudeExtractConfig, ClaudeTranscriptRefusal } from "./adapters/claude.js";
+import { ClaudeTranscriptRefusal } from "./adapters/claude.js";
+import type { ClaudeParseResult } from "./adapters/claude.js";
+import { readClaudeTranscript } from "./adapters/mappers.js";
 import { mergeCheckpointPayloads } from "./core/continuity.js";
 import { canonicalize } from "./core/canonical.js";
-import { extractPayloadWithHealth } from "./core/extract/index.js";
 import { payloadHash } from "./core/hash.js";
 import { DEFAULT_MAX_BYTES, minimumPackBytes, renderPack } from "./core/pack.js";
 import type { DegradedState, Envelope, PackOptions, Payload, Snapshot } from "./core/types.js";
@@ -198,7 +199,7 @@ function readTranscript(path: string): Uint8Array {
   }
 }
 
-function assertSession(parse: ReturnType<typeof parseClaudeTranscript>, sessionId: string): void {
+function assertSession(parse: ClaudeParseResult, sessionId: string): void {
   if (parse.session.sessionId === null) {
     throw new ClaudeTranscriptRefusal("missing-session-id", "the explicitly supplied transcript contains no session id");
   }
@@ -208,15 +209,10 @@ function assertSession(parse: ReturnType<typeof parseClaudeTranscript>, sessionI
 }
 
 function snapshotFrom(options: CheckpointOptions, bytes: Uint8Array, previousHash: string | null): Snapshot {
-  const parse = parseClaudeTranscript(bytes);
+  const read = readClaudeTranscript(bytes);
+  const parse = read.parse;
   assertSession(parse, options.sessionId);
-  const config = claudeExtractConfig(parse);
-  const extracted = extractPayloadWithHealth(parse.events, config);
-  const degraded: DegradedState[] = [...new Set<DegradedState>([
-    ...(parse.diagnostics.length > 0 ? ["schema-drift" as const] : []),
-    ...extracted.degraded,
-  ])].sort();
-  const hash = payloadHash(extracted.payload);
+  const hash = payloadHash(read.payload);
   ensureStoreDirectories(options.root, options.sessionId);
   const now = options.now ?? Date.now;
   const envelope: Envelope = {
@@ -233,12 +229,12 @@ function snapshotFrom(options: CheckpointOptions, bytes: Uint8Array, previousHas
     transcript_mtime: null,
     host: { os: process.platform, arch: process.arch, node: process.version },
     store: { cwd: parse.session.cwd ?? "", repo_root: null },
-    degraded,
+    degraded: [...read.degraded],
     previous_hash: previousHash,
     duration_ms: 0,
     hash,
   };
-  return { envelope, payload: extracted.payload };
+  return { envelope, payload: read.payload };
 }
 
 function objectRecord(value: unknown): Record<string, unknown> | null {
@@ -466,11 +462,43 @@ function markerFor(pack: string): string | null {
   return /^## dcompact context \[dcompact:[0-9a-f]{12}\]/m.exec(pack)?.[0] ?? null;
 }
 
+const BLOCK_BEGIN = "<!-- dcompact:context begin -->";
+const BLOCK_END = "<!-- dcompact:context end -->";
+
+/**
+ * Locate a previously injected block by its explicit sentinel comments rather than by
+ * scanning for `##` headings. The target may carry its own headings above or below the pack,
+ * so a heading-shaped boundary would either swallow surrounding user content or stop short of
+ * the pack's own end; the sentinel is unambiguous regardless of what surrounds it.
+ */
+function managedBlockBounds(existing: string): { readonly start: number; readonly end: number } | null {
+  const start = existing.indexOf(BLOCK_BEGIN);
+  if (start === -1) return null;
+  const end = existing.indexOf(BLOCK_END, start);
+  if (end === -1) return null; // Truncated sentinel: never guess its extent, treat as absent.
+  return { start, end: end + BLOCK_END.length };
+}
+
 export function injectPack(existing: string, pack: string): { readonly text: string; readonly injected: boolean } {
   const marker = markerFor(pack);
-  if (marker !== null && existing.includes(marker)) return { text: existing, injected: false };
-  if (existing.length === 0) return { text: pack, injected: true };
-  return { text: `${existing.replace(/\s+$/, "")}\n\n${pack}`, injected: true };
+  const block = `${BLOCK_BEGIN}\n${pack.replace(/\s+$/, "")}\n${BLOCK_END}`;
+  const bounds = managedBlockBounds(existing);
+  if (bounds === null) {
+    // Back-compat: a target already holding this exact pack without the sentinel — hand-authored,
+    // or written before the sentinel existed — is still recognized by its header marker so
+    // re-injection never duplicates it.
+    if (marker !== null && existing.includes(marker)) return { text: existing, injected: false };
+    if (existing.length === 0) return { text: `${block}\n`, injected: true };
+    return { text: `${existing.replace(/\s+$/, "")}\n\n${block}\n`, injected: true };
+  }
+  if (existing.slice(bounds.start, bounds.end) === block) return { text: existing, injected: false };
+  // A changed pack replaces the block in place: content before and after it is preserved
+  // exactly (modulo the separating blank line dcompact itself owns), never re-appended.
+  const before = existing.slice(0, bounds.start).replace(/\s+$/, "");
+  const after = existing.slice(bounds.end).replace(/^\s+/, "");
+  const prefix = before.length > 0 ? `${before}\n\n` : "";
+  const suffix = after.length > 0 ? `\n\n${after}` : "\n";
+  return { text: `${prefix}${block}${suffix}`, injected: true };
 }
 
 function injectionMarkerPath(root: string, sessionId: string): string {
