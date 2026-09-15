@@ -30,7 +30,7 @@
   "ceilings": {
     "perScoredArmMinutes": 60,
     "mediumSeriesMinutes": 210,
-    "assistantTurnsPerArm": 48,
+    "assistantTurnsPerArm": 200,
     "manualCompactionsPerArm": 4
   },
   "advisoryCostTelemetry": {

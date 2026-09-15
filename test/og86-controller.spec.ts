@@ -1146,9 +1146,9 @@ process.stdout.write(JSON.stringify({
   });
 
   it("breaches the turn ceiling on a delta, not on a cumulative total", () => {
-    const result = series({ sendPhasePrompt: `() => ({ costUsd: 0.02, wallSeconds: 120, turns: 60, previousModels: modelCounts(0), models: modelCounts(60) })` });
+    const result = series({ sendPhasePrompt: `() => ({ costUsd: 0.02, wallSeconds: 120, turns: 220, previousModels: modelCounts(0), models: modelCounts(220) })` });
     expect(result.state.invalidations.some((entry) => entry.includes("assistant-turn-limit-exceeded"))).toBe(true);
-    expect(result.state.arms.A.assistantTurns).toBeGreaterThan(48);
+    expect(result.state.arms.A.assistantTurns).toBeGreaterThan(200);
   });
 
   it("records per-role deltas in the emitted artifact", () => {

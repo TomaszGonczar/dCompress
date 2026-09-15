@@ -120,9 +120,19 @@ continuation process; raw session, path, or prose leakage into a public artifact
 unverifiable evidence artifact; a scorer error; an exceeded wall-clock or assistant-turn limit; or
 a breach of the emergency runaway ceiling. **Cost figures are not a validity stop** — see "Cost".
 
-Each scored arm is limited to 60 wall-clock minutes, 48 assistant turns, and four manual
+Each scored arm is limited to 60 wall-clock minutes, 200 assistant turns, and four manual
 compactions. The medium series is limited to 210 minutes. A repair creates a new version and
 reruns all three arms.
+
+**Revision note (assistant-turn ceiling, 2026-09-15).** The frozen figure was 48, calibrated
+before any real `--execute` measurement existed. The first real attempt against the corrected
+protocol measured 47 assistant records for phase 1 of arm C alone -- one of four
+comparably-scoped phases (`phase-prompts.json`: each asks for a similar diagnose/implement/test/
+report task across several files) -- essentially exhausting the old per-arm ceiling in one
+quarter of the work. Recalibrated to 200 (~4x the measured single-phase figure, rounded up for
+cross-phase variance) rather than raised silently: this note and the code comment beside
+`FROZEN.assistantTurnsPerArm` record why. The wall-clock ceiling was checked against the same
+measurement (phase 1: 2.19 of 60 minutes) and is not at similar risk.
 
 Arm order is derived only once the **freeze** commit exists, by sorting A/B/C on
 `sha256("OG86-medium-v1|<freeze-commit>|<arm>")`. `protocol.json` carries `freezeCommit: null`
