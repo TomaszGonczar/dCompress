@@ -459,11 +459,11 @@ function mergedRestore(options: RestoreOptions): { readonly payload: Payload; re
 }
 
 function markerFor(pack: string): string | null {
-  return /^## dcompact context \[dcompact:[0-9a-f]{12}\]/m.exec(pack)?.[0] ?? null;
+  return /^## dcompress context \[dcompress:[0-9a-f]{12}\]/m.exec(pack)?.[0] ?? null;
 }
 
-const BLOCK_BEGIN = "<!-- dcompact:context begin -->";
-const BLOCK_END = "<!-- dcompact:context end -->";
+const BLOCK_BEGIN = "<!-- dcompress:context begin -->";
+const BLOCK_END = "<!-- dcompress:context end -->";
 
 /**
  * Locate a previously injected block by its explicit sentinel comments rather than by
@@ -493,7 +493,7 @@ export function injectPack(existing: string, pack: string): { readonly text: str
   }
   if (existing.slice(bounds.start, bounds.end) === block) return { text: existing, injected: false };
   // A changed pack replaces the block in place: content before and after it is preserved
-  // exactly (modulo the separating blank line dcompact itself owns), never re-appended.
+  // exactly (modulo the separating blank line dcompress itself owns), never re-appended.
   const before = existing.slice(0, bounds.start).replace(/\s+$/, "");
   const after = existing.slice(bounds.end).replace(/^\s+/, "");
   const prefix = before.length > 0 ? `${before}\n\n` : "";

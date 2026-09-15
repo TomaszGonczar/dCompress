@@ -26,14 +26,14 @@ other, so `> pack.md` captures a clean artifact.
 | Input transcript | `test/fixtures/claude/slice-0001/transcript.jsonl` |
 | Input size | 13666 bytes, 20 physical lines |
 | Input SHA-256 | `f561627e32ec13de19b4bf5e27bf038741a8bcf71fa0612767aae4a8d3a009f4` |
-| stdout pack size | 1694 bytes, 26 lines |
-| stdout pack SHA-256 | `d396a8cbc15c09f902ce7d1e8f4acd93f19ee503c26f2e4cfec895197de99f5e` |
+| stdout pack size | 1696 bytes, 26 lines |
+| stdout pack SHA-256 | `90c386c510f822c50e771b602749e1541eed75e1b9bb4fc5207a17e558ac6965` |
 | stderr report SHA-256 | `c5529dcbc17d3e78eead1dbd82d889fcf891ddcac2e888a17fa3e05004f3273b` |
 | Payload hash (in the stderr report) | `sha256:1ebd2c27a646e226e18229a76828f90e658795c30b8db22f23618777eaba16c4` |
 
 The input hash equals `sanitizedSha256` in
 [`fixture.manifest.json`](../../test/fixtures/claude/slice-0001/fixture.manifest.json), so the
-committed fixture and this demo cannot silently diverge. The `[dcompact:1ebd2c27a646]` marker
+committed fixture and this demo cannot silently diverge. The `[dcompress:1ebd2c27a646]` marker
 in the pack header is the first 12 hex digits of the payload hash — the same value the report
 prints in full.
 
@@ -59,7 +59,7 @@ extraction health problems.
 
 <!-- demo-pack:start -->
 ```text
-## dcompact context [dcompact:1ebd2c27a646]
+## dcompress context [dcompress:1ebd2c27a646]
 Status: ok
 Facts: 9 | external: 0 | unmapped: 0 | coverage: 1000000 ppm
 Source entries: 8 | tool calls: 7
@@ -105,4 +105,4 @@ of `src/util.ts`. That pairing is what a prose summary loses.
 
 Those are roadmap items, not regressions. See
 [`docs/DEVELOPMENT_PLAN.md`](../DEVELOPMENT_PLAN.md) for the phases that close them, and
-[`docs/CONCEPT.md`](../CONCEPT.md) §3 for the full set of things dcompact is not.
+[`docs/CONCEPT.md`](../CONCEPT.md) §3 for the full set of things dcompress is not.

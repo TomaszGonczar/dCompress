@@ -63,7 +63,7 @@ let build: string | null = null;
 /** The transpiled tree, built once per process and removed by `closeStoreBuild`. */
 export function storeBuild(): string {
   if (build === null) {
-    const root = mkdtempSync(join(tmpdir(), "dcompact-og58-build-"));
+    const root = mkdtempSync(join(tmpdir(), "dcompress-og58-build-"));
     for (const source of CHILD_SOURCES) {
       const path = join(REPOSITORY_ROOT, source);
       for (const file of source.endsWith(".ts") ? [path] : typescriptFiles(path)) emit(file, root);

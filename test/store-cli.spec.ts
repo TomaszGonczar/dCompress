@@ -175,7 +175,7 @@ describe("show", () => {
 
     expect(status).toBe(1);
     expect(output.stderr.join("")).toContain('No snapshot "deadbeefcafe"');
-    expect(output.stderr.join("")).toContain("dcompact list --session session-1");
+    expect(output.stderr.join("")).toContain("dcompress list --session session-1");
   });
 });
 
@@ -210,7 +210,7 @@ describe("verify", () => {
   describe("--provenance", () => {
     function setup(): { readonly root: string; readonly transcriptPath: string; readonly line: string } {
       const root = temp.next();
-      const transcriptDir = mkdtempSync(join(tmpdir(), "dcompact-og58-transcript-"));
+      const transcriptDir = mkdtempSync(join(tmpdir(), "dcompress-og58-transcript-"));
       const transcriptPath = join(transcriptDir, "transcript.jsonl");
       const line = '{"line":"one"}\n';
       writeFileSync(transcriptPath, line);

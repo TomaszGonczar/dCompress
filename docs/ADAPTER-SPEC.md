@@ -8,11 +8,11 @@ issue text are treated as untrusted data. [observed:<repo>/docs/briefs/OMP-BATCH
 
 An adapter locates and reads the agent transcript, maps declared record shapes to the
 normalized event stream, and describes configuration installation/removal; extraction stays
-rule-based and the core remains pure. [docs:https://github.com/TomaszGonczar/dcompact/blob/main/docs/CONCEPT.md]
+rule-based and the core remains pure. [docs:https://github.com/TomaszGonczar/dcompress/blob/main/docs/CONCEPT.md]
 
 The payload contains only transcript-derived values and explicit extraction inputs; canonical
 payload bytes and their SHA-256 hash are deterministic, while clock, host, and absolute
-transcript location remain envelope data. [docs:https://github.com/TomaszGonczar/dcompact/blob/main/docs/SCHEMA.md]
+transcript location remain envelope data. [docs:https://github.com/TomaszGonczar/dcompress/blob/main/docs/SCHEMA.md]
 
 Evidence is exactly `{line, sha256}` and the transcript path occurs once in the envelope;
 external file facts survive as `<opaque scope id>:<basename>` with `scope: "external"`, never
@@ -24,7 +24,7 @@ grants, and command-named roots); adapters must not probe the filesystem to deci
 
 Unknown record shapes produce `degraded: schema-drift`, or `degraded: extraction-empty` when a
 non-empty recognized transcript yields no facts; a recognized but unmapped tool increments
-`unmapped_tool_calls`, lowers `coverage_ppm`, and adds no degraded state. [docs:https://github.com/TomaszGonczar/dcompact/blob/main/docs/CONCEPT.md]
+`unmapped_tool_calls`, lowers `coverage_ppm`, and adds no degraded state. [docs:https://github.com/TomaszGonczar/dcompress/blob/main/docs/CONCEPT.md]
 
 The engine must not assume an exit-code field: where a result has an error flag, that flag is
 the success/failure signal, and adapter mappings define richer result metadata. [observed:<repo>/docs/briefs/OMP-BATCH-2.md]
@@ -33,7 +33,7 @@ No adapter may guess a session: absent identity must refuse selection, show cand
 require explicit `--session <id>` or `--transcript <path>`. [observed:<repo>/docs/briefs/OMP-BATCH-2.md]
 
 Installed hooks must exit zero on internal failure and report a finite degraded/unavailable
-state, and installation must never replace the agent's native `/compact`. [docs:https://github.com/TomaszGonczar/dcompact/blob/main/docs/CONCEPT.md]
+state, and installation must never replace the agent's native `/compact`. [docs:https://github.com/TomaszGonczar/dcompress/blob/main/docs/CONCEPT.md]
 
 ## 2. Claude Code adapter
 
@@ -59,7 +59,7 @@ from 2.1.257; therefore the installed 2.1.238 adapter must not require the latte
 [docs:https://code.claude.com/docs/en/hooks]
 
 The installer may add command-hook entries to the applicable settings file, must back up
-before editing, and must preserve/uninstall its managed region reversibly. [docs:https://github.com/TomaszGonczar/dcompact/blob/main/docs/CONCEPT.md]
+before editing, and must preserve/uninstall its managed region reversibly. [docs:https://github.com/TomaszGonczar/dcompress/blob/main/docs/CONCEPT.md]
 
 ### Registered events and exact input/output
 
@@ -123,7 +123,7 @@ optional `duration_ms`; validation rejection and permission denial do not emit i
 
 `PreCompact` matches `manual|auto` and receives `{trigger, custom_instructions}`; manual
 instructions may be null and auto instructions are null. [docs:https://code.claude.com/docs/en/hooks]
-Dcompact must never block compaction. [docs:https://github.com/TomaszGonczar/dcompact/blob/main/docs/CONCEPT.md]
+Dcompress must never block compaction. [docs:https://github.com/TomaszGonczar/dcompress/blob/main/docs/CONCEPT.md]
 
 `PostCompact` matches `manual|auto` and receives `{trigger, compact_summary}`; it is
 side-effect-only and cannot inject restore context. [docs:https://code.claude.com/docs/en/hooks]
@@ -142,12 +142,12 @@ returning bounded `hookSpecificOutput.additionalContext`; context is inserted as
 reminder at the event point, not as a chat message. [docs:https://code.claude.com/docs/en/hooks]
 
 Claude writes additional context over 10,000 characters to a session-directory file with a
-short preview/path, so dcompact output must remain bounded. [docs:https://code.claude.com/docs/en/hooks]
+short preview/path, so dcompress output must remain bounded. [docs:https://code.claude.com/docs/en/hooks]
 
 ### Identity, transcript, and normalization
 
 The authoritative identity is hook `session_id`; `transcript_path` is the supplied transcript
-location, and dcompact must use these values or explicit CLI identity. [docs:https://code.claude.com/docs/en/hooks]
+location, and dcompress must use these values or explicit CLI identity. [docs:https://code.claude.com/docs/en/hooks]
 
 When identity is absent, Claude adapter behavior is refusal with candidate sessions and an
 explicit `--session` or `--transcript` next step; it must never choose `--continue`/most recent
@@ -215,7 +215,7 @@ block a Claude `PreToolUse` call. [docs:https://code.claude.com/docs/en/hooks]
 missing/non-executable commands are generally non-blocking errors. [docs:https://code.claude.com/docs/en/hooks]
 
 Workspace trust controls repository settings hooks, and managed policy may restrict hooks via
-`allowManagedHooksOnly`; dcompact reports unavailable/degraded capture rather than guessing.
+`allowManagedHooksOnly`; dcompress reports unavailable/degraded capture rather than guessing.
 [docs:https://code.claude.com/docs/en/hooks]
 
 Transcript prompt/tool text and injected context are untrusted data and must never be executed,
@@ -256,7 +256,7 @@ are reference-only and are not implementation inputs for this adapter. [observed
 | SessionStart | `source` | enum `startup\|resume\|clear\|compact\|fork` | yes | start reason | [docs:https://github.com/openai/codex/blob/main/codex-rs/hooks/schema/generated/session-start.command.input.schema.json] |
 
 SessionStart output permits `continue`, `stopReason`, `suppressOutput`, `systemMessage`, and
-`hookSpecificOutput:{hookEventName:"SessionStart",additionalContext?:string}`; dcompact returns
+`hookSpecificOutput:{hookEventName:"SessionStart",additionalContext?:string}`; dcompress returns
 bounded `additionalContext`, does not block, and records only as a side effect. [docs:https://github.com/openai/codex/blob/main/codex-rs/hooks/schema/generated/session-start.command.output.schema.json]
 
 The adapter does not register PostCompact, SessionEnd, tool, permission, prompt, stop, or
@@ -334,12 +334,12 @@ Codex generated hook schemas use `additionalProperties:false`, so malformed or e
 contract failures rather than extensibility. [docs:https://github.com/openai/codex/blob/main/codex-rs/hooks/schema/generated/pre-tool-use.command.input.schema.json]
 
 Non-managed hooks require review/trust recorded against the handler's current hash. [observed:<USER>/.codex/config.toml]
-Installation and trusted state are separate adapter/doctor states. [docs:https://github.com/TomaszGonczar/dcompact/blob/main/docs/CONCEPT.md]
+Installation and trusted state are separate adapter/doctor states. [docs:https://github.com/TomaszGonczar/dcompress/blob/main/docs/CONCEPT.md]
 
 `SessionEnd` has a one-second default timeout, so synchronous persistence must fit that budget or
 degrade/defer while preserving host availability. [docs:https://github.com/openai/codex/blob/main/codex-rs/hooks/src/events/session_end.rs]
 
-Multiple matching command hooks run concurrently, so dcompact must not assume it is alone. [docs:https://github.com/TomaszGonczar/dcompact/blob/main/docs/CONCEPT.md]
+Multiple matching command hooks run concurrently, so dcompress must not assume it is alone. [docs:https://github.com/TomaszGonczar/dcompress/blob/main/docs/CONCEPT.md]
 Local handlers that swallow failures prove configuration only, not successful injection. [observed:<USER>/.codex/hooks.json]
 
 ## 4. OMP adapter
@@ -404,7 +404,7 @@ identity fields and compaction-specific fields are all required unless marked op
 The `session_compact` handler output is `void` (or `Promise<void>`); it cannot block, cancel, or
 replace compaction, and it has no context-injection channel. [docs:https://github.com/can1357/oh-my-pi/blob/main/packages/coding-agent/src/extensibility/hooks/types.ts]
 
-Dcompact's handler reads the event's `compactionEntry` and `fromExtension` fields and performs
+Dcompress's handler reads the event's `compactionEntry` and `fromExtension` fields and performs
 the snapshot operation as its side effect; it injects no context into the post-compaction event. [observed:<repo>/docs/briefs/OMP-BATCH-2.md]
 
 The broader OMP event inventory is reference-only; the registered set is the `session_compact`

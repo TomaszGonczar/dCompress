@@ -8,8 +8,8 @@
 
 ## Context
 
-dcompact exists because an agent's compaction summary is lossy and unverifiable. Sending
-the transcript to another model would reproduce the problem inside dcompact: output could
+dcompress exists because an agent's compaction summary is lossy and unverifiable. Sending
+the transcript to another model would reproduce the problem inside dcompress: output could
 vary with sampling, model version, provider availability, or an undocumented prompt. It
 would also put the most sensitive input in another inference path.
 
@@ -51,9 +51,9 @@ verification, storage, or rendering.
 ## Alternatives considered
 
 - **LLM summary:** rejected because it is nondeterministic, unverifiable, network-sensitive,
-  and duplicates the agent behaviour dcompact is intended to complement.
+  and duplicates the agent behaviour dcompress is intended to complement.
 - **Hybrid extraction with model fallback:** rejected because a fallback would make the
   extraction contract and hashes depend on model availability and would turn an unknown
   shape into an untraceable assertion.
 - **Copying the transcript into a second system for later interpretation:** rejected here;
-  ADR 003 records why dcompact stores derived facts instead.
+  ADR 003 records why dcompress stores derived facts instead.

@@ -8,7 +8,7 @@
 
 ## Context
 
-dcompact needs durable local state for snapshots, manifests, locks, retention metadata,
+dcompress needs durable local state for snapshots, manifests, locks, retention metadata,
 optional logs, adapter definitions, and install backups. The tool must not put host-specific
 locations into a hashed payload, and users need to know where to inspect, back up, or remove
 its state.
@@ -20,11 +20,11 @@ describes an XDG-style layout and explicitly leaves the macOS choice open.
 
 ## Decision
 
-dcompact uses XDG-style locations on every platform. By default:
+dcompress uses XDG-style locations on every platform. By default:
 
 ```text
-data:   ${XDG_DATA_HOME:-$HOME/.local/share}/dcompact/
-config: ${XDG_CONFIG_HOME:-$HOME/.config}/dcompact/
+data:   ${XDG_DATA_HOME:-$HOME/.local/share}/dcompress/
+config: ${XDG_CONFIG_HOME:-$HOME/.config}/dcompress/
 ```
 
 The data root contains session snapshots, manifests, locks, `config.json`, and optional logs;
@@ -34,7 +34,7 @@ directories are not used. On Windows, the same XDG variables are honoured when s
 `$HOME/.local/share` and `$HOME/.config` as the deterministic fallback rather than a
 platform-specific split.
 
-`DCOMPACT_HOME` is the explicit override for all dcompact-owned state. When set, it is the
+`DCOMPRESS_HOME` is the explicit override for all dcompress-owned state. When set, it is the
 single state root containing the equivalent `sessions/`, `config.json`, `logs/`, `adapters/`,
 and `backups/` subtrees, including all backups and logs; XDG data and config variables are
 not consulted. This makes tests, CI, portable installations, and deliberate backup/removal
@@ -44,19 +44,19 @@ another location.
 
 All state directories are private to the invoking user (mode `0700` where POSIX permissions
 apply), and state files are owner-readable/writable only (mode `0600` where supported;
-equivalent owner-only ACLs on Windows). dcompact refuses a symlink in place of the state root
+equivalent owner-only ACLs on Windows). dcompress refuses a symlink in place of the state root
 or any state directory it creates; it never follows a link for storage. Failure to create or
 enforce the private state boundary is an operational error, not a fallback condition.
 
-Project-local `.dcompact/` state is implemented only when the user explicitly invokes
-`dcompact init`; it is not the default store. It uses the same schema and private-permission
+Project-local `.dcompress/` state is implemented only when the user explicitly invokes
+`dcompress init`; it is not the default store. It uses the same schema and private-permission
 rules, and does not move, replace, or alter the user-scoped store or canonicalization inputs.
 
 ## Consequences
 
 - Documentation, scripts, fixture tests, and support instructions have one default layout
   across Linux, macOS, and Windows.
-- `DCOMPACT_HOME` gives CI and operators a clean, relocatable state root without changing
+- `DCOMPRESS_HOME` gives CI and operators a clean, relocatable state root without changing
   the production default or the snapshot hash.
 - Private permissions and symlink refusal reduce accidental disclosure and link traversal;
   installations on platforms without POSIX mode bits use the corresponding owner-only ACL
@@ -73,7 +73,7 @@ rules, and does not move, replace, or alter the user-scoped store or canonicaliz
 - **Platform-native application directories:** rejected because they create a platform split
   and make the documented one-path backup and removal story harder. This is the open question
   closed by this ADR.
-- **Only `$HOME/.dcompact`:** rejected because it conflates data and configuration and does
+- **Only `$HOME/.dcompress`:** rejected because it conflates data and configuration and does
   not follow the existing XDG layout.
 - **Project-local storage by default:** rejected because every checkout would duplicate
   snapshots and backups; it remains an explicit `init` option.

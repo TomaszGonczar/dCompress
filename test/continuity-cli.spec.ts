@@ -9,7 +9,7 @@ import { run } from "../src/cli.js";
 const fixture = join(process.cwd(), "test", "fixtures", "claude", "slice-0001", "transcript.jsonl");
 
 function tempRoot(): string {
-  return mkdtempSync(join(tmpdir(), "dcompact-og85-cli-"));
+  return mkdtempSync(join(tmpdir(), "dcompress-og85-cli-"));
 }
 
 function io(stdin = ""): { readonly stdout: string[]; readonly stderr: string[]; readonly stdin: () => string; } {
@@ -32,7 +32,7 @@ describe("continuity CLI", () => {
         stdout: (text) => restoreIo.stdout.push(text),
         stderr: (text) => restoreIo.stderr.push(text),
       })).toBe(0);
-      expect(restoreIo.stdout.join("")).toContain("## dcompact context [dcompact:");
+      expect(restoreIo.stdout.join("")).toContain("## dcompress context [dcompress:");
       expect(restoreIo.stderr).toEqual([]);
     } finally {
       rmSync(root, { recursive: true, force: true });

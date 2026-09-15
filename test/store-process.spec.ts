@@ -118,7 +118,7 @@ describe("concurrent writers", () => {
   it("has two processes write one session at once, leaving two valid distinct snapshots and a consistent index", async () => {
     const session = newSession("race-1");
     // The barrier lives outside the store, so it cannot be mistaken for store state.
-    const barrier = mkdtempSync(join(tmpdir(), "dcompact-og58-barrier-"));
+    const barrier = mkdtempSync(join(tmpdir(), "dcompress-og58-barrier-"));
     const meet = (name: string): { readonly ready: string; readonly await: string } => ({
       ready: join(barrier, `${name}-ready`),
       await: join(barrier, `${name === "a" ? "b" : "a"}-ready`),

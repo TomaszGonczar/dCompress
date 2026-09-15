@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { run } from "../src/cli.js";
 
 function tempRoot(): string {
-  return mkdtempSync(join(tmpdir(), "dcompact-og65-uninstall-"));
+  return mkdtempSync(join(tmpdir(), "dcompress-og65-uninstall-"));
 }
 
 function cli(argv: readonly string[]): { readonly status: number; readonly stdout: string; readonly stderr: string } {

@@ -1,4 +1,4 @@
-# dcompact — Snapshot schema and canonicalization
+# dcompress — Snapshot schema and canonicalization
 
 Normative. If code and this document disagree, code is wrong.
 
@@ -47,7 +47,7 @@ them locally — which is what happened.
 
 ## 1. Why this document exists
 
-`dcompact` claims determinism: the same transcript bytes **plus the same extraction inputs**
+`dcompress` claims determinism: the same transcript bytes **plus the same extraction inputs**
 must produce the same canonical `payload`, and therefore the same `hash`, on any machine, at
 any time. The full snapshot *envelope* bytes may differ — the envelope carries the clock, host,
 and absolute paths, and is not part of the artifact's identity (§6.1). That claim is only true
@@ -181,7 +181,7 @@ own directory locally; the payload cannot be reversed into a host path.
 **Why this is not the same as the original bug.** An earlier rule *discarded* out-of-scope
 facts. Measured against one real session: 90% of file operations were out of scope (124 of 133),
 and — the sharper fact — **zero of that session's writes and edits landed in the repo it ran
-in**. dcompact would have recorded nothing about what the session produced, while `coverage`
+in**. dcompress would have recorded nothing about what the session produced, while `coverage`
 still read high. Under this rule those facts are present, hashed, and visible; only the host
 path text is withheld. The count is therefore a **secondary** signal, because it can no longer
 disagree with the fact list.
@@ -362,7 +362,7 @@ Rules, applied in order:
      touched, and a basename alone identifies no person and no machine.
    - **Directory components are replaced by an opaque scope id** — a deterministic digest of
      the *transcript-relative* root string, computed the same way on every machine. The user
-     can map the id back to a directory locally (`dcompact scope <id>`); the payload never
+     can map the id back to a directory locally (`dcompress scope <id>`); the payload never
      contains the path.
    - **No absolute path, no home directory, no username, no hostname** ever enters the payload.
      Absolute home paths are prohibited outright (§4.0).
@@ -487,7 +487,7 @@ Every fact carries `evidence[]` = `{line, sha256}` where `sha256` is the hash of
 The transcript path is **not** in `evidence[]`. It is `envelope.transcript_path`, one per
 snapshot (§4.0). Verification resolves it from the envelope, not from each fact.
 
-`dcompact verify --provenance <id>` reads `envelope.transcript_path`, re-reads that file, and
+`dcompress verify --provenance <id>` reads `envelope.transcript_path`, re-reads that file, and
 for each evidence entry:
 
 - transcript path absent or not readable → every fact `unbacked`, state
@@ -539,7 +539,7 @@ candidate. Pins are never candidates. Every prune appends to `pruned` with a rea
 | New optional envelope field | `schema_version` patch bump, no migration |
 | Canonicalization rule change | `canonicalization` bump; old snapshots readable, `verify` reports `schema-older` |
 | Extractor logic change | `extractor_version` bump; provenance re-check expected to fail for old snapshots, reported as such |
-| Fact field removal | payload `version` major bump; `dcompact` refuses to read older payload major versions with a clear message |
+| Fact field removal | payload `version` major bump; `dcompress` refuses to read older payload major versions with a clear message |
 
 A snapshot with an unknown `payload.version` is **never** injected and never verified
 silently: it is skipped with a warning naming the file.

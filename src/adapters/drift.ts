@@ -1,5 +1,5 @@
 /**
- * Shape drift — the mechanism behind "dcompact never silently mis-extracts" (CONCEPT §11.1).
+ * Shape drift — the mechanism behind "dcompress never silently mis-extracts" (CONCEPT §11.1).
  *
  * An adapter declares the transcript shapes it was verified against. This module compares the
  * shapes a transcript *actually* contains against that declaration, and reports a mismatch that

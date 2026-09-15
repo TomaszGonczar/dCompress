@@ -1,4 +1,4 @@
-# dcompact — Concept
+# dcompress — Concept
 
 ## 1. Problem
 
@@ -34,7 +34,7 @@ The user's own description of the problem, from the session that produced this d
 *"now when I leave the coding agent — god knows how many times it compacted already and
 what was lost in the process."*
 
-## 2. What dcompact is
+## 2. What dcompress is
 
 A **deterministic session continuity tool**. It extracts *facts* from the agent's own
 transcript with rules, stores them as content-addressed snapshots, and re-injects a bounded
@@ -53,7 +53,7 @@ Three properties define the product. If a feature weakens one of them, it does n
 | **Derived** | Every fact carries bounded provenance `{line, sha256}`; the transcript path is stored once in the envelope, not inside each evidence entry. | A restore can be audited. If the transcript was truncated or rotated, provenance is marked unbacked, not silently kept as backed. |
 | **Reversible** | Every edited file has a byte-for-byte backup. Format-specific managed regions are removed or restored without clobbering outside edits; symlink targets are refused. | A tool that rewrites the user's agent config must be able to leave no trace while preserving later user changes. Uninstall is a first-class command, not a footnote. |
 
-## 3. What dcompact is not
+## 3. What dcompress is not
 
 Honest boundaries, because these are the things reviewers and users will ask about:
 
@@ -61,14 +61,14 @@ Honest boundaries, because these are the things reviewers and users will ask abo
   "smart" summary mode is explicitly out of scope — that is what the agent's own
   compaction already does badly.
 - **Not a server.** No daemon, no port, no account, no telemetry, no network access at all.
-  A `dcompact` invocation is a short-lived local process.
+  A `dcompress` invocation is a short-lived local process.
 - **Not a transcript store.** It keeps extracted facts, not conversations. Snapshots are
   bounded (default 512 KiB serialized). Full transcripts stay where the agent put them.
 - **Not an agent.** It never edits source code, never runs project commands, never
   interprets instructions it reads. Transcript content is *data*, never input to act on.
 - **Not a quota or credential tool.** It has nothing to do with model accounts, usage, or
   auth.
-- **Not a replacement for the agent's compaction.** The agent still compacts; dcompact
+- **Not a replacement for the agent's compaction.** The agent still compacts; dcompress
   makes what survives the compaction *better*. It runs alongside, at hook points the agent
   already exposes.
 
@@ -88,7 +88,7 @@ Agents with no supported integration are covered by the generic fallback in §7.
 any readable transcript or SQLite conversation store rather than requiring an adapter.
 
 Tool calls in those transcripts are structured records: *which* tool, *which* path, *what*
-command, *what* error. That is the fact layer. dcompact reads it with rules.
+command, *what* error. That is the fact layer. dcompress reads it with rules.
 
 ### 4.1 Extracted facts
 
@@ -101,7 +101,7 @@ command, *what* error. That is the fact layer. dcompact reads it with rules.
 | `error.raised` / `error.fixed` | Failed tool result → later success on the same normalized error signature | Signature = normalized message + error class |
 | `decision.stated` | user turn first sentence under a decision cue lexicon (`use X instead`, `we will`, `don't`, `always`, `never`, `must`) | Cue match, not interpretation |
 | `todo.state` | agent todo/task tool payloads | Last-write-wins |
-| `git.state` | `git rev-parse HEAD`, `git status --porcelain`, `git diff --stat` executed by dcompact at snapshot time | Hash of porcelain output, not of the working tree |
+| `git.state` | `git rev-parse HEAD`, `git status --porcelain`, `git diff --stat` executed by dcompress at snapshot time | Hash of porcelain output, not of the working tree |
 | `plan.state` | OMP plan reference / agent plan tool | OMP-only; reported absent elsewhere |
 
 Every extractor is a pure function `(entries, config) → Fact[]` with a golden fixture. No
@@ -185,10 +185,10 @@ derived from the fact's own key and attrs, never from interpretation.
 
 Full conversation prose, assistant reasoning, model opinions, and file contents are not
 retained as transcript entries. A fact may carry a bounded transcript-derived snippet for
-context, so dcompact does not promise that all prose is absent. Secret redaction is not
+context, so dcompress does not promise that all prose is absent. Secret redaction is not
 implemented in the current Batch 1 code; it is planned for P12 before the v0.1 release.
 Until then, snippets may contain sensitive text supplied by the transcript, and snapshots
-must be handled as potentially sensitive. dcompact records *that* a file changed and its blob
+must be handled as potentially sensitive. dcompress records *that* a file changed and its blob
 hash, never the blob.
 
 ## 5. Deterministic canonicalization
@@ -229,9 +229,9 @@ stream, and install/remove hook entries in that agent's config format.
 ```mermaid
 flowchart TD
     subgraph User["User stays inside the agent"]
-        SC["/dcompact:restore<br/>slash command in TUI"]
+        SC["/dcompress:restore<br/>slash command in TUI"]
         TOOL["native / MCP tool<br/>model-callable"]
-        CLI["dcompact binary<br/>scripting + CI only"]
+        CLI["dcompress binary<br/>scripting + CI only"]
     end
 
     subgraph Agents["Coding agents (host processes)"]
@@ -311,14 +311,14 @@ Priority order of surfaces, per agent:
 
 | Tier | Surface | User experience | Session identity |
 |---|---|---|---|
-| **1** | Slash command inside the agent (`/dcompact:restore`) | Never leaves the TUI | From the agent |
+| **1** | Slash command inside the agent (`/dcompress:restore`) | Never leaves the TUI | From the agent |
 | **2** | Tool the model can call (MCP tool / native tool) | Agent invokes it, or user asks in prose | From the agent |
-| **3** | Terminal binary (`dcompact snapshot --session <id>`) | Scripting, CI, agents with no integration | Explicit, required |
+| **3** | Terminal binary (`dcompress snapshot --session <id>`) | Scripting, CI, agents with no integration | Explicit, required |
 
-**`/compact` is never replaced.** dcompact adds a command beside it. The user's existing
+**`/compact` is never replaced.** dcompress adds a command beside it. The user's existing
 compaction behaviour is untouched.
 
-**dcompact never guesses a session.** No "most recent", no "all of them". Unknown session →
+**dcompress never guesses a session.** No "most recent", no "all of them". Unknown session →
 exit 2 with the candidate list and the flag to disambiguate. A snapshot of the wrong session
 is a plausible-looking artifact about someone else's work, and the user cannot tell.
 
@@ -339,19 +339,19 @@ binary form is shown because it is the one that can be scripted.
 
 | Command | Purpose |
 |---|---|
-| `dcompact install --agent <name>` | Write hook entries and command files between markers; back up touched files first |
-| `dcompact uninstall --agent <name>` | Restore backups; remove markers and its own state |
-| `dcompact snapshot [--session <id>] [--full]` | Extract → canonicalize → hash → store; refuses without a session |
-| `dcompact list [--json]` | Snapshots for the current session, newest first |
-| `dcompact show <id\|latest>` | One snapshot; `--json`, `--payload`, `--envelope`, `--provenance` |
-| `dcompact verify [--all\|<id>] [--provenance]` | Recompute hashes; with `--provenance`, re-check every fact against the transcript |
-| `dcompact restore [--latest\|<id>] [--format text\|md\|json] [--budget <bytes>]` | Render the context pack |
-| `dcompact preview --transcript <path>` | Thin slice: facts → pack on stdout, no store (P6a premise test) |
-| `dcompact pin <id>` / `unpin <id>` | Protect a snapshot from retention |
-| `dcompact prune [--dry-run]` | Apply the retention policy explicitly |
-| `dcompact diff <a> <b>` | Fact-level diff between two snapshots |
-| `dcompact doctor [--json]` | Environment, adapter status, hook integrity, drift, budget |
-| `dcompact init [dir]` | Optional project-local store (`.dcompact/`) |
+| `dcompress install --agent <name>` | Write hook entries and command files between markers; back up touched files first |
+| `dcompress uninstall --agent <name>` | Restore backups; remove markers and its own state |
+| `dcompress snapshot [--session <id>] [--full]` | Extract → canonicalize → hash → store; refuses without a session |
+| `dcompress list [--json]` | Snapshots for the current session, newest first |
+| `dcompress show <id\|latest>` | One snapshot; `--json`, `--payload`, `--envelope`, `--provenance` |
+| `dcompress verify [--all\|<id>] [--provenance]` | Recompute hashes; with `--provenance`, re-check every fact against the transcript |
+| `dcompress restore [--latest\|<id>] [--format text\|md\|json] [--budget <bytes>]` | Render the context pack |
+| `dcompress preview --transcript <path>` | Thin slice: facts → pack on stdout, no store (P6a premise test) |
+| `dcompress pin <id>` / `unpin <id>` | Protect a snapshot from retention |
+| `dcompress prune [--dry-run]` | Apply the retention policy explicitly |
+| `dcompress diff <a> <b>` | Fact-level diff between two snapshots |
+| `dcompress doctor [--json]` | Environment, adapter status, hook integrity, drift, budget |
+| `dcompress init [dir]` | Optional project-local store (`.dcompress/`) |
 
 Exit codes: `0` success, `1` operational failure, `2` usage, `3` integrity failure
 (hash mismatch, provenance broken), `4` degraded but usable. Installed hooks always exit `0`
@@ -360,26 +360,26 @@ and report one of the finite schema states; there is no blocking mode.
 ### 6.3 Storage layout
 
 ```
-${XDG_DATA_HOME:-~/.local/share}/dcompact/
+${XDG_DATA_HOME:-~/.local/share}/dcompress/
   sessions/<adapter>-<session_id>/
     snapshots/<utc-iso>-<short-hash>.json
     manifest.json          # ordered index, retention metadata, pins
     lock                   # single-writer lock
   config.json              # retention, budgets, adapter overrides
   logs/                    # opt-in debug log (bounded, off by default)
-${XDG_CONFIG_HOME:-~/.config}/dcompact/
+${XDG_CONFIG_HOME:-~/.config}/dcompress/
   adapters/<agent>.json    # hook entries to install, transcript hints
   backups/<agent>-<ts>/    # pre-install copies of every file we touched
 ```
 
 These XDG-style defaults apply on Linux, macOS, and Windows; no platform-specific application
-directory substitutes them. `DCOMPACT_HOME`, when set, is the single state root containing the equivalent `sessions/`, `config.json`, `logs/`,
+directory substitutes them. `DCOMPRESS_HOME`, when set, is the single state root containing the equivalent `sessions/`, `config.json`, `logs/`,
 `adapters/`, and `backups/` subtrees; XDG variables are then ignored. State directories are
 private (`0700` where POSIX permissions apply) and files owner-readable/writable (`0600`, or
-the equivalent owner-only ACL on Windows). dcompact refuses symlinked state roots/directories
+the equivalent owner-only ACL on Windows). dcompress refuses symlinked state roots/directories
 and never follows them.
 
-`dcompact init` explicitly enables a project-local `.dcompact/` store. It is not the default,
+`dcompress init` explicitly enables a project-local `.dcompress/` store. It is not the default,
 does not replace the user-scoped store, and uses the same schema, private permissions, and
 canonicalization rules.
 
@@ -399,7 +399,7 @@ handlers. Every hook receives `session_id`, `transcript_path`, `cwd` on stdin.
 | Event | Matcher | Use | Control available |
 |---|---|---|---|
 | `SessionStart` | `startup\|resume\|clear\|compact\|fork` | Inject context pack | `hookSpecificOutput.additionalContext` |
-| `PreCompact` | `manual\|auto` | Snapshot *before* history is dropped (the critical one) | Agent permits control here; dcompact always returns `0` and never blocks compaction |
+| `PreCompact` | `manual\|auto` | Snapshot *before* history is dropped (the critical one) | Agent permits control here; dcompress always returns `0` and never blocks compaction |
 | `PostCompact` | `manual\|auto` | Snapshot again; receives `compact_summary` | none (side effects only) |
 | `SessionEnd` | — | Final snapshot; apply retention | none |
 | `Stop` / `SubagentStop` | — | Optional incremental snapshot per turn | `decision: "block"` (not used) |
@@ -408,7 +408,7 @@ Verified details that shape the design: `SessionEnd` and `PostCompact` cannot in
 context, so injection must ride `SessionStart` (source `compact` fires after compaction)
 and/or `PreCompact`. `SessionStart` with source `resume` reports
 `context_tokens`, `prompt_cache_likely_expired`, and `estimated_cache_write_usd`, which
-dcompact can surface in `doctor` to show what resuming a stale session costs.
+dcompress can surface in `doctor` to show what resuming a stale session costs.
 
 ### 7.2 Codex — full support (verified against docs; on-disk trust flow observed)
 
@@ -421,19 +421,19 @@ Two Codex-specific constraints that are design inputs, not footnotes:
 
 - **Trust review.** Non-managed hooks must be reviewed and trusted; trust is recorded
   against the hook's current hash, so *any edit to the hook command invalidates trust and
-  the hook is skipped until re-trusted*. dcompact's installer therefore treats "hook
+  the hook is skipped until re-trusted*. dcompress's installer therefore treats "hook
   installed" and "hook trusted" as separate states and reports the second one in `doctor`.
   The command string must be stable across versions — no timestamps, no version numbers,
   no absolute paths that change per install — or every upgrade silently disables itself.
 - **Concurrency and timeouts.** Multiple matching command hooks run concurrently, so a
-  dcompact hook cannot assume it is alone. `SessionEnd` and `Interrupt` default to a
-  1-second timeout (max 3); other events default to 600. dcompact hooks must return in
+  dcompress hook cannot assume it is alone. `SessionEnd` and `Interrupt` default to a
+  1-second timeout (max 3); other events default to 600. dcompress hooks must return in
   well under 1 second when they synchronously snapshot, or defer the work.
 
 ### 7.3 OMP / pi — full support (verified against OMP's own docs)
 
 The richest surface, because OMP extensions are in-process code with a real API, not shell
-hooks. A single `dcompact.ts` extension in `~/.omp/agent/extensions/` (or `.omp/extensions/`)
+hooks. A single `dcompress.ts` extension in `~/.omp/agent/extensions/` (or `.omp/extensions/`)
 registers:
 
 | Hook | Use |
@@ -445,7 +445,7 @@ registers:
 | `tool_call` / `tool_result` | Incremental fact capture without waiting for compaction |
 | `session_start` / `session_shutdown` | Load and flush state |
 
-Plus `pi.registerCommand("dcompact", …)` for `/dcompact` inside OMP, and the branch reader
+Plus `pi.registerCommand("dcompress", …)` for `/dcompress` inside OMP, and the branch reader
 `ctx.sessionManager.getBranch()` for journal access.
 
 **OMP's real entry model (measured, not assumed).** An earlier revision declared the
@@ -478,14 +478,14 @@ written. `§8` says *"Never inject on `PreCompact` (the payload would be summari
 that reasoning is **Claude-derived and does not generalize to OMP**, where the hook surface is
 richer:
 
-| OMP hook | Capability | What dcompact can do with it |
+| OMP hook | Capability | What dcompress can do with it |
 |---|---|---|
 | `session_before_compact` | Supply a **full `{ compaction: CompactionResult }`**, or `{ cancel }` | Register as a first-class **`compaction.methodOrder` entry** — a deterministic compaction method |
 | `session.compacting` | Contribute `{ context: string[] }` **into** the summary | Facts land *inside* the summary the model actually reads |
 | `context` | Inject into the LLM message array | The §8 plan covers only this one |
 
 `session.compacting` is not injection *before* summarization — it is a **contribution to** the
-summary. That is strictly better than injecting after, and it means dcompact's continuity can
+summary. That is strictly better than injecting after, and it means dcompress's continuity can
 be *through* compaction rather than *recovered after* it.
 
 **Adapter requirement:** the OMP adapter MUST register `session.compacting` to contribute the
@@ -495,7 +495,7 @@ consistent with invariant 5). For agents without this surface, §8's post-compac
 remains the mechanism.
 
 `useless` also exists as a flag on OMP tool results — the same concept as OMP's own
-`dropUseless` elision, and a signal dcompact can use rather than derive.
+`dropUseless` elision, and a signal dcompress can use rather than derive.
 
 OMP also *imports* other agents' commands (`~/.claude/commands`, `~/.codex/commands`,
 `~/.config/opencode/commands`, `.agents/commands`), which means a single OMP setup can
@@ -518,7 +518,7 @@ below is about **clients**, because that is what an MCP server definition actual
 
 **MCP cannot replace hooks, and the plan must not pretend otherwise.** An MCP tool fires only
 when something *chooses* to call it. An unattended agent that has already lost context does
-not know it has forgotten anything, so it will not call `dcompact_restore` on its own. Push
+not know it has forgotten anything, so it will not call `dcompress_restore` on its own. Push
 is the continuity mechanism; pull is a recovery and inspection mechanism.
 
 What MCP does buy, cheaply:
@@ -527,16 +527,16 @@ What MCP does buy, cheaply:
   shape in Claude Code, Cursor, Windsurf, and standalone `.mcp.json`; OMP additionally reads
   `.mcp.json` and `mcp.json` at the project root, and translates every other agent's native
   MCP config on discovery.
-- **Inspection without a TUI.** `dcompact_restore`, `dcompact_list`, `dcompact_verify`,
-  `dcompact_diff` become callable from the editor, so a user can ask "what did I do before
+- **Inspection without a TUI.** `dcompress_restore`, `dcompress_list`, `dcompress_verify`,
+  `dcompress_diff` become callable from the editor, so a user can ask "what did I do before
   the compaction?" in an agent that has no hook support.
-- **A `/dcompact` slash-command surface** in every agent that exposes MCP prompts.
+- **A `/dcompress` slash-command surface** in every agent that exposes MCP prompts.
 
-Server shape: **stdio**, no network, `npx -y dcompact mcp` or the resolved local binary. The
+Server shape: **stdio**, no network, `npx -y dcompress mcp` or the resolved local binary. The
 server reuses the engine directly — no new extraction code, no IPC protocol to design.
 
-Tools exposed (v1): `dcompact_restore` (bounded pack, same renderer and budget as the CLI),
-`dcompact_list`, `dcompact_show`, `dcompact_verify`, `dcompact_diff`.
+Tools exposed (v1): `dcompress_restore` (bounded pack, same renderer and budget as the CLI),
+`dcompress_list`, `dcompress_show`, `dcompress_verify`, `dcompress_diff`.
 
 Honest labelling: `doctor --json` reports `tier: "hooks"` or `tier: "mcp-only"` per agent.
 An MCP-only agent must never be described as having continuity.
@@ -544,9 +544,9 @@ An MCP-only agent must never be described as having continuity.
 ### 7.5 Everything else — honest fallback
 
 The tool still works without any integration, because the fact source need not come from a
-hook: `dcompact snapshot --from <transcript>` accepts a transcript path directly, and
-`dcompact restore` prints a pack a human can paste. For agents with neither hooks nor
-readable transcripts, `dcompact` degrades to a git/workspace tracker
+hook: `dcompress snapshot --from <transcript>` accepts a transcript path directly, and
+`dcompress restore` prints a pack a human can paste. For agents with neither hooks nor
+readable transcripts, `dcompress` degrades to a git/workspace tracker
 (`git.state` + file-mtime facts) with no error and no pretence of parity. The capability
 matrix in `doctor --json` is the contract: it tells the user what tier they are on.
 
@@ -560,7 +560,7 @@ a small mapper rather than a rewrite. Do not assume Pi compatibility — verify 
 ### 7.6 Install model (all agents)
 
 ```
-1. detect    → read target config, locate existing dcompact markers or format-specific owned fields
+1. detect    → read target config, locate existing dcompress markers or format-specific owned fields
 2. backup    → byte copy to backups/<agent>-<ts>/ with a recorded sha256; record absent targets
 3. render    → comment-capable formats use markers; JSON/TOML use declared owned fields/tables
 4. write     → atomic (temp file + rename), preserving file mode; refuse symlink targets
@@ -572,7 +572,7 @@ Rules: never rewrite a file whose parse fails; never touch a file outside the ad
 declared list; never install into a project-scoped config unless `--project` is given. An
 absent target may be created only when the adapter declares that safe; uninstall removes such
 a file only while its recorded managed content is unchanged. For an existing target,
-uninstall preserves edits outside dcompact's managed region and refuses if the managed region
+uninstall preserves edits outside dcompress's managed region and refuses if the managed region
 changed, reporting the exact next step rather than clobbering user edits. Multiple hosts do
 not coexist in one store — that is the multi-lane problem, and the answer is separate
 stores, not shared state.
@@ -584,7 +584,7 @@ Injection is bounded, ordered, and formatted for a model to read, not for a huma
 Pack format (default `md`, ~600 tokens, hard byte budget):
 
 ```
-[dcompact] session <id> · snapshot <id> · <n> facts · <k> from transcript
+[dcompress] session <id> · snapshot <id> · <n> facts · <k> from transcript
 FILES (7 modified, 4 read)
   M src/dispatch.ts          ← 3 edits, last after "retry loop" decision
   R migrations/0042.sql
@@ -603,10 +603,10 @@ Rules:
 - Facts marked `unbacked` (transcript rotated or truncated) are shown with an explicit
   marker, never silently dropped.
 - Over budget → retain as many ordered facts as fit, backfilling around oversized facts, and emit
-  `… (n facts elided, run dcompact show <id>)`; if no fact fits, report `degraded: budget-exceeded`
+  `… (n facts elided, run dcompress show <id>)`; if no fact fits, report `degraded: budget-exceeded`
   whenever the health line itself fits the explicit budget.
 - Injection is idempotent: repeated injection of the same snapshot is detected by marker
-  `[dcompact:<hash>]` in the injected text, and re-injection is skipped. A pack whose payload
+  `[dcompress:<hash>]` in the injected text, and re-injection is skipped. A pack whose payload
   changed replaces the existing managed block in place — bounded by an explicit sentinel, not by
   scanning for headings a target document may also contain — leaving surrounding content
   untouched and exactly one managed block behind.
@@ -618,7 +618,7 @@ Rules:
   | **Claude Code** | `SessionStart(source=compact\|resume).additionalContext` | Injected after compaction |
   | **Codex** | `SessionStart` (confirm in P4) | Injected after compaction |
 
-  dcompact must **not** inject on Claude's `PreCompact`: the payload would be summarized away.
+  dcompress must **not** inject on Claude's `PreCompact`: the payload would be summarized away.
   That reasoning does not transfer to OMP, where `session.compacting` contributes *into* the
   summary rather than preceding it. Applying one agent's constraint to another is how a
   design loses the better mechanism (CONCEPT §7.3.1).
@@ -696,7 +696,7 @@ Rules:
   mistaken for paths. They are evidence of work performed.
 - **No transcript written back into injected context.** Injection carries only normalized
   facts and short quoted snippets under a fixed character cap.
-- **Untrusted input.** Transcript content is data. dcompact never executes, evaluates,
+- **Untrusted input.** Transcript content is data. dcompress never executes, evaluates,
   interpolates into a shell, or follows instructions found in it. Path-shaped and
   command-shaped strings are validated (`isSafeRelativePath`, `isSafeCommandText`) before
   display, and control characters are stripped so a fact cannot forge pack structure.
@@ -734,10 +734,10 @@ explicitly.
 
 | Guarantee | Mechanism |
 |---|---|
-| dcompact never breaks an agent | Hooks exit `0` on any internal error; every hook body is wrapped; a hard wall-clock budget (default 400 ms for synchronous hook work) aborts extraction and reports one finite documented state |
-| dcompact never corrupts user config | Backup before edit, atomic writes, format-specific managed-region edits, symlink refusal, refuse-on-conflict, and uninstall that preserves outside edits or restores a clean file byte-identically |
-| dcompact never silently extracts nothing | Adapters declare an expected shape; an unknown shape reports `degraded: schema-drift`, while zero facts from a non-empty recognized transcript reports `degraded: extraction-empty` in `doctor` and the injected pack header |
-| dcompact never silently mis-extracts | Golden fixture per adapter with a recorded transcript hash; fixture hash mismatch → adapter marked `schema-drift`, extraction continues but every snapshot from that adapter is stamped `degraded: schema-drift` until a human updates the fixture |
+| dcompress never breaks an agent | Hooks exit `0` on any internal error; every hook body is wrapped; a hard wall-clock budget (default 400 ms for synchronous hook work) aborts extraction and reports one finite documented state |
+| dcompress never corrupts user config | Backup before edit, atomic writes, format-specific managed-region edits, symlink refusal, refuse-on-conflict, and uninstall that preserves outside edits or restores a clean file byte-identically |
+| dcompress never silently extracts nothing | Adapters declare an expected shape; an unknown shape reports `degraded: schema-drift`, while zero facts from a non-empty recognized transcript reports `degraded: extraction-empty` in `doctor` and the injected pack header |
+| dcompress never silently mis-extracts | Golden fixture per adapter with a recorded transcript hash; fixture hash mismatch → adapter marked `schema-drift`, extraction continues but every snapshot from that adapter is stamped `degraded: schema-drift` until a human updates the fixture |
 
 ### 11.2 Degraded states (first-class, not error strings)
 
@@ -758,7 +758,7 @@ header. A user must never have to infer that the tool is operating in a reduced 
 | Hook breakage | Agent changes hook schema; hook stops firing | `doctor` heartbeat: last-successful-hook timestamp per adapter | Hook exits 0, logs locally | Adapter definition update + version stamp |
 | Trust invalidation | Codex re-trusts required after an edit | `doctor` reads trust state where exposed | Reported as `untrusted` | Stable hook command string; documented `/hooks` step |
 | Store persistence failure | Disk full or store write failure | Hook output, `doctor`, or local diagnostic | Report `unavailable:store`; do not claim an envelope was written | Free space or repair the store, then retry |
-| Unexpected internal failure | Unanticipated dcompact bug | Fault boundary and diagnostic | Report `degraded: internal-error`; hook still exits 0 | Bug fix and regression test |
+| Unexpected internal failure | Unanticipated dcompress bug | Fault boundary and diagnostic | Report `degraded: internal-error`; hook still exits 0 | Bug fix and regression test |
 | Corrupt snapshot | Truncated write, power loss | Hash mismatch on read | Snapshot quarantined, never injected | Prune the bad file; `verify --all` |
 | Store race | Two agents snapshot the same session concurrently | Lock file with pid + mtime, stale-lock break | Second writer waits ≤1 s then writes a distinct snapshot | Atomic rename guarantees one winner |
 | Injection bloat | Pack exceeds budget on a huge session | Byte budget enforced before write | Groups dropped bottom-up, elision notice | Budget config |
@@ -810,7 +810,7 @@ Agents without a hook adapter are not excluded — they are served by the generi
 
 ### Resolved
 
-1. **macOS storage** → XDG on every platform with a `DCOMPACT_HOME` override. Settled in
+1. **macOS storage** → XDG on every platform with a `DCOMPRESS_HOME` override. Settled in
    [ADR 008](adr/008-storage-location.md) during OG-55.
 2. **Hooks never block the host** → installed hooks always return `0`, report only the finite
    states in §11.2; installed hooks have no blocking mode. If no pre-compaction hook exists,

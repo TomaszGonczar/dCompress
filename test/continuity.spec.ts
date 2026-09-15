@@ -13,7 +13,7 @@ import type { Fact, Payload } from "../src/core/types.js";
 const fixture = join(process.cwd(), "test", "fixtures", "claude", "slice-0001", "transcript.jsonl");
 
 function tempRoot(): string {
-  return mkdtempSync(join(tmpdir(), "dcompact-og85-"));
+  return mkdtempSync(join(tmpdir(), "dcompress-og85-"));
 }
 
 function fact(entry: number, text: string): Fact {
@@ -172,7 +172,7 @@ describe("Claude continuity slice", () => {
       expect(listCheckpoints({ root, sessionId: "fixture-session-0001" })).toHaveLength(1);
       const result = restore({ root, sessionId: "fixture-session-0001" });
       expect(new TextEncoder().encode(result.pack).byteLength).toBeLessThanOrEqual(16_384);
-      expect(result.pack).toContain("[dcompact:");
+      expect(result.pack).toContain("[dcompress:");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -191,7 +191,7 @@ describe("Claude continuity slice", () => {
       // One byte short must drop at least one fact and say so visibly.
       const short = restore({ root, sessionId: "fixture-session-0001", maxBytes: exact - 1 });
       expect(new TextEncoder().encode(short.pack).byteLength).toBeLessThanOrEqual(exact - 1);
-      expect(short.pack).toContain("[dcompact] elided");
+      expect(short.pack).toContain("[dcompress] elided");
       expect(short.pack).not.toBe(full.pack);
 
       // Below the mandatory header-plus-notice floor, restore refuses with the exact minimum
@@ -207,7 +207,7 @@ describe("Claude continuity slice", () => {
       expect(() => restore({ root, sessionId: "fixture-session-0001", maxBytes: minimum - 1 })).toThrow(ContinuityRefusal);
       expect(() => restore({ root, sessionId: "fixture-session-0001", maxBytes: minimum - 1 })).toThrow(new RegExp(`at least ${minimum}`));
       const atFloor = restore({ root, sessionId: "fixture-session-0001", maxBytes: minimum });
-      expect(atFloor.pack).toContain("## dcompact context [dcompact:");
+      expect(atFloor.pack).toContain("## dcompress context [dcompress:");
       expect(new TextEncoder().encode(atFloor.pack).byteLength).toBeLessThanOrEqual(minimum);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -239,7 +239,7 @@ describe("Claude continuity slice", () => {
       expect(replaced.text).toContain("Some human-authored content.");
       expect(replaced.text).toContain("beta decision");
       expect(replaced.text).not.toContain("alpha decision");
-      expect(replaced.text.match(/## dcompact context \[dcompact:/g) ?? []).toHaveLength(1);
+      expect(replaced.text.match(/## dcompress context \[dcompress:/g) ?? []).toHaveLength(1);
       writeFileSync(target, replaced.text);
 
       // The replacement is itself stable: injecting packB again changes nothing further.
@@ -367,7 +367,7 @@ describe("Claude continuity slice", () => {
       expect(runHook(input, "precompact", { root })).toBe("{}");
       const output = JSON.parse(runHook({ ...input, hook_event_name: "SessionStart", source: "compact" }, "session-start", { root })) as { hookSpecificOutput?: { additionalContext?: string } };
       const pack = output.hookSpecificOutput?.additionalContext ?? "";
-      expect(pack).toContain("[dcompact:");
+      expect(pack).toContain("[dcompress:");
       expect(injectPack(pack, pack).injected).toBe(false);
       const markerPath = join(root, "claude", "fixture-session-0001", "checkpoints", ".last-injected");
       expect(statSync(markerPath).mode & 0o777).toBe(0o600);
@@ -384,7 +384,7 @@ describe("Claude continuity slice", () => {
       runHook(input, "precompact", { root });
       const expectedPack = restore({ root, sessionId: input.session_id }).pack;
       const markerPath = join(root, "claude", input.session_id, "checkpoints", ".last-injected");
-      const marker = /^## dcompact context \[dcompact:[0-9a-f]{12}\]/m.exec(expectedPack)?.[0];
+      const marker = /^## dcompress context \[dcompress:[0-9a-f]{12}\]/m.exec(expectedPack)?.[0];
       expect(marker).toBeDefined();
       writeFileSync(markerPath, `${marker}\ncorrupt trailing state\n`);
       const output = runHook({ ...input, source: "compact" }, "session-start", { root });
