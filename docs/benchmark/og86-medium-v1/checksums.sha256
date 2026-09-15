@@ -6,7 +6,7 @@ ba05f7768af2b0439d11807e0684d6108de683c3d1c863a208a28ebc667c9f95  ../../../scrip
 ddafa4da10e7ca026221b71650d9a95ca065f83c8b35d17b7a8d835d9b3e8f9f  ../../../scripts/benchmark/og86-binding.mjs
 f8ee6070342dc1afd5e5480f5d5ae91d7fa2190eb7a072a250571df8aa600222  ../../../scripts/benchmark/privacy-scan-og86.mjs
 e6d515f2ae91d80cfbf7fccd841ab556d9e3a5c0f6cedd939eae97a9e40abb08  ../../../scripts/benchmark/run-og86-medium.mjs
-69ea4c37e902181ebdd29db55a20f25faa774c59ff71f9b740888e303e1f070d  ../../../scripts/benchmark/run-og86-stage0.mjs
+6b32632d8e11970647b5e1b986a9e0f294e2bcae95d11ef5004d275b46f07037  ../../../scripts/benchmark/run-og86-stage0.mjs
 38d77ee4c50750ba8adaaad7787b8aacaf7ec30864f3faa952e5076cfc3ca4df  ../../../scripts/benchmark/score-og86.mjs
 eda650fdb1f7051e6b57449d947e84e6ea43ebb362c88ceedeffed2d477926c7  ../../../test/og86-benchmark.spec.ts
 684541baca93f1da3855a6a6ff30becba9ceb4259571b94c3e409f2f9528eda9  ../../../test/og86-controller.spec.ts
@@ -15,14 +15,14 @@ eda650fdb1f7051e6b57449d947e84e6ea43ebb362c88ceedeffed2d477926c7  ../../../test/
 cb818cd12814c4203e6706ccf4e1f7e02b7b37084a8db6cad31223b5f81fcc1b  artifact-schema.json
 f30afda8c9f48548e4b49a95c706dc678169404b15d852a373b91ebb8806a7c4  atoms.json
 9d52ebdb810d526ab4b6b99480493191d2a36dd8321c622f35301d50c9bb505d  harness/hook.mjs
-eb114396f29c3f7e835b57df7866d0bc126367f3c05431f27b17da4588e8082a  harness/prepare-arm.mjs
+b732811b6f26057e0b58d5bdbfc6974a4576c9256fbc5a31828895c6e723915c  harness/prepare-arm.mjs
 87ca394d7dd5db3cc222879d577587d602ef6d4c2cede5487a20f6312b72d83d  harness/prepare-score-fork.mjs
 4600b3303594810008b3c4797d934a855e00ad653ff234a600762b7b9fa89b43  harness/score-fork-hook.mjs
 4d867887ede7f5598dec5961f0d499d1c9d241d9a783ceb1485b63bcde8c9e07  phase-prompts.json
 a6414f8ac21f53fc3c87e9e69dd7551117b5c4cbf20b024f0eb448b4a0aa9b68  preregistration.md
-b66a5169a1944a7efd29b40bb5c350db89810b607e40c5fbe6508426eb8be2b1  protocol.json
+ade00b8ea452581b9b232eade99540fe450499ea270d7026474b16098cb02876  protocol.json
 524b6c071baac415328317d6a7917da7154ea2a81912af629252929402f7347e  rubric.json
-abe5c59d46935c8f490caa22b51e37286e9ce2fbfca20e4caf3bbaf5e210860f  schedule.json
+f69aee07ec3e6c2417d883dd0546f5f903ff669e6ff6c0913cdd79b54e7c0b15  schedule.json
 d64fd76e047a1f4eca9df739087015cb8daab6a314a62aa157b988553a59e97a  stage0-plan.json
 17cfe08361290f21de82c9a46552a189da40a4b75301d01d78b2636bdab8a6cd  stage0-result.json
 f1dd8fe2f52bbcf881f28113bd42d99f4fb7d9ddcb1958db63846e72275a8888  stage0-workload/math.js
