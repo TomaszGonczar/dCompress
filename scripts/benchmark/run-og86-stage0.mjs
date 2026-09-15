@@ -149,26 +149,30 @@ export function claudeCall(args, cwd, outputPath) {
     // The thrown errors below report the shape rather than the payload.
     parseError = error instanceof Error ? error.message : String(error);
   }
+  // The JSON envelope, when present, is the authoritative outcome -- including
+  // for a call that exhausted its budget or otherwise reported failure through
+  // `is_error`. The CLI's exit code duplicates that same signal and must never
+  // be checked ahead of a parseable envelope, or a real, diagnosable result
+  // (e.g. `error_max_budget_usd`) reads as an opaque process crash instead of
+  // the named failure it actually is. Exit code is the fallback of last
+  // resort, only for a call that produced no usable envelope at all.
+  if (parseError === null && parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+    // A zero exit status is not success either: the envelope's own `is_error`
+    // is what decides, in both directions.
+    if (parsed.is_error !== false) {
+      throw new Error(`claude reported is_error=${parsed.is_error ?? "missing"}: subtype=${parsed.subtype ?? "unknown"}, api_error_status=${parsed.api_error_status ?? "none"}, errors=${JSON.stringify(parsed.errors ?? null)}`);
+    }
+    if (typeof parsed.total_cost_usd !== "number" || !Number.isFinite(parsed.total_cost_usd) || parsed.total_cost_usd < 0) {
+      throw new Error(`claude reported an invalid total_cost_usd: ${JSON.stringify(parsed.total_cost_usd ?? null)}`);
+    }
+    parsed.wallSeconds = wallSeconds;
+    return parsed;
+  }
   if (result.error || result.status !== 0) {
     throw new Error(`claude failed: status=${result.status}, stderr_bytes=${Buffer.byteLength(result.stderr || "")}`);
   }
   if (parseError !== null) throw new Error(`claude returned an unparseable envelope: ${parseError}`);
-  // A successful envelope is a non-array object: an array, null, or a bare
-  // primitive parses cleanly but carries no fields, so accepting it would let a
-  // malformed call read as a successful one.
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error(`claude envelope is not an object: ${Array.isArray(parsed) ? "array" : parsed === null ? "null" : typeof parsed}`);
-  }
-  // A zero exit status is not success: the CLI reports failures inside the JSON
-  // envelope, so `is_error` must be explicitly false.
-  if (parsed.is_error !== false) {
-    throw new Error(`claude reported is_error=${parsed.is_error ?? "missing"}: subtype=${parsed.subtype ?? "unknown"}, api_error_status=${parsed.api_error_status ?? "none"}`);
-  }
-  if (typeof parsed.total_cost_usd !== "number" || !Number.isFinite(parsed.total_cost_usd) || parsed.total_cost_usd < 0) {
-    throw new Error(`claude reported an invalid total_cost_usd: ${JSON.stringify(parsed.total_cost_usd ?? null)}`);
-  }
-  parsed.wallSeconds = wallSeconds;
-  return parsed;
+  throw new Error(`claude envelope is not an object: ${Array.isArray(parsed) ? "array" : parsed === null ? "null" : typeof parsed}`);
 }
 
 function common(settings, tools) {
@@ -569,7 +573,18 @@ function main() {
     // attribution is by record identity, because the fork file is a fresh file
     // whose row count (4 against the source's 30) says nothing about either
     // invocation on its own.
-    const forkPath = readFileSync(resolve(armRoot, "score-fork-transcript-path.txt"), "utf8").trim();
+    // The fork creation call runs under the source's plain settings (not the
+    // score-fork settings, which are prepared below and must engage only for
+    // the probe resume). The plain hook.mjs writes `transcript-path.txt`
+    // unconditionally on every event carrying `transcript_path`, including
+    // this fork's own SessionStart -- overwriting the source's own prior
+    // entry, which is why the source path was already captured into
+    // `transcriptPath` above rather than re-read from this file. Reading it
+    // right now, before anything else can overwrite it again, is the only
+    // place the fork's own path is ever knowable (run-og86-medium.mjs uses
+    // this exact same mechanism for the medium-series controller).
+    const forkPath = readFileSync(resolve(sourceRoot, "transcript-path.txt"), "utf8").trim();
+    if (forkPath === transcriptPath) throw new Error(`${arm}: fork transcript path matches the source`);
     const forkIdentitiesAfterCreation = assistantIdentities(forkPath);
 
     const prepared = JSON.parse(run(process.execPath, [prepareScore, "--private-root", armRoot, "--treatment", treatment]));

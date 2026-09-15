@@ -53,7 +53,11 @@ const settings = {
   hooks: {
     PreCompact: [{ matcher: "manual|auto", hooks: [{ type: "command", command: command("PreCompact"), timeout: 30 }] }],
     PostCompact: [{ matcher: "manual|auto", hooks: [{ type: "command", command: command("PostCompact"), timeout: 30 }] }],
-    SessionStart: [{ matcher: "resume|compact", hooks: [{ type: "command", command: command("SessionStart"), timeout: 30 }] }],
+    // Every SessionStart, not just resume|compact: --fork-session reports a
+    // source this matcher must not silently exclude, and hook.mjs's own
+    // source-specific branches (not this outer matcher) are what decide
+    // behavior per source, exactly like PreToolUse already does with ".*".
+    SessionStart: [{ matcher: ".*", hooks: [{ type: "command", command: command("SessionStart"), timeout: 30 }] }],
     PreToolUse: [{ matcher: "Read|Edit|Write|Glob|Grep|Bash", hooks: [{ type: "command", command: command("PreToolUse"), timeout: 10 }] }],
   },
 };
