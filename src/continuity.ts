@@ -9,6 +9,8 @@ import { canonicalize } from "./core/canonical.js";
 import { payloadHash } from "./core/hash.js";
 import { DEFAULT_MAX_BYTES, minimumPackBytes, renderPack } from "./core/pack.js";
 import type { DegradedState, Envelope, PackOptions, Payload, Snapshot } from "./core/types.js";
+import { DEFAULT_CONTEXT_WATERMARK_PPM, evaluateWatermark, INITIAL_WATERMARK_ARM_STATE } from "./core/watermark.js";
+import type { WatermarkArmState, WatermarkOutcome } from "./core/watermark.js";
 
 const STORE_SCHEMA = "1.0.0";
 const CANONICALIZATION = 3;
@@ -403,6 +405,7 @@ export function listCheckpoints(options: ContinuityStoreOptions & { readonly ses
   refuseSymlink(dir, "checkpoint directory");
   refuseSymlink(injectionMarkerPath(options.root, options.sessionId), "injection marker");
   refuseSymlink(injectionEpochPath(options.root, options.sessionId), "injection epoch");
+  refuseSymlink(watermarkStatePath(options.root, options.sessionId), "watermark state");
   if (!existsSync(dir)) return [];
   let names: string[];
   try {
@@ -529,6 +532,74 @@ function writeInjectionEpoch(path: string, epoch: number, pending: boolean): voi
   renameSync(temp, path);
 }
 
+function watermarkStatePath(root: string, sessionId: string): string {
+  return join(sessionDirectory(root, sessionId), ".watermark-state");
+}
+
+/** Exported so `doctor` can report the same arm state rather than keep a second source of truth. */
+export function readWatermarkState(root: string, sessionId: string): WatermarkArmState {
+  const path = watermarkStatePath(root, sessionId);
+  refuseSymlink(path, "watermark state");
+  try {
+    const parts = readFileSync(path, "utf8").trim().split(/\s+/);
+    const epoch = Number(parts[0]);
+    if (!Number.isSafeInteger(epoch) || epoch < 0 || (parts[1] !== "fired" && parts[1] !== "armed")) return INITIAL_WATERMARK_ARM_STATE;
+    return { epoch, fired: parts[1] === "fired" };
+  } catch {
+    return INITIAL_WATERMARK_ARM_STATE;
+  }
+}
+
+function writeWatermarkState(root: string, sessionId: string, state: WatermarkArmState): void {
+  const path = watermarkStatePath(root, sessionId);
+  refuseSymlink(path, "watermark state");
+  const temp = `${path}.tmp-${process.pid}`;
+  writeFileSync(temp, `${state.epoch} ${state.fired ? "fired" : "armed"}\n`, { encoding: "utf8", mode: 0o600 });
+  chmodSync(temp, 0o600);
+  renameSync(temp, path);
+}
+
+export interface ContextWatermarkOptions extends ContinuityStoreOptions {
+  readonly sessionId: string;
+  readonly transcriptPath: string;
+  /**
+   * Claude's registered PreCompact/SessionStart hook payloads carry no token telemetry
+   * (docs/ADAPTER-SPEC.md §2, measured): PreCompact is exactly `{trigger, custom_instructions}`
+   * and SessionStart's disposable probe recorded only `cwd`, `hook_event_name`, `session_id`,
+   * `source`, `transcript_path`. dcompress never invents a field to fill this in, so the live
+   * Claude integration always calls this with `undefined` and the outcome is always
+   * `threshold-unsupported`. The parameters exist so the epoch/idempotency/re-arm mechanics are
+   * fully implemented and tested against confirmed telemetry the moment Claude documents one.
+   */
+  readonly usedTokens?: unknown;
+  readonly contextLimitTokens?: unknown;
+  readonly ppmThreshold?: number;
+}
+
+export interface ContextWatermarkResult {
+  readonly outcome: WatermarkOutcome;
+  /** Present only when `outcome.action === "fire"` and the extra checkpoint succeeded. */
+  readonly checkpoint: CheckpointResult | null;
+}
+
+/**
+ * Evaluate the context-watermark guardrail for one session and fire an extra checkpoint when it
+ * crosses the threshold for the first time this epoch (CONCEPT §7.1, OG-81). A failure while
+ * firing propagates like any other `checkpoint()` failure; `runHook` is what makes that fail
+ * open, exactly as it already does for the unconditional PreCompact checkpoint.
+ */
+export function observeContextWatermark(options: ContextWatermarkOptions): ContextWatermarkResult {
+  const sessionId = safeSessionId(options.sessionId);
+  ensureStoreDirectories(options.root, sessionId);
+  const epoch = readInjectionEpoch(injectionEpochPath(options.root, sessionId)).epoch;
+  const previous = readWatermarkState(options.root, sessionId);
+  const outcome = evaluateWatermark(options.usedTokens, options.contextLimitTokens, epoch, options.ppmThreshold ?? DEFAULT_CONTEXT_WATERMARK_PPM, previous);
+  writeWatermarkState(options.root, sessionId, outcome.state);
+  if (outcome.action !== "fire") return { outcome, checkpoint: null };
+  const result = checkpoint({ root: options.root, now: options.now, sessionId, transcriptPath: options.transcriptPath });
+  return { outcome, checkpoint: result };
+}
+
 export function restore(options: RestoreOptions): { readonly pack: string; readonly payload: Payload } {
   const merged = mergedRestore(options);
   const payload = merged.payload;
@@ -569,6 +640,10 @@ export function runHook(input: HookInput, event: "precompact" | "session-start",
     }
     const source = input.source;
     if (source !== "compact" && source !== "resume") return JSON.stringify({});
+    // OG-81 context-watermark guardrail: `usedTokens`/`contextLimitTokens` are always
+    // `undefined` here (see `ContextWatermarkOptions`), so this always resolves
+    // `threshold-unsupported` against Claude's real hook payload today.
+    observeContextWatermark({ ...options, sessionId, transcriptPath: input.transcript_path, usedTokens: undefined, contextLimitTokens: undefined });
     const result = restore({ ...options, sessionId });
     const marker = markerFor(result.pack);
     const markerPath = injectionMarkerPath(options.root, sessionId);
