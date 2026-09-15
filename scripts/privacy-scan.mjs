@@ -84,6 +84,11 @@ const ALLOWLIST = [
     literal: "agent@dcompress.local",
     reason: "the sandbox's throwaway git identity, committed by tools/agent-run; a non-routable mDNS name, not an address",
   },
+  {
+    id: "sandbox-git-identity-pre-rebrand",
+    literal: "agent@dcompact.local",
+    reason: "the sandbox's throwaway git identity under the tool's former name, present in history before the dcompact-to-dcompress rebrand; the same non-routable mDNS name as sandbox-git-identity, spelled the old way",
+  },
 ];
 
 /**
