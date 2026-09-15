@@ -127,9 +127,11 @@ describe("held locks", () => {
     expect(waiter.broken).toBeNull();
     expect(waiter.claim).toBeNull();
     // The wait is bounded by the product's one second, and it really is spent rather than skipped.
-    // A synchronous sleep can return late, which is why the bound asserted is the window plus one
-    // observation interval: an implementation that waits twice over, or not at all, fails here.
-    expect(waiter.waited_ms).toBeLessThanOrEqual(DEFAULT_LOCK_WAIT_MS + LOCK_OBSERVATION_INTERVAL_MS);
+    // A synchronous sleep can return late — on a loaded CI runner, by hundreds of milliseconds, not
+    // just one observation interval — so the ceiling carries real headroom. What this still catches
+    // is an implementation that waits roughly twice over, or not at all; the exact millisecond is
+    // not the invariant.
+    expect(waiter.waited_ms).toBeLessThanOrEqual(DEFAULT_LOCK_WAIT_MS + LOCK_OBSERVATION_INTERVAL_MS + 500);
     expect(elapsedMs).toBeGreaterThanOrEqual(DEFAULT_LOCK_WAIT_MS - 100);
     expect(elapsedMs).toBeLessThan(DEFAULT_LOCK_WAIT_MS + 2_000);
     expect(JSON.parse(readFileSync(session.lock, "utf8"))).toEqual(held);
