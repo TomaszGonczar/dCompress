@@ -2,7 +2,7 @@
   "series": "OG86-medium-v1",
   "phases": 4,
   "manualCompactions": 4,
-  "armOrderSeedCommit": "6ee1fc4130f30db7ad77c7689e2651cee5b124c3",
+  "armOrderSeedCommit": "cd365fc7779ab88cc9a00791a04032f473879c00",
   "armOrderDerivation": "sort A, B, C by sha256(\"OG86-medium-v1|<freezeCommit>|<arm>\"); no arm order is fixed before freezeCommit exists",
   "sequencePerPhase": [
     "send frozen phase prompt to source session",
