@@ -1062,6 +1062,25 @@ process.stdout.write(JSON.stringify({ points: scored.points, denominator: scored
     expect(result.points).toBe(100);
   });
 
+  it("accepts the rubric's own half-point granularity and rejects any other fraction", () => {
+    // Real bug, from the fifth --execute attempt: arm B's real phase-1
+    // response scored 7.5/25 -- an odd count of partial (0.5-point) outcomes
+    // -- and scoreValid's old Number.isInteger(points) check rejected that
+    // exact, valid result as malformed.
+    const verdicts = evaluate<Record<string, boolean>>(`
+process.stdout.write(JSON.stringify({
+  halfPoint: controller.scoreValid({ points: 7.5, denominator: 25 }),
+  wholePoint: controller.scoreValid({ points: 6, denominator: 25 }),
+  offGranularity: controller.scoreValid({ points: 7.3, denominator: 25 }),
+  negativePoints: controller.scoreValid({ points: -0.5, denominator: 25 }),
+}));
+`);
+    expect(verdicts.halfPoint).toBe(true);
+    expect(verdicts.wholePoint).toBe(true);
+    expect(verdicts.offGranularity).toBe(false);
+    expect(verdicts.negativePoints).toBe(false);
+  });
+
   it("rejects a malformed scorer result", () => {
     const verdicts = evaluate<Record<string, boolean>>(`
 process.stdout.write(JSON.stringify({

@@ -577,11 +577,23 @@ export function materializeProbeResponse(text) {
   return { response: parsed, refusal: null };
 }
 
-/** A score is admissible only if it carries integer points and a denominator. */
+/**
+ * A score is admissible only if it carries a non-negative points total at the
+ * rubric's own granularity and an integer denominator.
+ *
+ * `points` is not required to be a whole integer: score-og86.mjs's own rubric
+ * (`points: { exact: 1, partial: 0.5, missing: 0, contradiction: 0 }`) awards
+ * 0.5 per partial match, so a real response with an odd count of partial
+ * outcomes legitimately totals a half-integer (measured: arm B's real phase-1
+ * response scored 7.5/25). Requiring `Number.isInteger(points)` rejected that
+ * exact, valid result as malformed. `points * 2` being an integer is the
+ * correct granularity check: it accepts every value the rubric can actually
+ * produce and nothing else.
+ */
 export function scoreValid(score) {
   return score !== null && typeof score === "object"
-    && Number.isInteger(score.points) && Number.isInteger(score.denominator)
-    && score.denominator > 0;
+    && typeof score.points === "number" && Number.isFinite(score.points) && score.points >= 0 && Number.isInteger(score.points * 2)
+    && Number.isInteger(score.denominator) && score.denominator > 0;
 }
 
 /**
