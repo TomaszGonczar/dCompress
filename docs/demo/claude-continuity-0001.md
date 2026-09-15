@@ -369,11 +369,15 @@ rather than falling back to a silent default.
   3da26aee53f9b49b773f8e86756c3a39cc8161f068cdcae3b92a57b3a106ebd1.json   checkpoint 2
   .injection-epoch                                                         2 delivered
   .last-injected                                                           the marker of step 6
+  .watermark-state                                                         0 armed
 ```
 
 Two checkpoints, chained by `previous_hash`, named after the payload hash they contain. Directories
 and files are created `0700`/`0600`; a symlinked state path is refused rather than followed. The
-injection epoch is the delivery ledger, and it is the reason steps 4 and 7 are empty.
+injection epoch is the delivery ledger, and it is the reason steps 4 and 7 are empty. The watermark
+state stays `0 armed` throughout: Claude's `PreCompact`/`SessionStart` payloads carry no `used`/
+`limit` token telemetry (`ADAPTER-SPEC.md` §2, measured), so the OG-81 guardrail always degrades to
+`threshold-unsupported` and never observes an epoch worth arming.
 
 ## What survived the compaction
 

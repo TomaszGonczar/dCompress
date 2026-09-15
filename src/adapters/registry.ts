@@ -130,6 +130,20 @@ export interface AdapterFixtureRecord {
   readonly shape: readonly string[];
 }
 
+/**
+ * OG-81 capability declaration: whether this adapter provides the context-watermark guardrail
+ * and the exact hook-payload fields it reads `used`/`limit` telemetry from. `null` field names
+ * mean the fields are `[unverified]` in `ADAPTER-SPEC.md` — the guardrail must degrade to
+ * `threshold-unsupported` rather than guess one, even when `supported` is `true`.
+ */
+export interface AdapterContextWatermarkCapability {
+  readonly supported: boolean;
+  readonly used_tokens_field: string | null;
+  readonly context_limit_tokens_field: string | null;
+  readonly source_event: string | null;
+  readonly evidence: string;
+}
+
 export interface AdapterDefinition {
   readonly schema_version: 1;
   readonly adapter: AdapterId;
@@ -146,6 +160,8 @@ export interface AdapterDefinition {
   readonly tools: AdapterToolVocabulary;
   readonly decision_cues: readonly string[];
   readonly fixtures: readonly AdapterFixtureRecord[];
+  /** `null` when the definition declares no watermark capability at all. */
+  readonly context_watermark: AdapterContextWatermarkCapability | null;
 }
 
 export interface AdapterDiagnostic {
@@ -493,6 +509,26 @@ export function parseAdapterDefinition(value: unknown): AdapterDefinitionParse {
 
   if (fixtures.length === 0) problems.at("fixtures", "expected at least one verified fixture");
 
+  const contextWatermarkSource = value.context_watermark;
+  let contextWatermark: AdapterContextWatermarkCapability | null = null;
+  if (contextWatermarkSource !== undefined) {
+    const watermarkObject = isObject(contextWatermarkSource) ? contextWatermarkSource : null;
+    if (watermarkObject === null) {
+      problems.at("context_watermark", "expected an object");
+    } else {
+      const supported = watermarkObject.supported;
+      if (typeof supported !== "boolean") problems.at("context_watermark.supported", "expected a boolean");
+      const usedTokensField = optionalString(watermarkObject, "used_tokens_field", "context_watermark.used_tokens_field", problems);
+      const contextLimitTokensField = optionalString(watermarkObject, "context_limit_tokens_field", "context_watermark.context_limit_tokens_field", problems);
+      const sourceEvent = optionalString(watermarkObject, "source_event", "context_watermark.source_event", problems);
+      const marker = problems.string(watermarkObject, "evidence", "context_watermark.evidence");
+      if (marker !== null && !EVIDENCE_MARKER.test(marker)) problems.at("context_watermark.evidence", "expected a docs: or observed: marker");
+      if (typeof supported === "boolean" && marker !== null && EVIDENCE_MARKER.test(marker)) {
+        contextWatermark = { supported, used_tokens_field: usedTokensField, context_limit_tokens_field: contextLimitTokensField, source_event: sourceEvent, evidence: marker };
+      }
+    }
+  }
+
   // The null checks repeat what the readers above already recorded; they exist so the compiler
   // can see the narrowing. A missing value is always a recorded problem, so a failure here never
   // reports an empty problem list.
@@ -538,6 +574,7 @@ export function parseAdapterDefinition(value: unknown): AdapterDefinitionParse {
     tools: { exact: lookupTable(exactEntries), prefixes },
     decision_cues: [...decisionCues],
     fixtures,
+    context_watermark: contextWatermark,
   };
   return { ok: true, definition: deepFreeze(definition) };
 }
@@ -740,4 +777,29 @@ export function extractWithAdapter<TP extends AdapterParseResult>(
     drift,
     coverage: coverageReport(extracted.payload, read.parse.events, read.config.toolKinds),
   };
+}
+
+export interface ContextWatermarkCapability {
+  readonly adapter: AdapterId;
+  readonly supported: boolean;
+  readonly used_tokens_field: string | null;
+  readonly context_limit_tokens_field: string | null;
+  readonly source_event: string | null;
+  /** `null` only when nothing declares this capability at all — never a fabricated marker. */
+  readonly evidence: string | null;
+}
+
+/**
+ * OG-81 capability matrix: whether one adapter provides the context-watermark guardrail, and the
+ * exact fields it reads telemetry from. This reads adapter data — the shipped definition, or its
+ * absence — rather than branching on the adapter id, so Codex and OMP (no shipped definition;
+ * OG-63/OG-64 are unbuilt) and the generic fallback (no hook surface to observe) are
+ * `unsupported` because there is nothing to read, never a hardcoded `if (adapter === "claude")`.
+ */
+export function contextWatermarkCapability(adapter: AdapterId, definition: AdapterDefinition | null): ContextWatermarkCapability {
+  const declared = definition?.context_watermark;
+  if (declared === null || declared === undefined) {
+    return { adapter, supported: false, used_tokens_field: null, context_limit_tokens_field: null, source_event: null, evidence: null };
+  }
+  return { adapter, ...declared };
 }

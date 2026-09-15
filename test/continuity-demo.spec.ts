@@ -355,6 +355,7 @@ describe("continuity demo document", () => {
     expect(readdirSync(checkpoints).sort()).toEqual([
       ".injection-epoch",
       ".last-injected",
+      ".watermark-state",
       `${second.hash.slice(7)}.json`,
       `${first.hash.slice(7)}.json`,
     ]);
@@ -362,8 +363,12 @@ describe("continuity demo document", () => {
     // second one: the ledger the document prints at the end of the walkthrough.
     expect(readFileSync(join(checkpoints, ".injection-epoch"), "utf8")).toBe("2 delivered\n");
     expect(readFileSync(join(checkpoints, ".last-injected"), "utf8")).toBe(`${marker}\n`);
+    // Claude's payloads never carry token telemetry (ADAPTER-SPEC.md §2), so the watermark
+    // guardrail never observes an epoch worth arming and the state file never advances past 0.
+    expect(readFileSync(join(checkpoints, ".watermark-state"), "utf8")).toBe("0 armed\n");
     expect(demo).toContain("2 delivered");
     expect(demo).toContain(marker);
+    expect(demo).toContain("0 armed");
 
     // A stored checkpoint must chain to the previous one and hash to its own name, or the document's
     // claim that the two files form one verified chain is unbacked.

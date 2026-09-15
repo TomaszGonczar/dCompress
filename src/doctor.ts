@@ -14,11 +14,14 @@
  * "read-only" would be a second source of truth that can drift from the one writers use.
  */
 
+import { claudeDefinition } from "./adapters/mappers.js";
+import { contextWatermarkCapability } from "./adapters/registry.js";
 import { fixedClock } from "./core/clock.js";
 import type { Clock } from "./core/clock.js";
 import { mergeCheckpointPayloads } from "./core/continuity.js";
 import { DEFAULT_MAX_BYTES, renderPack } from "./core/pack.js";
 import type { DegradedState, Payload } from "./core/types.js";
+import { DEFAULT_CONTEXT_WATERMARK_PPM } from "./core/watermark.js";
 import { DEFAULT_STALE_LOCK_MS, acquireLock } from "./store/lock.js";
 import { readManifest } from "./store/manifest.js";
 import { sessionPaths } from "./store/paths.js";
@@ -94,6 +97,23 @@ export interface DoctorAdapterHealth {
   readonly by_tool_name: null;
 }
 
+/**
+ * OG-81 per-adapter capability matrix (CONCEPT §7.1, ADAPTER-SPEC.md §2). `capability` is
+ * whether this adapter implements the guardrail at all — `unsupported` for Codex, OMP, and the
+ * generic fallback, which have no adapter definition to declare one (OG-63/OG-64 are unbuilt).
+ * `state` is the live trigger outcome: `threshold-unsupported` while the field names ADAPTER-
+ * SPEC.md has not confirmed stay `null`, which is Claude's state today too — a supported
+ * mechanism with nothing yet to read telemetry from is still honestly reported, never a
+ * fabricated `armed`/`fired`.
+ */
+export interface DoctorContextWatermarkReport {
+  readonly capability: "supported" | "unsupported";
+  readonly used_tokens_field: string | null;
+  readonly context_limit_tokens_field: string | null;
+  readonly ppm_threshold: number;
+  readonly state: "threshold-unsupported" | "unsupported";
+}
+
 export interface DoctorReport {
   readonly adapter: string;
   readonly session_id: string;
@@ -105,9 +125,41 @@ export interface DoctorReport {
   readonly adapter_health: DoctorAdapterHealth;
   /** Every degraded/unavailable state from CONCEPT §11.2 currently in effect for this session. */
   readonly degraded: readonly DegradedState[];
+  readonly context_watermark: DoctorContextWatermarkReport;
 }
 
 const NO_ADAPTER_HEALTH: DoctorAdapterHealth = Object.freeze({ coverage_ppm: null, unmapped_tool_calls: null, by_kind: null, by_tool_name: null });
+
+/**
+ * The only adapter definition this checkout ships. A broken `claude.json` degrades the
+ * capability report to `unsupported` rather than throw doctor into a stack trace over a
+ * capability declaration, which is exactly the "no thrown errors for an absent/unsupported
+ * state" contract doctor already holds for every other section.
+ */
+function loadedClaudeDefinitionOrNull(): Parameters<typeof contextWatermarkCapability>[1] {
+  try {
+    return claudeDefinition();
+  } catch {
+    return null;
+  }
+}
+
+function contextWatermarkReport(adapter: string): DoctorContextWatermarkReport {
+  const isClaude = adapter === "claude";
+  const capability = contextWatermarkCapability(isClaude ? "claude" : "generic", isClaude ? loadedClaudeDefinitionOrNull() : null);
+  if (!capability.supported) {
+    return { capability: "unsupported", used_tokens_field: null, context_limit_tokens_field: null, ppm_threshold: DEFAULT_CONTEXT_WATERMARK_PPM, state: "unsupported" };
+  }
+  return {
+    capability: "supported",
+    used_tokens_field: capability.used_tokens_field,
+    context_limit_tokens_field: capability.context_limit_tokens_field,
+    ppm_threshold: DEFAULT_CONTEXT_WATERMARK_PPM,
+    // Both fields stay `null` above (ADAPTER-SPEC.md §2, measured): there is no confirmed field
+    // to read used/limit telemetry from yet, so the guardrail always degrades to this state.
+    state: "threshold-unsupported",
+  };
+}
 
 /**
  * Recover the finite tokens `renderPack`'s header actually rendered.
@@ -159,6 +211,7 @@ export function doctor(options: DoctorOptions): DoctorReport {
       lock: null,
       adapter_health: NO_ADAPTER_HEALTH,
       degraded: ["unavailable:store"],
+      context_watermark: contextWatermarkReport(paths.adapter),
     };
   }
 
@@ -195,6 +248,7 @@ export function doctor(options: DoctorOptions): DoctorReport {
     lock,
     adapter_health: adapterHealth,
     degraded,
+    context_watermark: contextWatermarkReport(paths.adapter),
   };
 }
 
@@ -215,6 +269,7 @@ export function formatDoctorReport(report: DoctorReport): string {
   if (!report.store.usable) {
     lines.push(`refusal: ${report.store.refusal}`);
     lines.push(`health: ${report.degraded.length === 0 ? "ok" : report.degraded.join(", ")}`);
+    lines.push(`context watermark: ${report.context_watermark.capability} | state=${report.context_watermark.state}`);
     return lines.join("\n");
   }
   if (report.manifest) lines.push(`manifest: ${report.manifest.rebuilt ? `rebuilt (${report.manifest.reason})` : "consistent"}`);
@@ -229,5 +284,6 @@ export function formatDoctorReport(report: DoctorReport): string {
     `adapter health: coverage=${report.adapter_health.coverage_ppm ?? "n/a"} ppm | unmapped=${report.adapter_health.unmapped_tool_calls ?? "n/a"} | by_kind=${report.adapter_health.by_kind ? JSON.stringify(report.adapter_health.by_kind) : "n/a"}`,
   );
   lines.push(`health: ${report.degraded.length === 0 ? "ok" : report.degraded.join(", ")}`);
+  lines.push(`context watermark: ${report.context_watermark.capability} | state=${report.context_watermark.state} | ppm_threshold=${report.context_watermark.ppm_threshold}`);
   return lines.join("\n");
 }
