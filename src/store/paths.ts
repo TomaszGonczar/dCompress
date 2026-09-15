@@ -1,7 +1,7 @@
 /**
  * Store root resolution and the session layout (CONCEPT §6.3, ADR 008).
  *
- * `DCOMPACT_HOME` → `XDG_DATA_HOME/dcompact` → `$HOME/.local/share/dcompact`, on every
+ * `DCOMPRESS_HOME` → `XDG_DATA_HOME/dcompress` → `$HOME/.local/share/dcompress`, on every
  * platform: one layout to document, back up, and delete. The environment is read only here,
  * at the I/O boundary, and never reaches a hashed payload.
  *
@@ -16,8 +16,8 @@ import { ensurePrivateDirectory } from "./fs.js";
 import { StoreRefusal, describeValue } from "./types.js";
 import type { SessionLocator, SessionPaths, StoreEnvironment } from "./types.js";
 
-/** The XDG data subdirectory; `DCOMPACT_HOME` is the root itself and skips this level. */
-const DEFAULT_DATA_DIRECTORY = "dcompact";
+/** The XDG data subdirectory; `DCOMPRESS_HOME` is the root itself and skips this level. */
+const DEFAULT_DATA_DIRECTORY = "dcompress";
 
 const SESSION_ID_TOKEN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 
@@ -42,15 +42,15 @@ function absoluteRoot(value: string, label: string): string {
 
 /** Resolve the store root from the environment, refusing rather than guessing. */
 export function storeRoot(env: StoreEnvironment = process.env): string {
-  if (env.DCOMPACT_HOME !== undefined) return absoluteRoot(env.DCOMPACT_HOME, "DCOMPACT_HOME");
+  if (env.DCOMPRESS_HOME !== undefined) return absoluteRoot(env.DCOMPRESS_HOME, "DCOMPRESS_HOME");
   if (env.XDG_DATA_HOME !== undefined) return join(absoluteRoot(env.XDG_DATA_HOME, "XDG_DATA_HOME"), DEFAULT_DATA_DIRECTORY);
   if (env.HOME !== undefined) return join(absoluteRoot(env.HOME, "HOME"), ".local", "share", DEFAULT_DATA_DIRECTORY);
-  throw new StoreRefusal("home-unset", "Cannot locate the dcompact store: DCOMPACT_HOME, XDG_DATA_HOME, and HOME are all unset. Set DCOMPACT_HOME to an absolute path, or set HOME.");
+  throw new StoreRefusal("home-unset", "Cannot locate the dcompress store: DCOMPRESS_HOME, XDG_DATA_HOME, and HOME are all unset. Set DCOMPRESS_HOME to an absolute path, or set HOME.");
 }
 
 export function validateSessionId(value: string): string {
   if (!SESSION_ID_TOKEN.test(value)) {
-    throw new StoreRefusal("invalid-session-id", `Session id ${describeValue(value)} is not a bounded token (1-128 characters, first character a letter or digit, then letters, digits, dot, underscore, or hyphen). Fix the caller's session id; dcompact will not sanitize it into a different session.`);
+    throw new StoreRefusal("invalid-session-id", `Session id ${describeValue(value)} is not a bounded token (1-128 characters, first character a letter or digit, then letters, digits, dot, underscore, or hyphen). Fix the caller's session id; dcompress will not sanitize it into a different session.`);
   }
   return value;
 }
@@ -84,7 +84,7 @@ export function sessionPaths(locator: SessionLocator): SessionPaths {
 }
 
 /**
- * Create the store hierarchy, private (`0700`) and symlink-free at every level dcompact owns.
+ * Create the store hierarchy, private (`0700`) and symlink-free at every level dcompress owns.
  *
  * Ancestors above the root are the user's own XDG directories, so only the components the store
  * defines — root, `sessions/`, the session directory, `snapshots/` — are checked and chmodded.

@@ -14,14 +14,14 @@ reasoning. Copying them into a second store would increase retention, disk use, 
 and the number of places a user must trust. It would also make a continuity snapshot a
 transcript archive rather than a compact, auditable handoff.
 
-dcompact needs only the durable signals required to resume work: atomic facts such as a file
+dcompress needs only the durable signals required to resume work: atomic facts such as a file
 change, command, error transition, user decision, todo state, or git state. A fact can point
 back to the source line through the provenance fields defined by the schema without copying
 the source line itself.
 
 ## Decision
 
-dcompact stores extracted facts and the schema-defined counters, provenance references,
+dcompress stores extracted facts and the schema-defined counters, provenance references,
 degraded states, and envelope metadata. It does not store transcript entries, full
 conversation prose, assistant reasoning, or file contents. Facts may include bounded,
 transcript-derived snippets for human-readable context; these are not a transcript archive.
@@ -37,12 +37,12 @@ locations belong in the envelope or other non-hashed metadata.
 
 The default serialized snapshot budget is 512 KiB, and the context pack is independently
 size-budgeted. A missing, rotated, or changed transcript makes provenance degraded; it does
-not cause dcompact to retain a copy or silently preserve unsupported facts.
+not cause dcompress to retain a copy or silently preserve unsupported facts.
 
 ## Consequences
 
 - Snapshots are small enough to inspect, back up, diff, and inject after compaction.
-- The privacy and retention boundary is narrower: dcompact owns derived state, while the
+- The privacy and retention boundary is narrower: dcompress owns derived state, while the
   agent owns the conversation archive.
 - `verify --provenance` requires the original transcript to still be readable. A snapshot
   can remain hash-valid while its evidence is reported as unbacked or drifted, as the schema

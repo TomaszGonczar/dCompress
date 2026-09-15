@@ -5,7 +5,7 @@ contributors.
 
 ## What this project is
 
-`dcompact` — deterministic session continuity for coding agents. Rule-based extraction
+`dcompress` — deterministic session continuity for coding agents. Rule-based extraction
 from agent transcripts into hash-addressed, verifiable session snapshots.
 
 Read in this order before writing code:
@@ -27,7 +27,7 @@ These are the product. Breaking one is not a bug, it is a regression of the prem
 3. **Core is pure.** Nothing under `src/core/**` may import `fs`, `child_process`, `net`,
    `http`, `https`, `dns`, `tls`, or read `process.env`. Clock and I/O are injected.
 4. **No network at runtime.** No HTTP client anywhere in the runtime path.
-5. **Reversible install.** Every file dcompact edits is backed up and restorable
+5. **Reversible install.** Every file dcompress edits is backed up and restorable
    byte-identical. `uninstall` is a first-class command, not an afterthought.
 6. **A hook never fails its host.** Hook entry points exit `0` on any internal error and
    report a degraded state instead. Availability of the agent outranks recording.
@@ -37,7 +37,7 @@ These are the product. Breaking one is not a bug, it is a regression of the prem
    session identity is unavailable, error with the candidate list and require an explicit id.
    A snapshot of the wrong session is a plausible-looking artifact about someone else's work,
    and the user cannot tell. See [ADR 001](docs/adr/001-invocation-surface-and-session-identity.md).
-9. **`/compact` is never replaced.** dcompact adds commands beside the agent's own; it never
+9. **`/compact` is never replaced.** dcompress adds commands beside the agent's own; it never
    shadows, intercepts, or redefines them.
 10. **The user stays in their agent.** The primary surface is a command inside the coding
     agent, not a terminal binary. The binary is for scripting and CI. If a design pushes the
@@ -58,7 +58,7 @@ These are the product. Breaking one is not a bug, it is a regression of the prem
   wrong fact is worse than a missing one, because it is injected with the same confidence as
   a right one.
 - **Prefer a refusal to a clever repair.** `install` refuses on an unparseable config;
-  `uninstall` refuses when dcompact's managed region was edited, while preserving edits
+  `uninstall` refuses when dcompress's managed region was edited, while preserving edits
   outside that region. Each refusal prints the exact next step.
 
 ## Commit format
@@ -86,13 +86,13 @@ Scope is the module (`core`, `store`, `adapters`, `mcp`, `cli`, `docs`).
 
 - Do not add runtime dependencies without an explicit decision recorded in `docs/adr/`.
 - Do not commit `.env`, credentials, tokens, or real session transcripts.
-- Do not edit files outside this repository. `dcompact install` is tested against fixtures
+- Do not edit files outside this repository. `dcompress install` is tested against fixtures
   and disposable configs, never against a live agent configuration.
 - Do not write a summary of the work as documentation. If a change needs explanation, the
   explanation belongs in the commit body, the PR description, or an ADR.
 
 ## Where the work is tracked
 
-Linear project **Vstorm Portfolio + Technical CV**, milestone **M1 — dcompact**.
+Linear project **Vstorm Portfolio + Technical CV**, milestone **M1 — dcompress**.
 Issues `OG-55` … `OG-71` are the phase plan in execution order.
 The board is the source of truth for what is next; this file is the source of truth for how.

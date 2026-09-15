@@ -383,7 +383,7 @@ describe("claude mapper edge cases", () => {
     expect(() => claudeExtractConfig(parse, definition)).not.toThrow();
     expect(JSON.stringify(parse.events)).not.toContain(POST_COMPACT_BOUNDARY_SENTINEL);
 
-    const directory = mkdtempSync(join(tmpdir(), "dcompact-compact-boundary-"));
+    const directory = mkdtempSync(join(tmpdir(), "dcompress-compact-boundary-"));
     try {
       const transcript = join(directory, "boundary-only.jsonl");
       writeFileSync(transcript, bytes);
@@ -753,12 +753,12 @@ describe("preview CLI", () => {
     const result = capture(["preview", "--transcript", fixturePath]);
 
     expect(result.status).toBe(0);
-    expect(result.stdout.startsWith("## dcompact context [dcompact:")).toBe(true);
+    expect(result.stdout.startsWith("## dcompress context [dcompress:")).toBe(true);
     expect(result.stdout).toContain("- **file.modified** `src/util.ts`");
     expect(result.stdout).toContain("- **error.fixed**");
     expect(result.stderr).toContain("health: ok");
     expect(result.stderr).toContain("coverage: 1000000 ppm");
-    expect(result.stderr).not.toContain("## dcompact context");
+    expect(result.stderr).not.toContain("## dcompress context");
     expect(result.stdout).not.toContain("payload hash:");
   });
 
@@ -802,7 +802,7 @@ describe("preview CLI", () => {
     expect(result.status).toBe(0);
     // The status is in the stdout pack, not only in the stderr report.
     expect(result.stdout).toContain("\nStatus: ok\n");
-    expect(result.stdout.split("\n")[0]).toMatch(/^## dcompact context \[dcompact:[0-9a-f]{12}\]$/);
+    expect(result.stdout.split("\n")[0]).toMatch(/^## dcompress context \[dcompress:[0-9a-f]{12}\]$/);
     expect(result.stdout.split("\n")[1]).toBe("Status: ok");
     expect(result.stderr).toContain("health: ok");
   });
@@ -873,7 +873,7 @@ describe("preview CLI", () => {
   });
 
   it("states schema-drift on stdout and claims no effect when a call has no result", () => {
-    const directory = mkdtempSync(join(tmpdir(), "dcompact-cli-"));
+    const directory = mkdtempSync(join(tmpdir(), "dcompress-cli-"));
     try {
       const file = join(directory, "unpaired.jsonl");
       writeFileSync(
@@ -901,7 +901,7 @@ describe("preview CLI", () => {
   });
 
   it("states schema-drift health in the stdout pack for unknown records", () => {
-    const directory = mkdtempSync(join(tmpdir(), "dcompact-cli-"));
+    const directory = mkdtempSync(join(tmpdir(), "dcompress-cli-"));
     try {
       const mixed = join(directory, "mixed.jsonl");
       const lines = [
@@ -925,7 +925,7 @@ describe("preview CLI", () => {
   });
 
   it("states schema-drift health in the stdout pack for a malformed line", () => {
-    const directory = mkdtempSync(join(tmpdir(), "dcompact-cli-"));
+    const directory = mkdtempSync(join(tmpdir(), "dcompress-cli-"));
     try {
       const broken = join(directory, "broken.jsonl");
       const good = JSON.stringify({
@@ -948,7 +948,7 @@ describe("preview CLI", () => {
   });
 
   it("reports extraction-empty in the pack header for an empty transcript", () => {
-    const directory = mkdtempSync(join(tmpdir(), "dcompact-cli-"));
+    const directory = mkdtempSync(join(tmpdir(), "dcompress-cli-"));
     try {
       const empty = join(directory, "empty.jsonl");
       // A recognized conversation record with no extractable content: no drift, no facts.
@@ -967,7 +967,7 @@ describe("preview CLI", () => {
   });
 
   it("combines parser drift and extraction-empty into one deterministic status", () => {
-    const directory = mkdtempSync(join(tmpdir(), "dcompact-cli-"));
+    const directory = mkdtempSync(join(tmpdir(), "dcompress-cli-"));
     try {
       const file = join(directory, "drift-only.jsonl");
       // A recognized conversation record with a cwd but no extractable content, plus one
@@ -990,7 +990,7 @@ describe("preview CLI", () => {
   });
 
   it("degrades schema drift and reports the exact diagnostics", () => {
-    const directory = mkdtempSync(join(tmpdir(), "dcompact-cli-"));
+    const directory = mkdtempSync(join(tmpdir(), "dcompress-cli-"));
     try {
       const mixed = join(directory, "mixed.jsonl");
       const lines = [
@@ -1012,7 +1012,7 @@ describe("preview CLI", () => {
   });
 
   it("refuses a transcript whose cwd is absent rather than guessing one", () => {
-    const directory = mkdtempSync(join(tmpdir(), "dcompact-cli-"));
+    const directory = mkdtempSync(join(tmpdir(), "dcompress-cli-"));
     try {
       const noCwd = join(directory, "no-cwd.jsonl");
       writeFileSync(
@@ -1065,7 +1065,7 @@ describe("preview CLI", () => {
     const atMinimum = capture(["preview", "--transcript", fixturePath, "--max-bytes", String(minimum)]);
     expect(atMinimum.status).toBe(0);
     expect(new TextEncoder().encode(atMinimum.stdout).byteLength).toBeLessThanOrEqual(minimum);
-    expect(atMinimum.stdout).toContain("## dcompact context [dcompact:");
+    expect(atMinimum.stdout).toContain("## dcompress context [dcompress:");
     expect(atMinimum.stdout).toContain("elided 9 facts");
 
     // One byte below it is refused, which is what makes the reported number the boundary.
@@ -1105,8 +1105,8 @@ describe("packaging", () => {
       readonly repository?: { readonly url?: string };
     };
 
-    expect(manifest.bin?.dcompact).toBe("dist/cli.js");
-    expect(Object.keys(manifest.bin ?? {})).toEqual(["dcompact"]);
+    expect(manifest.bin?.dcompress).toBe("dist/cli.js");
+    expect(Object.keys(manifest.bin ?? {})).toEqual(["dcompress"]);
     // P6a adds no runtime dependency: the CLI only uses `node:fs` and `node:url`.
     expect(manifest.dependencies ?? {}).toEqual({});
     // `private` is the guard against an accidental publish while the roadmap is unfinished; the
@@ -1115,7 +1115,7 @@ describe("packaging", () => {
     expect(manifest.license).toBe("MIT");
     // Matches the README subtitle, so the packed tarball and the repository say the same thing.
     expect(manifest.description).toBe("Deterministic, rule-based memory for coding agents — no model in the extraction path.");
-    expect(manifest.repository?.url).toContain("github.com/TomaszGonczar/dcompact");
+    expect(manifest.repository?.url).toContain("github.com/TomaszGonczar/dcompress");
   });
 
   it("ships the MIT license text the README points at", () => {
@@ -1136,7 +1136,7 @@ describe("packaging", () => {
   // uses). A build emitted outside the package tree therefore needs that directory beside it,
   // which is what this symlink reproduces — the same layout the published package ships.
   it("runs the compiled entry through a bin symlink without going silent", () => {
-    const directory = mkdtempSync(join(tmpdir(), "dcompact-bin-"));
+    const directory = mkdtempSync(join(tmpdir(), "dcompress-bin-"));
     try {
       const outDir = join(directory, "dist");
       execFileSync(process.execPath, [join(process.cwd(), "node_modules", "typescript", "bin", "tsc"), "--project", "tsconfig.build.json", "--outDir", outDir], {
@@ -1145,7 +1145,7 @@ describe("packaging", () => {
       });
       symlinkSync(join(process.cwd(), "adapters"), join(directory, "adapters"));
       const entry = join(outDir, "cli.js");
-      const link = join(directory, "dcompact");
+      const link = join(directory, "dcompress");
       symlinkSync(entry, link);
 
       const stdout = execFileSync(process.execPath, [link, "preview", "--transcript", fixturePath], {
@@ -1153,7 +1153,7 @@ describe("packaging", () => {
         stdio: ["ignore", "pipe", "ignore"],
       });
 
-      expect(stdout.startsWith("## dcompact context [dcompact:")).toBe(true);
+      expect(stdout.startsWith("## dcompress context [dcompress:")).toBe(true);
       expect(stdout).toContain("- **file.modified** `src/util.ts`");
 
       // The exit-code contract must survive packaging too, since the guard runs before `run`.

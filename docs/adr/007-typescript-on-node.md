@@ -8,7 +8,7 @@
 
 ## Context
 
-dcompact needs one implementation shared by a CLI, short-lived hook commands, agent
+dcompress needs one implementation shared by a CLI, short-lived hook commands, agent
 adapters, and the core extraction engine. Hooks are launched as commands by host agents, so
 installation should not require a separate daemon, runtime service, or language-specific
 environment. The core also needs strict types around fact and snapshot shapes because schema
@@ -20,7 +20,7 @@ the pure core. The repository is an ESM project targeting Node 20 and 22.
 
 ## Decision
 
-dcompact is implemented in strict TypeScript, emitted and run as ESM on Node 20+ (with Node
+dcompress is implemented in strict TypeScript, emitted and run as ESM on Node 20+ (with Node
 20 and 22 in CI). The distributable CLI and hook entry points use Node's standard library;
 runtime dependencies are kept to the reviewed minimum and no network client is introduced.
 Core modules remain pure and do not import Node I/O or read `process.env`; adapters, store,

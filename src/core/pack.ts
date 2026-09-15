@@ -115,9 +115,9 @@ export function formatDegradedStates(degraded: readonly DegradedState[]): string
 }
 
 function header(payload: Payload, degraded: readonly DegradedState[] | undefined): string[] {
-  const marker = `[dcompact:${payloadHash(payload).slice(7, 19)}]`;
+  const marker = `[dcompress:${payloadHash(payload).slice(7, 19)}]`;
   return [
-    `## dcompact context ${marker}`,
+    `## dcompress context ${marker}`,
     ...(degraded === undefined ? [] : [`Status: ${formatDegradedStates(degraded)}`]),
     `Facts: ${payload.counters.facts} | external: ${payload.counters.external_path_count} | unmapped: ${payload.counters.unmapped_tool_calls} | coverage: ${payload.counters.coverage_ppm} ppm`,
     `Source entries: ${payload.counters.source_entries} | tool calls: ${payload.counters.source_tool_calls}`,
@@ -152,7 +152,7 @@ export function minimumPackBytes(payload: Payload, options?: Pick<PackOptions, "
 
   let candidate = headerBytes;
   while (true) {
-    const notice = `> [dcompact] elided ${total} fact${total === 1 ? "" : "s"} to fit ${candidate} UTF-8 bytes.`;
+    const notice = `> [dcompress] elided ${total} fact${total === 1 ? "" : "s"} to fit ${candidate} UTF-8 bytes.`;
     const required = byteLength(`${[...base, notice].join("\n")}\n`);
     if (required <= candidate) return candidate;
     candidate = required;
@@ -169,12 +169,12 @@ export function renderPack(payload: Payload, options?: PackOptions): string {
   const eligibleFacts = orderedFacts.slice(0, maxFacts);
   const base = header(payload, options?.degraded);
   const includeEvidence = options?.includeEvidence === true;
-  const notice = (count: number): string => `> [dcompact] elided ${count} fact${count === 1 ? "" : "s"} to fit ${maxBytes} UTF-8 bytes.`;
+  const notice = (count: number): string => `> [dcompress] elided ${count} fact${count === 1 ? "" : "s"} to fit ${maxBytes} UTF-8 bytes.`;
   const mandatory = (count: number): string => `${[...base, notice(count)].join("\n")}\n`;
   const baseResult = `${base.join("\n")}\n`;
-  if (byteLength(baseResult) > maxBytes) throw new RangeError("maxBytes cannot contain the mandatory dcompact header");
+  if (byteLength(baseResult) > maxBytes) throw new RangeError("maxBytes cannot contain the mandatory dcompress header");
 
-  if (payload.facts.length > 0 && byteLength(mandatory(payload.facts.length)) > maxBytes) throw new RangeError("maxBytes cannot contain the mandatory dcompact header and elision notice");
+  if (payload.facts.length > 0 && byteLength(mandatory(payload.facts.length)) > maxBytes) throw new RangeError("maxBytes cannot contain the mandatory dcompress header and elision notice");
   // Select individual facts in the canonical display order. This keeps the best ordered prefix
   // while backfilling around an unusually large fact instead of dropping its entire group.
   const selectedFacts: Fact[] = [];
@@ -198,7 +198,7 @@ export function renderPack(payload: Payload, options?: PackOptions): string {
   const groupsToRender = groups(selectedFacts);
   const body = renderGroups(groupsToRender, includeEvidence);
   const result = `${[...base, ...body, ...(omittedCount > 0 ? [notice(omittedCount)] : [])].join("\n").replace(/\n+$/, "")}\n`;
-  if (byteLength(result) > maxBytes) throw new RangeError("maxBytes cannot contain the mandatory dcompact header and elision notice");
+  if (byteLength(result) > maxBytes) throw new RangeError("maxBytes cannot contain the mandatory dcompress header and elision notice");
   return result;
 }
 

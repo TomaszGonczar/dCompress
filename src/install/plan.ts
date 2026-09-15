@@ -61,12 +61,12 @@ export interface OriginalFileRecord {
  * The install record written beside the backup.
  *
  * It exists so that a later uninstall can decide without guessing: `original.file` restores the
- * pre-install bytes, `managed` recognizes dcompact's own entries in the current file, and
+ * pre-install bytes, `managed` recognizes dcompress's own entries in the current file, and
  * `installed.sha256` distinguishes "our file, untouched since install" from "the user edited it"
- * for a target that dcompact created.
+ * for a target that dcompress created.
  */
 export interface InstallRecord {
-  readonly record_schema: "dcompact.install/1";
+  readonly record_schema: "dcompress.install/1";
   readonly agent: "claude";
   readonly installed_at: string;
   /** `prepared` until the settings write and its verification both succeed. */
@@ -112,7 +112,7 @@ export interface InstallPlan {
   readonly record: InstallRecord;
 }
 
-export const RECORD_SCHEMA = "dcompact.install/1";
+export const RECORD_SCHEMA = "dcompress.install/1";
 
 function timestamp(now: () => number): string {
   // Colons are legal in POSIX filenames but not on Windows, and this name becomes a directory.
@@ -138,10 +138,10 @@ function backupDirectory(root: string, agent: string, stamp: string): string {
 }
 
 /**
- * Classify dcompact's managed region, refusing anything dcompact cannot prove is its own.
+ * Classify dcompress's managed region, refusing anything dcompress cannot prove is its own.
  *
  * The refusal classes here are the ways a JSON managed region goes wrong, and each one names the
- * file and the offending entry. The return value is the index of dcompact's own entry per event,
+ * file and the offending entry. The return value is the index of dcompress's own entry per event,
  * which is all the planner needs to keep an entry in place instead of appending a second one.
  */
 function scanManagedRegion(
@@ -151,7 +151,7 @@ function scanManagedRegion(
   expected: Record<string, HookEntry | undefined>,
 ): ReadonlyMap<string, number> {
   // Every event's shape is read before any entry is classified, so a malformed hooks.<Event>
-  // anywhere in the file is refused even when that event is not one dcompact manages.
+  // anywhere in the file is refused even when that event is not one dcompress manages.
   const matchedIndices = new Map<string, number>();
   for (const event of Object.keys(hooks)) {
     const groups = eventGroups(hooks, event, settingsPath);
@@ -163,13 +163,13 @@ function scanManagedRegion(
       if (grammar.store !== storeRoot) {
         throw new InstallRefusal(
           "managed-region-foreign-store",
-          `Refusing to edit ${JSON.stringify(settingsPath)}: hooks.${event}[${index}] already contains a dcompact hook command targeting store ${JSON.stringify(grammar.store)}, and this install writes hooks for ${JSON.stringify(storeRoot)}. One settings file carries hooks for one store: remove that entry (or uninstall the install that wrote it), then re-run.`,
+          `Refusing to edit ${JSON.stringify(settingsPath)}: hooks.${event}[${index}] already contains a dcompress hook command targeting store ${JSON.stringify(grammar.store)}, and this install writes hooks for ${JSON.stringify(storeRoot)}. One settings file carries hooks for one store: remove that entry (or uninstall the install that wrote it), then re-run.`,
         );
       }
       if (grammar.hookEvent !== managedEventFor(event)?.hookEvent) {
         throw new InstallRefusal(
           "managed-entry-moved",
-          `Refusing to edit ${JSON.stringify(settingsPath)}: hooks.${event}[${index}] is a dcompact ${JSON.stringify(grammar.hookEvent)} hook sitting under the ${JSON.stringify(event)} event. dcompact never writes that pairing, so the entry was moved by hand; restore the file from its backup or fix the entry, then re-run.`,
+          `Refusing to edit ${JSON.stringify(settingsPath)}: hooks.${event}[${index}] is a dcompress ${JSON.stringify(grammar.hookEvent)} hook sitting under the ${JSON.stringify(event)} event. dcompress never writes that pairing, so the entry was moved by hand; restore the file from its backup or fix the entry, then re-run.`,
         );
       }
       const wanted = expected[event];
@@ -177,13 +177,13 @@ function scanManagedRegion(
       if (!isDeepStrictEqual(group, wanted)) {
         throw new InstallRefusal(
           "managed-region-edited",
-          `Refusing to edit ${JSON.stringify(settingsPath)}: the dcompact entry at hooks.${event}[${index}] was edited after it was installed (it reads ${JSON.stringify(group)}). dcompact will not overwrite a hand edit: restore the file from the recorded backup, or delete that entry and re-run install.`,
+          `Refusing to edit ${JSON.stringify(settingsPath)}: the dcompress entry at hooks.${event}[${index}] was edited after it was installed (it reads ${JSON.stringify(group)}). dcompress will not overwrite a hand edit: restore the file from the recorded backup, or delete that entry and re-run install.`,
         );
       }
       if (matchedIndices.has(event)) {
         throw new InstallRefusal(
           "managed-entry-duplicate",
-          `Refusing to edit ${JSON.stringify(settingsPath)}: hooks.${event} contains the same dcompact entry at index ${matchedIndices.get(event)} and index ${index}. Installing again would leave both firing; remove one, then re-run.`,
+          `Refusing to edit ${JSON.stringify(settingsPath)}: hooks.${event} contains the same dcompress entry at index ${matchedIndices.get(event)} and index ${index}. Installing again would leave both firing; remove one, then re-run.`,
         );
       }
       matchedIndices.set(event, index);
@@ -195,7 +195,7 @@ function scanManagedRegion(
 export function planInstall(options: InstallOptions): InstallPlan {
   const settingsPath = resolve(options.settingsPath);
   const storeRoot = resolve(options.storeRoot);
-  const executable = options.executable ?? "dcompact";
+  const executable = options.executable ?? "dcompress";
   const now = options.now ?? Date.now;
   assertSafeCommandToken("hook executable", executable, "--command");
   assertSafeCommandToken("state root", storeRoot, "--store");

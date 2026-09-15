@@ -1,5 +1,5 @@
 {
-  "name": "dcompact",
+  "name": "dcompress",
   "version": "0.1.0",
   "private": true,
   "description": "Deterministic, rule-based memory for coding agents — no model in the extraction path.",
@@ -9,7 +9,7 @@
     "node": ">=20"
   },
   "bin": {
-    "dcompact": "dist/cli.js"
+    "dcompress": "dist/cli.js"
   },
   "files": [
     "dist",
@@ -17,12 +17,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/TomaszGonczar/dcompact.git"
+    "url": "git+https://github.com/TomaszGonczar/dcompress.git"
   },
   "bugs": {
-    "url": "https://github.com/TomaszGonczar/dcompact/issues"
+    "url": "https://github.com/TomaszGonczar/dcompress/issues"
   },
-  "homepage": "https://github.com/TomaszGonczar/dcompact#readme",
+  "homepage": "https://github.com/TomaszGonczar/dcompress#readme",
   "keywords": [
     "coding-agents",
     "context-compaction",
