@@ -159,8 +159,8 @@ function usage(): string {
     "  --unpin               pin only: clear the snapshot's pinned flag instead of setting it.",
     "  --provenance          verify only: re-read the transcript and check each fact's evidence.",
     "  --adapter <name>      Adapter id for doctor's session store. Default claude.",
-    "  --json                list/show/verify/prune/pin/doctor: print the documented JSON shape",
-    "                        instead of text.",
+    "  --json                preview/list/show/verify/prune/pin/doctor: print the documented",
+    "                        JSON shape instead of text.",
     "  --help, -h            Print this usage.",
     "",
     "Exit codes (CONCEPT §6.2):",
@@ -502,8 +502,9 @@ function parseUninstallArgs(argv: readonly string[]): InstallArgs | "help" {
   return { agent, settingsPath: settings ?? defaultClaudeSettingsPath(), storeRoot: store, dryRun };
 }
 
-export function parsePreviewArgs(argv: readonly string[]): PreviewOptions | "help" {
+export function parsePreviewArgs(argv: readonly string[]): (PreviewOptions & { readonly json: boolean }) | "help" {
   let transcript: string | null = null;
+  let json = false;
   const pack: { maxBytes?: number; maxFacts?: number; includeEvidence?: boolean } = {};
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -534,6 +535,10 @@ export function parsePreviewArgs(argv: readonly string[]): PreviewOptions | "hel
       pack.includeEvidence = true;
       continue;
     }
+    if (flag === "--json") {
+      json = true;
+      continue;
+    }
     throw new UsageError("unknown-argument", `Unknown argument: ${JSON.stringify(flag)}`);
   }
 
@@ -543,7 +548,7 @@ export function parsePreviewArgs(argv: readonly string[]): PreviewOptions | "hel
       "preview requires an explicit --transcript <path>; no session is ever chosen for you.",
     );
   }
-  return { transcript, pack };
+  return { transcript, pack, json };
 }
 
 /** Physical lines under the same LF rule the mapper uses, for reporting only. */
@@ -624,6 +629,30 @@ export function preview(options: PreviewOptions): PreviewResult {
   }
 
   return { pack, payload, diagnostics: parse.diagnostics, degraded, coverage, report: `${lines.join("\n")}\n` };
+}
+
+/**
+ * `preview --json`'s documented shape: every structured value `PreviewResult` carries, minus
+ * the two pre-rendered text streams (`pack`, `report`) `--json` replaces rather than duplicates.
+ * `payload_hash` is recomputed here instead of added to `PreviewResult`, because it is already a
+ * pure function of `payload` and every direct caller of `preview()` already has that payload.
+ */
+export interface PreviewJson {
+  readonly payload: Payload;
+  readonly payload_hash: string;
+  readonly coverage: CoverageReport;
+  readonly diagnostics: readonly ClaudeDiagnostic[];
+  readonly degraded: readonly DegradedState[];
+}
+
+function previewJson(result: PreviewResult): PreviewJson {
+  return {
+    payload: result.payload,
+    payload_hash: payloadHash(result.payload),
+    coverage: result.coverage,
+    diagnostics: result.diagnostics,
+    degraded: result.degraded,
+  };
 }
 
 function resolveSession(args: { readonly session: string; readonly store?: string }): SessionPaths {
@@ -1052,6 +1081,10 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
       return EXIT_OK;
     }
     const result = preview(parsed);
+    if (parsed.json) {
+      io.stdout(`${JSON.stringify(previewJson(result), null, 2)}\n`);
+      return EXIT_OK;
+    }
     io.stdout(result.pack);
     io.stderr(result.report);
     return EXIT_OK;
