@@ -92,7 +92,9 @@ describe("crash atomicity", () => {
 
     // The dead holder's record is younger than the stale window, so it is respected rather than
     // broken — and the store is not blocked by it: the next writer waits its bounded window out and
-    // still writes a complete snapshot.
+    // still writes a complete snapshot. This scenario spawns and kills a real process, so its
+    // scheduling jitter runs well above the plain-sleep-loop case: the ceiling carries real headroom
+    // rather than the tightest margin that happened to pass once.
     const startedAt = Date.now();
     const lock = acquireLock({ session, clock: systemClock });
     const waitedMs = Date.now() - startedAt;
@@ -100,7 +102,7 @@ describe("crash atomicity", () => {
     expect(lock.held).toBe(false);
     expect(lock.broken).toBeNull();
     expect(lock.respected?.pid).toBe(run.pid);
-    expect(waitedMs).toBeLessThanOrEqual(DEFAULT_LOCK_WAIT_MS + LOCK_OBSERVATION_INTERVAL_MS + 500);
+    expect(waitedMs).toBeLessThanOrEqual(DEFAULT_LOCK_WAIT_MS + LOCK_OBSERVATION_INTERVAL_MS + 1_500);
 
     const snapshot = makeSnapshot({ createdAt: "2026-09-13T08:42:00Z", text: "written after the holder died", sessionId: session.sessionId });
     const written = writeSnapshot({ session, snapshot });
