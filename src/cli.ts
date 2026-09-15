@@ -3,8 +3,8 @@
  * `dcompact` CLI — deterministic preview plus the OG-85 explicit-session continuity slice.
  *
  * `preview` reads one transcript, maps it, extracts facts, and prints the pack. The continuity
- * commands use an explicit session and task-owned store; there is no install or session
- * discovery.
+ * and store commands use an explicit session and an explicit store; `install`/`uninstall` edit
+ * one named Claude settings file inside a managed region and never discover a session.
  *
  * Identity rule (AGENTS §"Non-negotiable invariants" 8): a session is never guessed. This
  * command requires an explicit `--transcript <path>`; it does not scan `~/.claude/projects`,
@@ -15,21 +15,38 @@
  */
 
 import { readFileSync, realpathSync } from "node:fs";
+import { basename } from "node:path";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { parseClaudeTranscript, claudeExtractConfig, ClaudeTranscriptRefusal } from "./adapters/claude.js";
+import { readClaudeTranscript } from "./adapters/mappers.js";
+import { ClaudeTranscriptRefusal } from "./adapters/claude.js";
 import type { ClaudeDiagnostic } from "./adapters/claude.js";
+import { AdapterDefinitionRefusal } from "./adapters/registry.js";
+import type { CoverageReport } from "./adapters/coverage.js";
 import { checkpoint, restore, runHook, ContinuityRefusal } from "./continuity.js";
-import { extractPayloadWithHealth } from "./core/extract/index.js";
+import { systemClock } from "./core/clock.js";
 import { payloadHash } from "./core/hash.js";
 import { DEFAULT_MAX_BYTES, formatDegradedStates, minimumPackBytes, renderPack } from "./core/pack.js";
-import type { DegradedState, PackOptions, Payload } from "./core/types.js";
+import type { AdapterId, DegradedState, PackOptions, Payload, Snapshot } from "./core/types.js";
+import { doctor, doctorExitCode, formatDoctorReport } from "./doctor.js";
+import type { DoctorReport } from "./doctor.js";
+import { EXIT_DEGRADED, EXIT_INTEGRITY_FAILURE, EXIT_OK, EXIT_OPERATIONAL_FAILURE, EXIT_USAGE } from "./exit-codes.js";
+import { installClaude } from "./install/apply.js";
+import { InstallRefusal } from "./install/refusal.js";
+import { uninstallClaude } from "./install/uninstall-apply.js";
+import { readManifest, snapshotId, writeManifest } from "./store/manifest.js";
+import { sessionPaths } from "./store/paths.js";
+import { applyRetention } from "./store/retention.js";
+import { listSnapshots, shortHash } from "./store/snapshot.js";
+import { StoreRefusal } from "./store/types.js";
+import type { ManifestSnapshotEntry, RetentionResult, SessionPaths, SnapshotReadQuarantined } from "./store/types.js";
+import { checkPayloadHash, checkProvenance } from "./store/verify.js";
 
-const EXIT_OK = 0;
-const EXIT_USAGE = 2;
-const EXIT_TRANSCRIPT_UNREADABLE = 3;
-const EXIT_REFUSED = 4;
-const EXIT_INTERNAL = 5;
+/** The only adapter the store commands read today; `--adapter` for `doctor` is separate. */
+const STORE_ADAPTER: AdapterId = "claude";
+
 
 /** Diagnostics echoed to stderr are capped; the total count is always printed in full. */
 const MAX_REPORTED_DIAGNOSTICS = 20;
@@ -58,6 +75,14 @@ export interface PreviewResult {
   readonly payload: Payload;
   readonly diagnostics: readonly ClaudeDiagnostic[];
   readonly degraded: readonly DegradedState[];
+  /**
+   * Tool-call coverage with the per-tool-name histogram of missed calls.
+   *
+   * Not rendered into the pack or the report: health and counters describe the run, and the
+   * report's bytes are published evidence (see `docs/demo/`). It is here for the callers that
+   * need it as a value — `doctor --json` is the intended one.
+   */
+  readonly coverage: CoverageReport;
   readonly report: string;
 }
 
@@ -81,30 +106,77 @@ function usage(): string {
     "  dcompact snapshot --session <id> --transcript <path> --store <dir>",
     "  dcompact restore --session <id> --store <dir> [options]",
     "  dcompact hook --event precompact|session-start --store <dir>",
+    "  dcompact list --session <id> [--store <dir>] [--json]",
+    "  dcompact show --session <id> --snapshot <id> [--store <dir>] [--json]",
+    "  dcompact verify --session <id> [--snapshot <id>] [--store <dir>] [--provenance] [--json]",
+    "  dcompact prune --session <id> [--store <dir>] [--dry-run] [--json]",
+    "  dcompact pin --session <id> --snapshot <id> [--store <dir>] [--unpin] [--json]",
+    "  dcompact doctor --session <id> --store <dir> [--adapter <name>] [--json]",
+    "  dcompact install --agent claude --store <dir> [--settings <path>] [--dry-run]",
+    "  dcompact uninstall --agent claude --store <dir> [--settings <path>] [--dry-run]",
     "",
     "Commands:",
     "  preview   Map a transcript to normalized events, extract facts, print the pack.",
     "  snapshot  Checkpoint one explicitly named Claude session.",
     "  restore   Merge and render checkpoints for one explicitly named session.",
     "  hook      Fail-open Claude PreCompact/SessionStart bridge over stdin/stdout.",
-    "",
+    "  list      List one session's stored snapshots, oldest first, plus quarantine state.",
+    "  show      Print one stored snapshot's envelope, payload summary, and rendered pack.",
+    "  verify    Recompute a snapshot's payload hash; --provenance re-checks it against the",
+    "            transcript named in its envelope.",
+    "  prune     Apply the retention policy to one session's snapshots — fifteen snapshots",
+    "            or seventy-two hours, the newest and any pinned snapshot exempt — and",
+    "            record each deletion in the manifest. --dry-run reports the same set and",
+    "            deletes nothing.",
+    "  pin       Set one snapshot's pinned flag in the manifest, exempting it from retention;",
+    "            --unpin clears the flag again.",
+    "  doctor    Report store, manifest, lock, quarantine, and adapter health for one session.",
+    "  install   Write dcompact's Claude hook entries into a settings file, after copying",
+    "            every file it edits to a byte backup under <store>/backups/.",
+    "  uninstall Remove dcompact's Claude hook entries from a settings file, restoring",
+    "            byte-identical pre-install files or removing files dcompact created.",
     "Options:",
-    "  --transcript <path>   Claude Code JSONL transcript to read. Required.",
+    "  --transcript <path>   Claude Code JSONL transcript to read. Required for preview/snapshot.",
+    "  --agent <name>        Agent to install/uninstall for. Only \"claude\" is supported.",
+    "  --settings <path>     Claude settings file for install/uninstall to edit. Default:",
+    "                        $CLAUDE_CONFIG_DIR/settings.json, else ~/.claude/settings.json.",
+    "  --command <exec>      install only: executable Claude runs for a hook. Default: dcompact.",
+    "  --dry-run             install/uninstall/prune: report what would happen and write nothing.",
     `  --max-bytes <n>       Pack byte budget. Default ${DEFAULT_MAX_BYTES}. A value below the`,
     "                        mandatory header plus elision notice is refused with the exact",
     "                        minimum for that transcript (reported in the refusal message).",
     "  --max-facts <n>       Maximum number of facts in the pack.",
     "  --include-evidence    Append evidence line numbers to each fact.",
+    "  --session <id>        Explicit session id. Required by every command below preview;",
+    "                        never guessed, never the most recent (AGENTS invariant 8).",
+    "  --store <dir>         Store root. list/show/verify/prune/pin default to the resolved",
+    "                        XDG/DCOMPACT_HOME store when omitted; snapshot/restore/hook/",
+    "                        doctor require it explicitly. install/uninstall write backups",
+    "                        under it.",
+    "  --snapshot <id>       A snapshot's short hash or full id, as printed by `list --json`.",
+    "                        Required for show and pin; verify checks every snapshot when",
+    "                        omitted.",
+    "  --unpin               pin only: clear the snapshot's pinned flag instead of setting it.",
+    "  --provenance          verify only: re-read the transcript and check each fact's evidence.",
+    "  --adapter <name>      Adapter id for doctor's session store. Default claude.",
+    "  --json                list/show/verify/prune/pin/doctor: print the documented JSON shape",
+    "                        instead of text.",
     "  --help, -h            Print this usage.",
     "",
-    "Exit codes:",
-    `  ${EXIT_OK}  pack written to stdout`,
-    `  ${EXIT_USAGE}  usage error (unknown command, missing --transcript, bad value)`,
-    `  ${EXIT_TRANSCRIPT_UNREADABLE}  the transcript could not be read`,
-    `  ${EXIT_REFUSED}  the transcript cannot supply a required extraction input`,
-    `  ${EXIT_INTERNAL}  unexpected internal error`,
+    "Exit codes (CONCEPT §6.2):",
+    `  ${EXIT_OK}  success`,
+    `  ${EXIT_OPERATIONAL_FAILURE}  operational failure: a refusal (a required extraction input`,
+    "     is missing, the session/store/snapshot id is invalid, the named snapshot does not",
+    "     exist, or the store itself is unavailable), or an unexpected internal error",
+    `  ${EXIT_USAGE}  usage error (unknown command, missing required argument, bad value)`,
+    `  ${EXIT_INTEGRITY_FAILURE}  integrity failure: the transcript could not be read, a`,
+    "     payload's hash does not match its envelope (quarantined, corrupt, or tampered), or",
+    "     provenance is broken",
+    `  ${EXIT_DEGRADED}  the command produced usable output under a degraded (CONCEPT §11.2)`,
+    "     condition, such as a broken stale lock",
     "",
-    "Identity is explicit: this command never scans for sessions and never selects one.",
+    "Identity is explicit: no command scans for sessions, snapshots, or stores, and none",
+    "ever selects one for you.",
   ].join("\n");
 }
 
@@ -169,11 +241,265 @@ function parseHookArgs(argv: readonly string[]): { readonly event: "precompact" 
   return { event, store };
 }
 
+interface StoreArgs {
+  readonly session: string;
+  readonly store?: string;
+  readonly snapshot?: string;
+  readonly provenance: boolean;
+  readonly json: boolean;
+}
+
+/** Shared by `list`/`show`/`verify`: an explicit `--session`, everything else optional. */
+function parseStoreArgs(argv: readonly string[], command: "list" | "show" | "verify"): StoreArgs | "help" {
+  let session: string | null = null;
+  let store: string | undefined;
+  let snapshot: string | undefined;
+  let provenance = false;
+  let json = false;
+  for (let index = 0; index < argv.length; index += 1) {
+    const flag = argv[index];
+    if (flag === "--help" || flag === "-h") return "help";
+    if (flag === "--json") {
+      json = true;
+      continue;
+    }
+    if (flag === "--provenance") {
+      if (command !== "verify") throw new UsageError("unknown-argument", `Unknown argument: ${JSON.stringify(flag)}`);
+      provenance = true;
+      continue;
+    }
+    if (flag === "--session" || flag === "--store" || flag === "--snapshot") {
+      const value = argv[index + 1];
+      if (value === undefined) throw new UsageError("missing-value", `${flag} requires a value`);
+      if (flag === "--session") session = value;
+      else if (flag === "--store") store = value;
+      else snapshot = value;
+      index += 1;
+      continue;
+    }
+    throw new UsageError("unknown-argument", `Unknown argument: ${JSON.stringify(flag)}`);
+  }
+  if (session === null) throw new UsageError("missing-session", `${command} requires an explicit --session <id>; no session is ever chosen for you.`);
+  if (command === "show" && snapshot === undefined) throw new UsageError("missing-snapshot", "show requires an explicit --snapshot <id>.");
+  return { session, store, snapshot, provenance, json };
+}
+
+interface PruneArgs {
+  readonly session: string;
+  readonly store?: string;
+  readonly dryRun: boolean;
+  readonly json: boolean;
+}
+
+/** `prune` is `list`'s store surface plus the two flags it adds: `--dry-run` and `--json`. */
+function parsePruneArgs(argv: readonly string[]): PruneArgs | "help" {
+  let session: string | null = null;
+  let store: string | undefined;
+  let dryRun = false;
+  let json = false;
+  for (let index = 0; index < argv.length; index += 1) {
+    const flag = argv[index];
+    if (flag === "--help" || flag === "-h") return "help";
+    if (flag === "--dry-run") {
+      dryRun = true;
+      continue;
+    }
+    if (flag === "--json") {
+      json = true;
+      continue;
+    }
+    if (flag === "--session" || flag === "--store") {
+      const value = argv[index + 1];
+      if (value === undefined) throw new UsageError("missing-value", `${flag} requires a value`);
+      if (flag === "--session") session = value;
+      else store = value;
+      index += 1;
+      continue;
+    }
+    throw new UsageError("unknown-argument", `Unknown argument: ${JSON.stringify(flag)}`);
+  }
+  if (session === null) throw new UsageError("missing-session", "prune requires an explicit --session <id>; no session is ever chosen for you.");
+  return { session, store, dryRun, json };
+}
+
+interface PinArgs {
+  readonly session: string;
+  readonly store?: string;
+  readonly snapshot: string;
+  readonly unpin: boolean;
+  readonly json: boolean;
+}
+
+/** The flag's presence clears the pin; its absence sets it. */
+function parsePinArgs(argv: readonly string[]): PinArgs | "help" {
+  let session: string | null = null;
+  let store: string | undefined;
+  let snapshot: string | null = null;
+  let unpin = false;
+  let json = false;
+  for (let index = 0; index < argv.length; index += 1) {
+    const flag = argv[index];
+    if (flag === "--help" || flag === "-h") return "help";
+    if (flag === "--unpin") {
+      unpin = true;
+      continue;
+    }
+    if (flag === "--json") {
+      json = true;
+      continue;
+    }
+    if (flag === "--session" || flag === "--store" || flag === "--snapshot") {
+      const value = argv[index + 1];
+      if (value === undefined) throw new UsageError("missing-value", `${flag} requires a value`);
+      if (flag === "--session") session = value;
+      else if (flag === "--store") store = value;
+      else snapshot = value;
+      index += 1;
+      continue;
+    }
+    throw new UsageError("unknown-argument", `Unknown argument: ${JSON.stringify(flag)}`);
+  }
+  if (session === null) throw new UsageError("missing-session", "pin requires an explicit --session <id>; no session is ever chosen for you.");
+  if (snapshot === null) throw new UsageError("missing-snapshot", "pin requires an explicit --snapshot <id>.");
+  return { session, store, snapshot, unpin, json };
+}
+
+interface DoctorArgs {
+  readonly session: string;
+  readonly adapter: string;
+  readonly store: string;
+  readonly json: boolean;
+  readonly maxBytes?: number;
+}
+
+function parseDoctorArgs(argv: readonly string[]): DoctorArgs | "help" {
+  let session: string | null = null;
+  let adapter = "claude";
+  let store: string | null = null;
+  let json = false;
+  let maxBytes: number | undefined;
+  for (let index = 0; index < argv.length; index += 1) {
+    const flag = argv[index];
+    if (flag === "--help" || flag === "-h") return "help";
+    if (flag === "--json") {
+      json = true;
+      continue;
+    }
+    const value = argv[index + 1];
+    if (flag === "--session" || flag === "--adapter" || flag === "--store" || flag === "--max-bytes") {
+      if (value === undefined) throw new UsageError("missing-value", `${flag} requires a value`);
+      if (flag === "--session") session = value;
+      else if (flag === "--adapter") adapter = value;
+      else if (flag === "--store") store = value;
+      else maxBytes = nonNegativeInteger(value, flag);
+      index += 1;
+      continue;
+    }
+    throw new UsageError("unknown-argument", `Unknown argument: ${JSON.stringify(flag)}`);
+  }
+  if (session === null) throw new UsageError("missing-session", "doctor requires an explicit --session <id>; no session is ever chosen for you.");
+  if (store === null) throw new UsageError("missing-store", "doctor requires a task-owned --store <dir>; live agent state is never selected.");
+  if (store.trim() === "") throw new UsageError("empty-store", "doctor requires a non-empty --store <dir>; pass an explicit disposable path.");
+  return { session, adapter, store, json, maxBytes };
+}
+
 function nonNegativeInteger(raw: string, flag: string): number {
   if (!/^[0-9]{1,15}$/.test(raw)) {
     throw new UsageError("invalid-number", `${flag} requires a non-negative integer, received: ${JSON.stringify(raw)}`);
   }
   return Number(raw);
+}
+
+interface InstallArgs {
+  readonly agent: "claude";
+  readonly settingsPath: string;
+  readonly storeRoot: string;
+  readonly executable?: string;
+  readonly dryRun: boolean;
+}
+
+/**
+ * Claude's user settings file. `CLAUDE_CONFIG_DIR` relocates the whole Claude data directory
+ * including settings (ADAPTER-SPEC §2), so it is honoured rather than assumed absent.
+ */
+function defaultClaudeSettingsPath(): string {
+  const configured = process.env.CLAUDE_CONFIG_DIR;
+  const configDir = configured !== undefined && configured.trim() !== "" ? configured : join(homedir(), ".claude");
+  return join(configDir, "settings.json");
+}
+
+function parseInstallArgs(argv: readonly string[]): InstallArgs | "help" {
+  let agent: string | null = null;
+  let settings: string | null = null;
+  let store: string | null = null;
+  let executable: string | undefined;
+  let dryRun = false;
+  for (let index = 0; index < argv.length; index += 1) {
+    const flag = argv[index];
+    if (flag === "--help" || flag === "-h") return "help";
+    if (flag === "--dry-run") {
+      dryRun = true;
+      continue;
+    }
+    const value = argv[index + 1];
+    if (flag === "--agent" || flag === "--settings" || flag === "--store" || flag === "--command") {
+      if (value === undefined) throw new UsageError("missing-value", `${flag} requires a value`);
+      if (flag === "--agent") agent = value;
+      else if (flag === "--settings") settings = value;
+      else if (flag === "--store") store = value;
+      else executable = value;
+      index += 1;
+      continue;
+    }
+    throw new UsageError("unknown-argument", `Unknown argument: ${JSON.stringify(flag)}`);
+  }
+  if (agent === null) throw new UsageError("missing-agent", 'install requires --agent <name>; only "claude" is supported.');
+  if (agent !== "claude") {
+    throw new UsageError("unsupported-agent", `install supports agent "claude" only; received ${JSON.stringify(agent)}.`);
+  }
+  if (store === null || store.trim() === "") {
+    throw new UsageError("missing-store", "install requires a non-empty task-owned --store <dir>; live agent state is never selected.");
+  }
+  if (settings !== null && settings.trim() === "") {
+    throw new UsageError("empty-settings", "install requires a non-empty --settings <path>; omit the flag for the default Claude user settings file.");
+  }
+  return { agent, settingsPath: settings ?? defaultClaudeSettingsPath(), storeRoot: store, executable, dryRun };
+}
+
+function parseUninstallArgs(argv: readonly string[]): InstallArgs | "help" {
+  let agent: string | null = null;
+  let settings: string | null = null;
+  let store: string | null = null;
+  let dryRun = false;
+  for (let index = 0; index < argv.length; index += 1) {
+    const flag = argv[index];
+    if (flag === "--help" || flag === "-h") return "help";
+    if (flag === "--dry-run") {
+      dryRun = true;
+      continue;
+    }
+    const value = argv[index + 1];
+    if (flag === "--agent" || flag === "--settings" || flag === "--store") {
+      if (value === undefined) throw new UsageError("missing-value", `${flag} requires a value`);
+      if (flag === "--agent") agent = value;
+      else if (flag === "--settings") settings = value;
+      else store = value;
+      index += 1;
+      continue;
+    }
+    throw new UsageError("unknown-argument", `Unknown argument: ${JSON.stringify(flag)}`);
+  }
+  if (agent === null) throw new UsageError("missing-agent", 'uninstall requires --agent <name>; only "claude" is supported.');
+  if (agent !== "claude") {
+    throw new UsageError("unsupported-agent", `uninstall supports agent "claude" only; received ${JSON.stringify(agent)}.`);
+  }
+  if (store === null || store.trim() === "") {
+    throw new UsageError("missing-store", "uninstall requires a non-empty task-owned --store <dir>; live agent state is never selected.");
+  }
+  if (settings !== null && settings.trim() === "") {
+    throw new UsageError("empty-settings", "uninstall requires a non-empty --settings <path>; omit the flag for the default Claude user settings file.");
+  }
+  return { agent, settingsPath: settings ?? defaultClaudeSettingsPath(), storeRoot: store, dryRun };
 }
 
 export function parsePreviewArgs(argv: readonly string[]): PreviewOptions | "help" {
@@ -228,9 +554,10 @@ function physicalLineCount(bytes: Uint8Array): number {
 }
 
 /**
- * `preview` is the whole mapping path minus process concerns: one explicit read, map, extract,
- * render. It performs no I/O besides reading the named transcript, so a test can call it
- * directly and a caller can assert the returned bytes.
+ * `preview` is the whole mapping path minus process concerns: one explicit read, map, drift
+ * check, extract, render. It performs no I/O besides reading the named transcript and the
+ * shipped adapter definition, so a test can call it directly and a caller can assert the
+ * returned bytes.
  */
 export function preview(options: PreviewOptions): PreviewResult {
   let bytes: Uint8Array;
@@ -241,15 +568,8 @@ export function preview(options: PreviewOptions): PreviewResult {
     throw new UsageError("transcript-unreadable", `Cannot read transcript ${JSON.stringify(options.transcript)}: ${reason}`);
   }
 
-  const parse = parseClaudeTranscript(bytes);
-  const config = claudeExtractConfig(parse);
-  const { payload, degraded: extractionHealth } = extractPayloadWithHealth(parse.events, config);
-  // Health is the union of parser drift and core's own degraded states, in a fixed order so the
-  // header text is deterministic. It is display metadata only: it never enters the payload.
-  const degraded: DegradedState[] = [...new Set<DegradedState>([
-    ...(parse.diagnostics.length > 0 ? (["schema-drift"] as const) : []),
-    ...extractionHealth,
-  ])].sort();
+  const read = readClaudeTranscript(bytes);
+  const { parse, payload, degraded, coverage } = read;
 
   // A budget below the floor cannot hold the mandatory header and elision notice. That is a bad
   // value on the command line, not an internal failure: refuse with the exact minimum instead of
@@ -303,7 +623,277 @@ export function preview(options: PreviewOptions): PreviewResult {
     }
   }
 
-  return { pack, payload, diagnostics: parse.diagnostics, degraded, report: `${lines.join("\n")}\n` };
+  return { pack, payload, diagnostics: parse.diagnostics, degraded, coverage, report: `${lines.join("\n")}\n` };
+}
+
+function resolveSession(args: { readonly session: string; readonly store?: string }): SessionPaths {
+  return sessionPaths({ adapter: STORE_ADAPTER, sessionId: args.session, root: args.store });
+}
+
+/** SCHEMA §2: the manifest id, the full hash, and its short display form are all valid input. */
+function matchesSnapshotQuery(entry: Pick<ManifestSnapshotEntry, "id" | "hash">, query: string): boolean {
+  return entry.id === query || entry.hash === query || shortHash(entry.hash) === query;
+}
+
+/**
+ * A quarantined file's `path` is the name `writeSnapshot` derived before it was tampered with,
+ * so the short hash it embeds is still the query surface a user saw from `list`. A file placed
+ * under a name that never followed that convention (there is no envelope left to derive one
+ * from) falls back to its bare filename.
+ */
+function quarantineQueryId(entry: SnapshotReadQuarantined): string {
+  return /-([0-9a-f]{12})\.json$/.exec(basename(entry.path))?.[1] ?? basename(entry.path).replace(/\.json$/, "");
+}
+
+function describeQuarantine(entry: SnapshotReadQuarantined): Record<string, unknown> {
+  return { id: quarantineQueryId(entry), path: entry.path, quarantinePath: entry.quarantinePath, code: entry.code, reason: entry.reason };
+}
+
+function notFoundRefusal(session: SessionPaths, query: string): StoreRefusal {
+  return new StoreRefusal("snapshot-not-found", `No snapshot ${JSON.stringify(query)} in session ${JSON.stringify(session.name)}. Run "dcompact list --session ${session.sessionId}" to see what exists.`);
+}
+
+function runList(args: StoreArgs, io: CliIo): number {
+  const session = resolveSession(args);
+  const listed = listSnapshots(session);
+  const manifestRead = readManifest(session, listed.entries);
+  const entries = manifestRead.manifest.snapshots;
+
+  if (args.json) {
+    io.stdout(`${JSON.stringify({
+      session: session.name,
+      store: session.root,
+      manifest: { path: manifestRead.path, rebuilt: manifestRead.rebuilt, reason: manifestRead.reason },
+      snapshots: entries.map((entry) => ({ id: entry.id, hash: entry.hash, short: shortHash(entry.hash), created_at: entry.created_at, facts: entry.facts, degraded: entry.degraded, pinned: entry.pinned })),
+      quarantined: listed.quarantined.map(describeQuarantine),
+    })}\n`);
+    return EXIT_OK;
+  }
+
+  const lines: string[] = [];
+  lines.push(`session: ${session.name}`);
+  lines.push(`store: ${session.root}`);
+  lines.push(`manifest: ${manifestRead.path}${manifestRead.rebuilt ? ` (rebuilt: ${manifestRead.reason})` : ""}`);
+  if (entries.length === 0) {
+    lines.push("snapshots: none");
+  } else {
+    lines.push(`snapshots: ${entries.length}`);
+    for (const entry of entries) {
+      lines.push(`  ${shortHash(entry.hash)}  ${entry.created_at}  facts=${entry.facts}  degraded=${entry.degraded.length > 0 ? entry.degraded.join(",") : "none"}  pinned=${entry.pinned ? "yes" : "no"}`);
+    }
+  }
+  if (listed.quarantined.length === 0) {
+    lines.push("quarantined: none");
+  } else {
+    lines.push(`quarantined: ${listed.quarantined.length}`);
+    for (const entry of listed.quarantined) lines.push(`  ${quarantineQueryId(entry)}  code=${entry.code}  reason=${entry.reason}`);
+  }
+  io.stdout(`${lines.join("\n")}\n`);
+  return EXIT_OK;
+}
+
+function runShow(args: StoreArgs, io: CliIo): number {
+  const session = resolveSession(args);
+  const query = args.snapshot as string;
+  const listed = listSnapshots(session);
+  const found = listed.snapshots.find((snapshot) => matchesSnapshotQuery({ id: snapshotId(snapshot.envelope.created_at, snapshot.envelope.hash), hash: snapshot.envelope.hash }, query));
+  if (found === undefined) {
+    const quarantined = listed.quarantined.find((entry) => quarantineQueryId(entry) === query);
+    if (quarantined !== undefined) {
+      throw new StoreRefusal("snapshot-quarantined", `Snapshot ${JSON.stringify(query)} is quarantined (${quarantined.code}: ${quarantined.reason}); inspect ${JSON.stringify(quarantined.quarantinePath)} to repair it.`);
+    }
+    throw notFoundRefusal(session, query);
+  }
+
+  const { envelope, payload } = found;
+  const pack = renderPack(payload, { degraded: envelope.degraded });
+  if (args.json) {
+    io.stdout(`${JSON.stringify({ id: shortHash(envelope.hash), envelope, payload, pack })}\n`);
+    return EXIT_OK;
+  }
+
+  const lines: string[] = [];
+  lines.push(`snapshot ${shortHash(envelope.hash)} (${envelope.created_at})`);
+  lines.push(`envelope: adapter=${envelope.adapter} session=${envelope.session_id ?? "<absent>"} schema=${envelope.schema_version} canonicalization=${envelope.canonicalization} extractor=${envelope.extractor_version}`);
+  lines.push(`  hash=${envelope.hash}`);
+  lines.push(`  transcript=${envelope.transcript_path ?? "<absent>"} bytes=${envelope.transcript_bytes} lines=${envelope.transcript_lines} mtime=${envelope.transcript_mtime ?? "<absent>"}`);
+  lines.push(`  degraded=${envelope.degraded.length > 0 ? envelope.degraded.join(",") : "none"}`);
+  lines.push(`payload: facts=${payload.counters.facts} path_base=${payload.path_base} coverage=${payload.counters.coverage_ppm}ppm unmapped=${payload.counters.unmapped_tool_calls} external=${payload.counters.external_path_count}`);
+  lines.push(`  by_kind: ${Object.entries(payload.counters.by_kind).map(([kind, count]) => `${kind}=${count}`).join(", ") || "none"}`);
+  lines.push(`  git: ${payload.git === null ? "absent" : `head=${payload.git.head} branch=${payload.git.branch} dirty=${payload.git.dirty}`}`);
+  lines.push(`  plan: ${payload.plan === null ? "absent" : `todos=${payload.plan.todos} done=${payload.plan.done}`}`);
+  lines.push("--- pack ---");
+  lines.push(pack);
+  io.stdout(`${lines.join("\n")}\n`);
+  return EXIT_OK;
+}
+
+function runVerify(args: StoreArgs, io: CliIo): number {
+  const session = resolveSession(args);
+  const listed = listSnapshots(session);
+  let usable: readonly Snapshot[] = listed.snapshots;
+  let quarantined: readonly SnapshotReadQuarantined[] = listed.quarantined;
+
+  if (args.snapshot !== undefined) {
+    const match = usable.find((snapshot) => matchesSnapshotQuery({ id: snapshotId(snapshot.envelope.created_at, snapshot.envelope.hash), hash: snapshot.envelope.hash }, args.snapshot as string));
+    if (match !== undefined) {
+      usable = [match];
+      quarantined = [];
+    } else {
+      const quarantinedMatch = quarantined.find((entry) => quarantineQueryId(entry) === args.snapshot);
+      if (quarantinedMatch === undefined) throw notFoundRefusal(session, args.snapshot);
+      usable = [];
+      quarantined = [quarantinedMatch];
+    }
+  }
+
+  const checked = usable.map((snapshot) => {
+    const hash = checkPayloadHash(snapshot);
+    const provenance = args.provenance ? checkProvenance(snapshot) : null;
+    return { id: shortHash(snapshot.envelope.hash), hash, provenance };
+  });
+  // Corruption already surfaced by `readSnapshot` as a quarantine (CONCEPT §11.3 "Corrupt
+  // snapshot"); a hash re-check here can only ever confirm what let the file into `usable` in
+  // the first place. Either source failing is the same integrity contract.
+  const integrityOk = quarantined.length === 0 && checked.every((entry) => entry.hash.ok);
+
+  if (args.json) {
+    io.stdout(`${JSON.stringify({
+      session: session.name,
+      store: session.root,
+      checked,
+      quarantined: quarantined.map(describeQuarantine),
+      integrityOk,
+    })}\n`);
+    return integrityOk ? EXIT_OK : EXIT_INTEGRITY_FAILURE;
+  }
+
+  const lines: string[] = [];
+  lines.push(`session: ${session.name}`);
+  lines.push(checked.length === 0 ? "checked: none" : `checked: ${checked.length}`);
+  for (const entry of checked) {
+    lines.push(`  ${entry.id}  hash=${entry.hash.ok ? "ok" : `MISMATCH (expected ${entry.hash.expected}, computed ${entry.hash.computed})`}`);
+    if (entry.provenance !== null) {
+      const { counts, transcriptReadable, transcriptPath } = entry.provenance;
+      lines.push(`    provenance: transcript=${transcriptPath ?? "<absent>"} readable=${transcriptReadable} backed=${counts.backed} drifted=${counts.drifted} unbacked=${counts.unbacked}`);
+    }
+  }
+  if (quarantined.length === 0) {
+    lines.push("quarantined: none");
+  } else {
+    lines.push(`quarantined: ${quarantined.length}`);
+    for (const entry of quarantined) lines.push(`  ${quarantineQueryId(entry)}  code=${entry.code}  reason=${entry.reason}`);
+  }
+  lines.push(`integrity: ${integrityOk ? "ok" : "FAILED"}`);
+  io.stdout(`${lines.join("\n")}\n`);
+  return integrityOk ? EXIT_OK : EXIT_INTEGRITY_FAILURE;
+}
+
+/**
+ * How the pass's manifest write is reported: the path it landed on, or why none was made. The
+ * distinction matters because a pass that pruned nothing is a no-op, not a silent repair.
+ */
+function manifestWriteState(result: RetentionResult): string {
+  if (result.manifest !== null) {
+    return `${result.manifest.path}${result.manifest.rebuilt ? ` (rebuilt: ${result.manifest.reason})` : ""}`;
+  }
+  return result.dryRun ? "not written (dry run)" : "not written (nothing changed)";
+}
+
+function runPrune(args: PruneArgs, io: CliIo): number {
+  const session = resolveSession(args);
+  // Which snapshots are eligible, in what order, and what gets recorded are the retention
+  // library's decisions (CONCEPT §10, SCHEMA §8). This command only supplies the real clock and
+  // hands `--dry-run` straight through, so the two modes cannot disagree about the set.
+  const result = applyRetention({ session, clock: systemClock, dryRun: args.dryRun });
+
+  if (args.json) {
+    io.stdout(`${JSON.stringify({
+      session: session.name,
+      store: session.root,
+      dryRun: result.dryRun,
+      now: result.now,
+      policy: result.policy,
+      pruned: result.pruned.map((entry) => ({
+        id: entry.id,
+        hash: entry.hash,
+        short: shortHash(entry.hash),
+        created_at: entry.created_at,
+        reason: entry.reason,
+        at: entry.at,
+        path: entry.path,
+      })),
+      kept: result.kept,
+      manifest: result.manifest === null ? null : { path: result.manifest.path, rebuilt: result.manifest.rebuilt, reason: result.manifest.reason },
+    })}\n`);
+    return EXIT_OK;
+  }
+
+  const lines: string[] = [];
+  lines.push(`session: ${session.name}`);
+  lines.push(`store: ${session.root}`);
+  lines.push(`dry-run: ${result.dryRun ? "yes — nothing was deleted" : "no"}`);
+  lines.push(`policy: ${result.policy.maxSnapshots} snapshots or ${result.policy.maxAgeMs / 60 / 60 / 1000} hours; newest and pinned exempt`);
+  if (result.pruned.length === 0) {
+    lines.push("pruned: none");
+  } else {
+    lines.push(`pruned: ${result.pruned.length}`);
+    for (const entry of result.pruned) {
+      lines.push(`  ${shortHash(entry.hash)}  ${entry.created_at}  reason=${entry.reason}  at=${entry.at}`);
+    }
+  }
+  lines.push(`kept: ${result.kept.length}`);
+  for (const id of result.kept) lines.push(`  ${id}`);
+  lines.push(`manifest: ${manifestWriteState(result)}`);
+  io.stdout(`${lines.join("\n")}\n`);
+  return EXIT_OK;
+}
+
+function runPin(args: PinArgs, io: CliIo): number {
+  const session = resolveSession(args);
+  const listed = listSnapshots(session);
+  const read = readManifest(session, listed.entries);
+  const entry = read.manifest.snapshots.find((candidate) => matchesSnapshotQuery(candidate, args.snapshot));
+  if (entry === undefined) {
+    const quarantined = listed.quarantined.find((candidate) => quarantineQueryId(candidate) === args.snapshot);
+    if (quarantined !== undefined) {
+      throw new StoreRefusal("snapshot-quarantined", `Snapshot ${JSON.stringify(args.snapshot)} is quarantined (${quarantined.code}: ${quarantined.reason}); inspect ${JSON.stringify(quarantined.quarantinePath)} to repair it.`);
+    }
+    throw notFoundRefusal(session, args.snapshot);
+  }
+
+  const pinned = !args.unpin;
+  const changed = entry.pinned !== pinned;
+  // A pin lives in the manifest, so it is written through the manifest path — and only when the
+  // flag actually changes, which keeps a repeated `pin` from rewriting the index for nothing.
+  if (changed) {
+    writeManifest(session, {
+      ...read.manifest,
+      snapshots: read.manifest.snapshots.map((candidate) => (candidate.id === entry.id ? { ...candidate, pinned } : candidate)),
+    });
+  }
+
+  if (args.json) {
+    io.stdout(`${JSON.stringify({
+      session: session.name,
+      store: session.root,
+      snapshot: { id: entry.id, hash: entry.hash, short: shortHash(entry.hash), created_at: entry.created_at },
+      pinned,
+      changed,
+      manifest: { path: read.path, rebuilt: read.rebuilt, reason: read.reason },
+    })}\n`);
+    return EXIT_OK;
+  }
+
+  const lines: string[] = [];
+  lines.push(`session: ${session.name}`);
+  lines.push(`store: ${session.root}`);
+  lines.push(`snapshot: ${shortHash(entry.hash)} (${entry.created_at})`);
+  lines.push(`pinned: ${pinned ? "yes" : "no"}`);
+  lines.push(`changed: ${changed ? "yes" : "no — already in that state"}`);
+  lines.push(`manifest: ${read.rebuilt ? `${read.path} (rebuilt: ${read.reason})` : changed ? read.path : `${read.path} (unchanged)`}`);
+  io.stdout(`${lines.join("\n")}\n`);
+  return EXIT_OK;
 }
 
 /** Output sinks, injected so a test can assert the exact streams without spawning a process. */
@@ -347,12 +937,30 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
     io.stderr(`Unknown command: ${JSON.stringify(command)}\n\n${usage()}\n`);
     return EXIT_USAGE;
   }
-  if (command !== "preview" && command !== "snapshot" && command !== "restore" && command !== "hook") {
+  if (command !== "preview" && command !== "snapshot" && command !== "restore" && command !== "hook" && command !== "list" && command !== "show" && command !== "verify" && command !== "prune" && command !== "pin" && command !== "doctor" && command !== "install" && command !== "uninstall") {
     io.stderr(`Unknown command: ${JSON.stringify(command)}\n\n${usage()}\n`);
     return EXIT_USAGE;
   }
 
   try {
+    if (command === "install") {
+      const parsed = parseInstallArgs(argv.slice(1));
+      if (parsed === "help") {
+        io.stdout(`${usage()}\n`);
+        return EXIT_OK;
+      }
+      io.stdout(installClaude(parsed).report);
+      return EXIT_OK;
+    }
+    if (command === "uninstall") {
+      const parsed = parseUninstallArgs(argv.slice(1));
+      if (parsed === "help") {
+        io.stdout(`${usage()}\n`);
+        return EXIT_OK;
+      }
+      io.stdout(uninstallClaude(parsed).report);
+      return EXIT_OK;
+    }
     if (command === "snapshot" || command === "restore") {
       const parsed = parseContinuityArgs(argv.slice(1), command);
       if (parsed === "help") {
@@ -393,6 +1001,51 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
       io.stdout(`${runHook(input, parsed.event, { root: parsed.store })}\n`);
       return EXIT_OK;
     }
+    if (command === "list" || command === "show" || command === "verify") {
+      const parsed = parseStoreArgs(argv.slice(1), command);
+      if (parsed === "help") {
+        io.stdout(`${usage()}\n`);
+        return EXIT_OK;
+      }
+      if (command === "list") return runList(parsed, io);
+      if (command === "show") return runShow(parsed, io);
+      return runVerify(parsed, io);
+    }
+    if (command === "prune") {
+      const parsed = parsePruneArgs(argv.slice(1));
+      if (parsed === "help") {
+        io.stdout(`${usage()}\n`);
+        return EXIT_OK;
+      }
+      return runPrune(parsed, io);
+    }
+    if (command === "pin") {
+      const parsed = parsePinArgs(argv.slice(1));
+      if (parsed === "help") {
+        io.stdout(`${usage()}\n`);
+        return EXIT_OK;
+      }
+      return runPin(parsed, io);
+    }
+    if (command === "doctor") {
+      const parsed = parseDoctorArgs(argv.slice(1));
+      if (parsed === "help") {
+        io.stdout(`${usage()}\n`);
+        return EXIT_OK;
+      }
+      let report: DoctorReport;
+      try {
+        report = doctor({ adapter: parsed.adapter, sessionId: parsed.session, root: parsed.store, maxBytes: parsed.maxBytes });
+      } catch (error) {
+        // `doctor()` only throws for a malformed session/adapter id or store path (pure
+        // validation, no I/O); every store-availability failure is already a field in its
+        // report. That is a usage mistake, not a reduced-mode store.
+        if (error instanceof StoreRefusal) throw new UsageError(error.code, error.message);
+        throw error;
+      }
+      io.stdout(parsed.json ? `${JSON.stringify(report, null, 2)}\n` : `${formatDoctorReport(report)}\n`);
+      return doctorExitCode(report);
+    }
     const parsed = parsePreviewArgs(argv.slice(1));
     if (parsed === "help") {
       io.stdout(`${usage()}\n`);
@@ -405,21 +1058,37 @@ export function run(argv: readonly string[], io: CliIo = processIo): number {
   } catch (error) {
     if (error instanceof UsageError) {
       io.stderr(`${error.message}\n`);
-      if (error.code === "transcript-unreadable") return EXIT_TRANSCRIPT_UNREADABLE;
+      if (error.code === "transcript-unreadable") return EXIT_INTEGRITY_FAILURE;
       io.stderr(`\n${usage()}\n`);
       return EXIT_USAGE;
     }
-    if (error instanceof ClaudeTranscriptRefusal) {
+    // Both refusals are configuration a user can repair — a transcript that cannot supply a
+    // required extraction input, or an adapter definition that cannot be read — so they name the
+    // problem instead of printing a stack.
+    if (error instanceof ClaudeTranscriptRefusal || error instanceof AdapterDefinitionRefusal) {
       io.stderr(`Refusing to preview: ${error.message}\n`);
-      return EXIT_REFUSED;
+      return EXIT_OPERATIONAL_FAILURE;
     }
     if (error instanceof ContinuityRefusal) {
       io.stderr(`Refusing continuity operation: ${error.message}\n`);
-      return EXIT_REFUSED;
+      // CONCEPT §6.2: an unreadable transcript is an integrity failure regardless of which
+      // command tried to read it, not a generic refusal.
+      return error.code === "transcript-unreadable" ? EXIT_INTEGRITY_FAILURE : EXIT_OPERATIONAL_FAILURE;
+    }
+    if (error instanceof StoreRefusal) {
+      io.stderr(`Refusing store operation: ${error.message}\n`);
+      // A quarantined snapshot is corruption CONCEPT §11.3 already detected on read; asking to
+      // `show`/`verify` it specifically surfaces that as the same integrity failure, not a
+      // generic refusal, so both codes report the same class of problem the same way.
+      return error.code === "snapshot-quarantined" ? EXIT_INTEGRITY_FAILURE : EXIT_OPERATIONAL_FAILURE;
+    }
+    if (error instanceof InstallRefusal) {
+      io.stderr(`Refusing install: ${error.message}\n`);
+      return EXIT_OPERATIONAL_FAILURE;
     }
     const reason = error instanceof Error ? (error.stack ?? error.message) : String(error);
     io.stderr(`Internal error: ${reason}\n`);
-    return EXIT_INTERNAL;
+    return EXIT_OPERATIONAL_FAILURE;
   }
 }
 
