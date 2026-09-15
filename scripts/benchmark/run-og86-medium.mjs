@@ -1620,7 +1620,7 @@ export function createClaudeDriver(options) {
       const baseline = frozenBaseline(forkRecord, { phase, fork });
       const started = process.hrtime.bigint();
       const output = callClaude(arm, [...common(prepared.settingsPath, ""), "--resume", fork,
-        "Without tools, return one JSON object describing the current objective, files and symbols, requirements, decisions, negative constraints, errors with causes and fixes, command and test outcomes, unresolved items, and the next action. State uncertainty instead of guessing."],
+        "Without using tools or external files, return one JSON object with exactly these keys, unrenamed and at this exact top level: objective (string), files_symbols, requirements, decisions, negative_constraints, errors (array of objects, each with exactly cause and fix), commands_tests, unresolved, provenance (which test or evidence backs each claim), next_action. State uncertainty instead of guessing."],
       entry.workload, resolve(probeRoot, "probe.json"));
       const events = readFileSync(resolve(probeRoot, "score-fork-events.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line));
       const copies = events.filter((row) => row.event === "SessionStart" && row.treatmentBytes > 0).length;

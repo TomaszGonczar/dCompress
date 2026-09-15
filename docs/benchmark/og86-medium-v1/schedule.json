@@ -15,7 +15,7 @@
     "resume source in a new process with exactly one arm treatment and continue"
   ],
   "orderRationale": "The score fork is created, scored, and the parent verified byte-identical before any arm treatment reaches the source. Treatment is delivered only on the next explicit SessionStart(source=resume), which keeps a B/C fork from inheriting the parent treatment and then receiving the score-fork treatment again.",
-  "probe": "Without using tools or external files, return one JSON object describing the current objective, files and symbols involved, requirements, decisions, negative constraints, errors with causes and fixes, commands and test outcomes, unresolved items, and the next action. State uncertainty instead of guessing.",
+  "probe": "Without using tools or external files, return one JSON object with exactly these keys, unrenamed and at this exact top level: objective (string), files_symbols, requirements, decisions, negative_constraints, errors (array of objects, each with exactly cause and fix), commands_tests, unresolved, provenance (which test or evidence backs each claim), next_action. State uncertainty instead of guessing.",
   "continuation": "Continue with the single highest-priority unfinished item. Preserve prior constraints, implement it, and run the relevant tests. Do not inspect conversation history, benchmark files, or session stores.",
   "controller": {
     "name": "OG86 medium-series controller",
