@@ -324,6 +324,9 @@ describe("OG-86 controller stop conditions", () => {
     ["an arm C checkpoint that is not bound to the transcript", {
       resumeSource: `({ arm }) => ({ treatmentBytes: arm === "A" ? 0 : 1246, treatmentSha256: arm === "A" ? null : "sha256:" + "c".repeat(64), treatmentCopies: arm === "A" ? 0 : 1, toolProbes: passingProbes(), binding: arm === "C" ? boundCheckpoint({ envelopeBytesMatch: false, checkpointEvidenceEntriesMatched: 20 }) : null, costUsd: 0.02, wallSeconds: 60, turns: 3, models: modelCounts(3) })`,
     }, "arm-c-binding-envelopeBytes"],
+    ["a phase prompt with zero assistant records", {
+      sendPhasePrompt: `() => ({ costUsd: 0.02, wallSeconds: 60, turns: 0, models: modelCounts(0) })`,
+    }, "assistant-records-missing:work"],
   ];
 
   it.each(cases)("stops on %s", (_label, overrides, code) => {
@@ -331,6 +334,20 @@ describe("OG-86 controller stop conditions", () => {
     expect(result.halted).toBe(true);
     expect(result.state.valid).toBe(false);
     expect(result.state.invalidations.some((entry) => entry.includes(code))).toBe(true);
+  });
+
+  it("does not invalidate a legitimate zero assistant-record reading from compact or fork creation", () => {
+    // Measured, not assumed: real --execute attempts show /compact and the
+    // fork-creation /status call consistently producing zero new assistant
+    // records (both are slash commands, not conversational turns), unlike
+    // every other role. This proves the modelGate exemption is scoped to
+    // exactly those two roles and does not silently accept a real failure.
+    const result = series({
+      awaitCompact: `() => ({ treatmentBytes: 0, wallSeconds: 60, turns: 0, costUsd: 0.02, models: modelCounts(0) })`,
+      createFork: `() => ({ fork: "fork-session", distinct: true, source: { bytes: 1000, lines: 10, sha256: "sha256:" + "a".repeat(64) }, costUsd: 0.005, wallSeconds: 10, turns: 0, models: modelCounts(0) })`,
+    });
+    expect(result.state.valid).toBe(true);
+    expect(result.state.invalidations).toEqual([]);
   });
 
   it("stops when the arm C binding is absent entirely", () => {

@@ -142,7 +142,18 @@ function stopOperationally(target, arm, code) {
 function modelGate(target, arm, observation, where, delta) {
   // Reads the per-invocation delta, never the cumulative transcript total.
   const reading = delta ?? observation.models ?? {};
-  if (!modelReadingValid(reading) || (reading.assistantRecords ?? 0) === 0) {
+  // `/compact` and the fork-creation `/status` call are slash commands, not
+  // conversational turns: measured directly against three real --execute
+  // attempts, both consistently produce zero new assistant transcript
+  // records while work/probe/continuation -- real conversational exchanges
+  // -- never do. Zero is compact/fork's legitimate reading, not evidence of
+  // a missed measurement, so only the roles that should always show
+  // activity require a non-zero count. modelReadingValid still applies to
+  // every role: an internally inconsistent reading is never accepted
+  // regardless of role.
+  const role = where.split(":")[0];
+  const requiresActivity = role !== "compact" && role !== "fork";
+  if (!modelReadingValid(reading) || (requiresActivity && (reading.assistantRecords ?? 0) === 0)) {
     invalidate(target, arm, `assistant-records-missing:${where}`);
     return;
   }
