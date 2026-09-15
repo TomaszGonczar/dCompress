@@ -113,5 +113,12 @@
       "sha256": "sha256:158b91050152cbc07d0aaa7929aa3c6a82ffbe433f0db7f27ef12faf70734189",
       "shape": ["record:assistant", "record:system", "record:user"]
     }
-  ]
+  ],
+  "context_watermark": {
+    "supported": true,
+    "used_tokens_field": null,
+    "context_limit_tokens_field": null,
+    "source_event": null,
+    "evidence": "observed:<repo>/docs/ADAPTER-SPEC.md#claude-registered-events"
+  }
 }

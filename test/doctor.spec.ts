@@ -240,6 +240,37 @@ describe("doctor: budget", () => {
   });
 });
 
+describe("doctor: OG-81 context-watermark capability matrix", () => {
+  it("reports Claude as supported and Codex/OMP/generic as explicitly unsupported", () => {
+    const root = temp.next();
+    const claudeReport = doctor({ adapter: "claude", sessionId: "session-1", root, clock: fixedClock(T0) });
+    expect(claudeReport.context_watermark.capability).toBe("supported");
+    // Claude's own PreCompact/SessionStart payloads carry no token telemetry (ADAPTER-SPEC.md
+    // §2, measured), so even the supported adapter degrades to this state today.
+    expect(claudeReport.context_watermark.state).toBe("threshold-unsupported");
+    expect(claudeReport.context_watermark.used_tokens_field).toBeNull();
+    expect(claudeReport.context_watermark.context_limit_tokens_field).toBeNull();
+
+    for (const adapter of ["codex", "omp", "generic"]) {
+      const report = doctor({ adapter, sessionId: "session-1", root, clock: fixedClock(T0) });
+      expect(report.context_watermark.capability).toBe("unsupported");
+      expect(report.context_watermark.state).toBe("unsupported");
+    }
+  });
+
+  it("reports the capability matrix even when the store itself is unusable", () => {
+    const session = sessionPaths({ adapter: "codex", sessionId: "session-1", root: temp.next() });
+    ensureSessionDirectories({ ...session });
+    rmSync(session.session, { recursive: true, force: true });
+    writeFileSync(session.session, "occupied by a file, not a directory");
+
+    const report = doctor({ adapter: session.adapter, sessionId: session.sessionId, root: session.root, clock: fixedClock(T0) });
+
+    expect(report.store.usable).toBe(false);
+    expect(report.context_watermark).toEqual({ capability: "unsupported", used_tokens_field: null, context_limit_tokens_field: null, ppm_threshold: 660_000, state: "unsupported" });
+  });
+});
+
 describe("doctor: unreachable states (not producible by any path in this checkout)", () => {
   it("documents that internal-error, unavailable:agent-not-installed, untrusted:hook-pending-review, and no-pre-compaction-hook have no producer here", () => {
     // No install/uninstall command exists (P10), so hook-presence and hook-trust detection have
