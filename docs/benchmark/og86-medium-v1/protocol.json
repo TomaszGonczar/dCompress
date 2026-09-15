@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "series": "OG86-medium-v1",
   "preregistrationCommit": "fd1c5ed7e872243f94746402f5b61790614d4ea9",
-  "freezeCommit": "cd365fc7779ab88cc9a00791a04032f473879c00",
+  "freezeCommit": "6c7a1d9f176364621ca6b5fee23a373eff9d1e19",
   "workloadCommit": "fd1c5ed7e872243f94746402f5b61790614d4ea9",
   "dcompactBaseCommit": "9ebd0a1130198d2d4aa85cd38cbea4e42844ea6d",
   "stage": "medium",
