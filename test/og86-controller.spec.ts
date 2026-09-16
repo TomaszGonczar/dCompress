@@ -313,7 +313,7 @@ describe("OG-86 controller stop conditions", () => {
       sendPhasePrompt: `() => ({ costUsd: 0.02, wallSeconds: 4000, turns: 4, models: modelCounts(4) })`,
     }, "per-arm-wall-clock-limit-exceeded"],
     ["an assistant-turn ceiling breach", {
-      sendPhasePrompt: `() => ({ costUsd: 0.02, wallSeconds: 120, turns: 60, models: modelCounts(60) })`,
+      sendPhasePrompt: `() => ({ costUsd: 0.02, wallSeconds: 120, turns: 100, models: modelCounts(100) })`,
     }, "assistant-turn-limit-exceeded"],
     ["a continuation with an incomplete tool matrix", {
       resumeSource: `({ arm }) => ({ treatmentBytes: arm === "A" ? 0 : 1246, treatmentCopies: arm === "A" ? 0 : 1, toolProbes: [], binding: arm === "C" ? boundCheckpoint() : null, costUsd: 0.02, wallSeconds: 60, turns: 3, models: modelCounts(3) })`,
@@ -1211,9 +1211,9 @@ process.stdout.write(JSON.stringify({
   });
 
   it("breaches the turn ceiling on a delta, not on a cumulative total", () => {
-    const result = series({ sendPhasePrompt: `() => ({ costUsd: 0.02, wallSeconds: 120, turns: 220, previousModels: modelCounts(0), models: modelCounts(220) })` });
+    const result = series({ sendPhasePrompt: `() => ({ costUsd: 0.02, wallSeconds: 120, turns: 320, previousModels: modelCounts(0), models: modelCounts(320) })` });
     expect(result.state.invalidations.some((entry) => entry.includes("assistant-turn-limit-exceeded"))).toBe(true);
-    expect(result.state.arms.A.assistantTurns).toBeGreaterThan(200);
+    expect(result.state.arms.A.assistantTurns).toBeGreaterThan(300);
   });
 
   it("records per-role deltas in the emitted artifact", () => {

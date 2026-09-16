@@ -48,13 +48,17 @@ export const FROZEN = Object.freeze({
   runawaySeriesUsd: 15,
   perArmMinutes: 60,
   seriesMinutes: 210,
-  // Recalibrated (was 48) from a real --execute measurement: phase 1 of arm
-  // C alone produced 47 assistant records, essentially exhausting the old
-  // per-arm ceiling in one of four comparably-scoped phases (all four
-  // phase-prompts.json entries ask for a similar diagnose/implement/test/
-  // report task across several files). 200 = ~4x the measured single-phase
-  // figure, rounded up for cross-phase variance headroom.
-  assistantTurnsPerArm: 200,
+  // Recalibrated twice from real --execute measurements. First (was 48):
+  // phase 1 of arm C alone produced 47 assistant records against the old
+  // ceiling, so it was raised to 200 (~4x the single-phase figure) as an
+  // extrapolated estimate -- phases 2-4 had not yet been observed end to end.
+  // Second (was 200): the eleventh --execute attempt completed all 4 phases
+  // for two arms for the first time, giving real, complete-run totals rather
+  // than an extrapolation -- arm B used 192 (under 200), arm A used 233
+  // (over it), confirming cross-arm variance is wider than the phase-1-only
+  // estimate assumed. 300 = ~29% headroom above the highest real complete-run
+  // observation (233).
+  assistantTurnsPerArm: 300,
   treatmentMaxBytes: 16_384,
   arms: Object.freeze(["A", "B", "C"]),
   operationalStopCodes: Object.freeze(["emergency-runaway-ceiling-reached"]),

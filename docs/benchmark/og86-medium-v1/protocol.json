@@ -56,7 +56,7 @@
     "hardLimits": {
       "perScoredArmMinutes": 60,
       "mediumSeriesMinutes": 210,
-      "assistantTurnsPerArm": 200,
+      "assistantTurnsPerArm": 300,
       "manualCompactionsPerArm": 4
     },
     "stage0": {
