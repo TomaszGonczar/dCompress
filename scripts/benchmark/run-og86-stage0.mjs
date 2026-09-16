@@ -733,7 +733,7 @@ function main() {
   assert(binding.checkpointHashShapeValid, "checkpoint-hash-shape");
   assert(binding.checkpointHashRecomputedByRestore, "checkpoint-hash-recomputed-by-restore");
   assert(binding.pathClassExcludesFixtureAndReplay, "path-class-not-fixture");
-  assert(readFileSync(packPath, "utf8").includes("[dcompact:"), "dcompact-pack-marker");
+  assert(readFileSync(packPath, "utf8").includes("[dcompress:"), "dcompress-pack-marker");
   assert(sourceModels.assistantRecords > 0 && sourceModels.matchingModelRecords === sourceModels.assistantRecords, "source-model-attribution");
   assert(sourceModels.fallbackRecords === 0, "no-source-fallback-records");
   assert(armResults.every((arm) => arm.assistantModels.assistantRecords > 0
@@ -780,7 +780,7 @@ function main() {
       ...binding,
       hookStartBytes: precompact.transcriptBytes,
       hookStartToCheckpointGrowthBytes: binding.retainedPrefixBytes - precompact.transcriptBytes,
-      packMarkerPresent: readFileSync(packPath, "utf8").includes("[dcompact:"),
+      packMarkerPresent: readFileSync(packPath, "utf8").includes("[dcompress:"),
     },
     canaryValueOccurrencesInTranscript: canaryOccurrences,
     privacyModes: {

@@ -61,11 +61,27 @@ export function isTracked(repository, absolutePath, relativePath = null) {
   return result.status === 0;
 }
 
-/** True when Git ignores this path, which forbids it from the manifest. */
+/**
+ * True when Git ignores this path, which forbids it from the manifest.
+ *
+ * A gitignore pattern written with a trailing slash (`sessions/`, `dist/`)
+ * only ever matches a directory, and Git can only tell the bare name is a
+ * directory when one actually exists on disk at query time -- so checking
+ * only the bare name makes this function's answer depend on incidental
+ * filesystem state (measured: `dist` matches bare because a build had
+ * already produced it; `sessions`, never created in this repository, does
+ * not, even though both are directory-only patterns in the same file).
+ * Checking the path with a trailing slash as well is Git's own documented
+ * way to ask "would this be ignored as a directory" without requiring one
+ * to exist, and makes the answer the same whether or not a prior step
+ * happened to create it.
+ */
 export function isIgnored(repository, relativePath) {
-  const result = git(["check-ignore", "--quiet", "--", relativePath], repository);
+  const bare = git(["check-ignore", "--quiet", "--", relativePath], repository);
   // check-ignore exits 0 when ignored, 1 when not ignored, 128 on error.
-  return result.status === 0;
+  if (bare.status === 0) return true;
+  const asDirectory = git(["check-ignore", "--quiet", "--", `${relativePath}/`], repository);
+  return asDirectory.status === 0;
 }
 
 /**

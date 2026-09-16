@@ -114,7 +114,7 @@ export function checkpointBinding({ transcriptPath, checkpoint }) {
 export function restoreVerifiedBinding({ transcriptPath, checkpoint, restore }) {
   const binding = checkpointBinding({ transcriptPath, checkpoint });
   const outcome = restore();
-  const recomputed = outcome.status === 0 && typeof outcome.pack === "string" && outcome.pack.includes("[dcompact:");
+  const recomputed = outcome.status === 0 && typeof outcome.pack === "string" && outcome.pack.includes("[dcompress:");
   return {
     ...binding,
     checkpointHashRecomputedByRestore: recomputed,

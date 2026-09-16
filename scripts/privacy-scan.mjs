@@ -89,6 +89,11 @@ const ALLOWLIST = [
     literal: "agent@dcompact.local",
     reason: "the sandbox's throwaway git identity under the tool's former name, present in history before the dcompact-to-dcompress rebrand; the same non-routable mDNS name as sandbox-git-identity, spelled the old way",
   },
+  {
+    id: "og86-fixture-git-identity",
+    literal: "og86-fixture@example.invalid",
+    reason: "throwaway git identity for a disposable temp-directory repo the OG-86 seed-manifest tests create and destroy per test; example.invalid is the IANA-reserved domain for exactly this (RFC 2606), not a routable address",
+  },
 ];
 
 /**
