@@ -132,10 +132,10 @@ Claude-only and task-owned; it does not edit live Claude configuration.
 [`docs/demo/claude-continuity-0001.md`](docs/demo/claude-continuity-0001.md) records the whole
 loop — checkpoint at the boundary, injection at `SessionStart`, checkpoint after the compaction,
 and the merged pack — against a synthetic two-epoch fixture, pinned byte-for-byte by
-`test/continuity-demo.spec.ts`. It also records what the pack loses, because that is the part a
-demo is tempted to hide: a next action stated in prose is extracted only when it matches the
-decision-cue lexicon, `todo.state` keeps a task's text but not whether it is open or done, and
-under a reduced byte budget the todo facts are the first the renderer drops.
+`test/continuity-demo.spec.ts`. It also documents extraction boundaries: a next action stated in
+prose is extracted only when it matches the decision-cue lexicon, `todo.state` keeps a task's text
+but not whether it is open or done, and under a reduced byte budget the todo facts are the first
+the renderer drops.
 
 ## What it does today, and what it does not
 
@@ -225,7 +225,7 @@ Determinism is the point of the project, so it is enforced rather than asserted:
   guarantee is over the transcript bytes **and** the declared extraction inputs — repo root,
   `path_base`, extractor version, canonicalization version — not over the transcript alone;
   `docs/SCHEMA.md` §6.1 states the exact scope.
-- **Tested, not promised.** `test/determinism.spec.ts` re-runs every committed fixture under
+- **Automated regression vectors:** `test/determinism.spec.ts` re-runs every committed fixture under
   perturbed environment, clock, and host inputs; the golden vectors pin exact payload bytes and
   hashes. A non-deterministic payload is a release blocker.
 
@@ -243,8 +243,9 @@ Determinism is the point of the project, so it is enforced rather than asserted:
 Two gates must pass before a checkout of this repository is treated as ready to publish: a scan
 for what the commits themselves leak, and a reproduction of the quickstart claim above from a
 stranger's position. Passing both is not the same as publishing — this repository is private
-(`package.json`'s `private: true` blocks `npm publish`), and OG-83 exports a sanitized `HEAD`
-into a separate public repository only once the evidence is final and both gates are green.
+(`package.json`'s `private: true` blocks `npm publish`), and the publication pipeline exports a
+sanitized `HEAD` into a separate public repository only once the evidence is final and both gates
+are green.
 
 #### Privacy and history scan
 
@@ -264,17 +265,9 @@ never the matched text: a scanner that echoes what it found into a public CI log
 readable from the repository. `test/privacy-scan.spec.ts` proves that each class is detected, that
 the report carries no matched value, and that a secret added and then deleted is still found.
 
-What this gate is not:
-
-- **A pattern scanner, not a guarantee.** It finds the shapes it knows. A path, a credential, or a
-  sentence that matches none of its rules passes, and a clean run is not evidence that a transcript
-  is safe to publish. Binary files are counted and skipped, and a file the scan cannot read fails
-  the run rather than passing quietly.
-- **Not redaction.** Secret redaction inside packs is still unimplemented (the box above and
-  CONCEPT §9); this gate protects this repository's own commits, not the packs dcompress prints.
-- **Not a broad exemption list.** Each allowlist entry is one exact literal with the reason it is
-  not a leak — test placeholders, the development sandbox's own paths — and every run reports how
-  many occurrences each entry suppressed.
+**Gate boundaries:** The scanner checks known secret and path shapes; it is not an automated
+redaction engine for generated packs. Each allowlist entry matches one exact literal (such as test
+placeholders or local sandbox paths) with a documented reason.
 
 #### Clean-clone reproduction
 
@@ -298,22 +291,17 @@ unit-tests the parser against synthetic README text and does not itself clone or
 the real gate as its own `clean-clone` job, on `ubuntu-latest` only — narrower than the
 Ubuntu/macOS test matrix.
 
-What this gate is not:
-
-- **Not a check on any other claim in this file.** It reproduces exactly one command and its two
-  stated output properties (byte count, hash); every other row, number, or sentence in this
-  README is unverified by it.
-- **Not a test of a real network clone.** The source is this checkout's own git history at `HEAD`;
-  it says nothing about what a stranger's `git clone <url>` over the network would fetch.
+**Gate boundaries:** This check verifies one command and its two stated output properties (byte
+count and payload hash) against this checkout's git history at `HEAD`. It does not evaluate other
+claims or perform network fetches.
 
 Related design decisions:
 [ADR 003 — facts, not transcripts](docs/adr/003-facts-not-transcripts.md) (dcompress stores
 extracted facts, never conversations) and CONCEPT §9 for the full security model.
 
-## The OG-61 preview verdict
+## Preview Evaluation & Limitations
 
-The preview was built as a deliberate premise test: *can rule-based extraction yield facts
-worth injecting?* The honest answer, for the one transcript it was measured on:
+The preview evaluates whether rule-based transcript extraction yields facts worth injecting into an agent context:
 
 > **Premise supported, narrowly.** The preview carries information the agent's own compaction
 > summary does not: an evidence-backed user decision, a normalized failure signature, an
@@ -329,11 +317,10 @@ The limitations, stated as plainly as the verdict:
 3. **No unfinished next action is exercised in the preview fixture** — the open-work case a
    post-compaction resume most needs. The continuity demo does carry an unresolved task across a
    compaction, and shows that the pack cannot say it is unresolved.
-4. OG-85 adds an **experimental**, task-owned Claude continuity slice with explicit snapshot,
-   restore, and hook commands, and OG-83 adds a Claude-only `install`/`uninstall` with
-   byte-identical restore (D4, proven by an automated `cmp`). Neither is the general
-   install/integration gate D2: no recorded session shows a real compaction going through an
-   installed hook.
+4. The repository includes an **experimental**, task-owned Claude continuity slice with explicit
+   snapshot, restore, and hook commands, plus a Claude-only `install`/`uninstall` with
+   byte-identical restore (verified by an automated `cmp` test). Neither replaces a live integration
+   test: no recorded session shows a real compaction executing through an installed hook in production.
 5. It measures whether the pack is *useful*, not whether injection improves agent outcomes. The
    three-arm continuity-fidelity test is reserved for a later phase
    ([`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md) §7.1).
@@ -351,15 +338,13 @@ work. In wave order:
    implemented and judged above, and the store (snapshots, manifest, lock, retention) is
    implemented as a library.
 3. **Wave 3 — in progress.** The experimental Claude continuity slice and a Claude-only
-   `install`/`uninstall` with reversible, byte-identical restore (D4) are both in place; wiring
-   and proving the loop inside a real Claude Code session and a real compaction (D2) is what
-   remains.
+   `install`/`uninstall` with reversible, byte-identical restore are in place; verifying the loop
+   inside a live Claude Code session during compaction is what remains.
 4. **Wave 4.** Adapter framework, then the Codex and OMP adapters, each validated against the
    framework rather than the engine.
 5. **Wave 5.** MCP server and the generic fallback tier are not started; a hook
-   fault-injection suite (`test/hook-fault-injection.spec.ts`) already proves the hardening
-   phase's D8 ahead of the rest of P12 (fuzzing, property tests, budget review), and release
-   remains gated on the other waves.
+   fault-injection suite (`test/hook-fault-injection.spec.ts`) already verifies recovery ahead of
+   remaining hardening work (fuzzing, property tests, budget review), and release remains gated on the other waves.
 
 ## Design documents
 
