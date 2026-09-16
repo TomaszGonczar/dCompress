@@ -38,6 +38,7 @@ backups/
 .DS_Store
 Thumbs.db
 .idea/
+.commandcode/
 .vscode/*
 !.vscode/mcp.json
 !.vscode/extensions.json
