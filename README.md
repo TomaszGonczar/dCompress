@@ -12,6 +12,15 @@
   <a href="docs/SCHEMA.md"><img src="https://img.shields.io/badge/determinism-byte--level%20enforced-purple.svg" alt="Byte Determinism"></a>
 </p>
 
+<p align="center">
+  <a href="REVIEWER_GUIDE.md"><b>Reviewer Guide (10 min)</b></a> ·
+  <a href="#tldr">TL;DR</a> ·
+  <a href="#try-it-in-60-seconds">Quickstart</a> ·
+  <a href="#benchmarks">Benchmarks</a> ·
+  <a href="#architecture">Architecture</a> ·
+  <a href="#development">Development</a>
+</p>
+
 ## TL;DR
 
 `dcompress` turns a coding agent's raw JSONL transcript into a small, verifiable fact pack —
