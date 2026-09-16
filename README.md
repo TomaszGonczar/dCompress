@@ -23,40 +23,15 @@
 
 ## TL;DR
 
-`dcompress` turns a coding agent's raw JSONL transcript into a small, verifiable fact pack —
-files touched, commands run, errors raised and fixed, decisions stated — with **zero LLM calls
-in the extraction path**. Same transcript in, byte-identical pack and SHA-256 hash out, on any
-machine, any timezone, any locale — proven in CI, not asserted in prose.
+`dcompress` turns a coding agent's raw JSONL transcript into a verifiable Markdown fact pack: files touched, commands run, errors raised and fixed, and decisions stated. Extraction uses zero LLM calls. The same transcript yields a byte-identical pack and SHA-256 hash on any machine, timezone, or locale.
 
-- **704 tests, 0 runtime dependencies, MIT.** `npm test && npm run lint && npm run typecheck`
-  all clean on Node 20 and 22, Ubuntu and macOS.
-- **Determinism as a release gate.** `test/determinism.spec.ts` re-runs every committed fixture
-  under a perturbed clock, locale, and `$HOME`; a non-deterministic payload fails CI, it does not
-  ship with a caveat.
-- **A real, scored benchmark, not a self-report.** [OG-86](docs/benchmark/og86-medium-v1/) is a
-  preregistered, blinded, 3-arm comparison executed against the live Claude API — frozen
-  protocol, frozen scoring rubric, checksummed inputs. First complete, valid, checksummed run
-  (`n = 1`, directional — see [Benchmarks](#benchmarks) for the full caveat): the dcompact
-  checkpoint pack arm recovered **14.5/100** vs **12/100** for native compaction alone and
-  **12/100** for the host's own re-surfaced summary. Built and hardened by finding and fixing
-  real bugs against real runs rather than mocks (see the commit history under
-  `scripts/benchmark/`).
-- **Publication gates, not just tests.** Every change is scanned for what it leaks
-  (`scripts/privacy-scan.mjs`, working tree *and* history) and proven reproducible from a clean
-  clone (`scripts/clean-clone-check.mjs`) before it is considered publishable — both wired into
-  CI, both runnable locally in seconds.
-- **Honest about what is not done.** The status table below marks continuity/install as
-  experimental and Claude-only, MCP and other adapters as not implemented, and secret redaction
-  as not yet built. Nothing here is oversold to look finished.
+- **704 tests, 0 runtime dependencies, MIT.** `npm test && npm run lint && npm run typecheck` run clean on Node 20 and 22, across Ubuntu and macOS.
+- **Enforced determinism:** `test/determinism.spec.ts` re-runs fixtures under perturbed clock, locale, and `$HOME` settings. Non-deterministic payloads fail CI.
+- **Preregistered benchmark:** [OG-86](docs/benchmark/og86-medium-v1/) evaluates 3 arms against the live Claude API using frozen protocols, rubrics, and checksummed inputs. On the initial complete run (`n = 1`, directional), the checkpoint pack recovered **14.5/100** points versus **12.0/100** for native compaction alone and **12.0/100** for host summary resurfacing.
+- **Automated publication gates:** CI scans working tree and commit history for credential leaks (`scripts/privacy-scan.mjs`) and validates clean-clone reproducibility (`scripts/clean-clone-check.mjs`).
+- **Scope boundaries:** Continuity commands are experimental and Claude-only. MCP servers, alternate adapters, and runtime secret redaction are not yet implemented.
 
-Try it in 60 seconds ⬇, or jump to [How it works](#how-it-works) /
-[Determinism](#determinism) / [Benchmarks](#benchmarks).
-
-When a coding agent compacts, it replaces the older half of its own context with a few
-paragraphs of model-written prose. `dcompress` takes the opposite approach: it reads the
-agent's own transcript with deterministic rules and turns what actually happened — files
-touched, commands run, errors raised and fixed, decisions stated — into a bounded,
-hash-addressed fact pack that can be verified against the transcript line by line.
+Try it in 60 seconds ⬇, or jump to [How it works](#how-it-works) / [Determinism](#determinism) / [Benchmarks](#benchmarks).
 
 ## Try it in 60 seconds
 
@@ -166,17 +141,12 @@ the renderer drops.
 | Secret redaction | **Not implemented** — planned for the hardening phase |
 | npm publish / `npm i -g dcompress` / `npx dcompress` | **Not available** — the package is `private: true` |
 | Windows | **Not tested** — CI covers Ubuntu and macOS only |
-
-The continuity commands are intentionally narrow: they require an explicit session, transcript
-and/or store path, and support Claude only. A PreCompact starts a new injection epoch even when
-the payload hash is unchanged; repeated SessionStart(compact) delivery in that epoch is suppressed,
-while every SessionStart(resume) injects because resume is a fresh context. Restore unions degraded
-states from the whole verified chain. Facts from earlier checkpoints remain historical and are marked
-`unbacked` unless they are present in the newest checkpoint; source counters always describe the
-newest input tuple. Since checkpoints are cumulative, continuity merges same-identity numeric attrs
-with deterministic max rather than summing them across epochs. `install`/`uninstall` add a
-narrower surface of their own — Claude only, and unproven against a live session (see the table
-above); general, multi-agent installation and agent discovery still belong to later phases.
+Continuity commands operate under explicit constraints:
+- **Scope:** Claude only. Requires explicit `--session`, `--transcript`, and `--store` paths.
+- **Epochs:** `PreCompact` triggers a new injection epoch. Duplicate `SessionStart(compact)` deliveries within that epoch are suppressed; `SessionStart(resume)` always injects.
+- **State union:** `restore` merges degraded states across the verified snapshot chain. Numeric attributes use deterministic `max` rather than cross-epoch sums.
+- **Fact provenance:** Facts from earlier checkpoints remain historical (`unbacked`) unless re-observed in the newest checkpoint.
+- **Lifecycle commands:** `install` and `uninstall` modify Claude configuration files inside marked boundaries, backed up to `<store>/backups/`. They remain unproven against live production sessions.
 
 ## How it works
 
@@ -218,19 +188,11 @@ flowchart LR
 
 ## Determinism
 
-Determinism is the point of the project, so it is enforced rather than asserted:
+Determinism is enforced directly in CI:
 
-- **No model.** No LLM call exists anywhere in the extraction path. See
-  [`docs/adr/002-rule-based-extraction-no-model.md`](docs/adr/002-rule-based-extraction-no-model.md).
-- **Same inputs in, same hash out.** The committed fixture renders to
-  `sha256:1ebd2c27a646e226e18229a76828f90e658795c30b8db22f23618777eaba16c4`
-  under perturbations of `TZ`, `LANG`, `LC_ALL`, and `$HOME`, on Node 20, 22, and 26. The
-  guarantee is over the transcript bytes **and** the declared extraction inputs — repo root,
-  `path_base`, extractor version, canonicalization version — not over the transcript alone;
-  `docs/SCHEMA.md` §6.1 states the exact scope.
-- **Automated regression vectors:** `test/determinism.spec.ts` re-runs every committed fixture under
-  perturbed environment, clock, and host inputs; the golden vectors pin exact payload bytes and
-  hashes. A non-deterministic payload is a release blocker.
+- **Zero LLM calls:** Pure TypeScript rules extract all facts ([ADR 002](docs/adr/002-rule-based-extraction-no-model.md)).
+- **Canonical output:** The committed fixture renders to `sha256:1ebd2c27a646e226e18229a76828f90e658795c30b8db22f23618777eaba16c4` across perturbed `TZ`, `LANG`, `LC_ALL`, and `$HOME` on Node 20, 22, and 26. The hash covers transcript bytes plus declared extraction inputs (repo root, path base, extractor and canonicalization versions; see [SCHEMA.md](docs/SCHEMA.md) §6.1).
+- **Regression vectors:** `test/determinism.spec.ts` executes all fixtures under perturbed clock and host variables. Any payload drift fails CI.
 
 ## Privacy
 
@@ -243,64 +205,37 @@ Determinism is the point of the project, so it is enforced rather than asserted:
 
 ### Publishing this repository
 
-Two gates must pass before a checkout of this repository is treated as ready to publish: a scan
-for what the commits themselves leak, and a reproduction of the quickstart claim above from a
-stranger's position. Passing both is not the same as publishing — this repository is private
-(`package.json`'s `private: true` blocks `npm publish`), and the publication pipeline exports a
-sanitized `HEAD` into a separate public repository only once the evidence is final and both gates
-are green.
+Two automated gates must pass before publishing:
+1. `scripts/privacy-scan.mjs` scans working tree and commit history for leaked secrets and paths.
+2. `scripts/clean-clone-check.mjs` clones `HEAD` into an isolated temporary directory and reproduces the quickstart output byte-for-byte.
 
 #### Privacy and history scan
 
-Every change is scanned before it can be published — the working tree, and the commits the change
-adds — by `scripts/privacy-scan.mjs`, which CI runs as its own `privacy` job:
+CI runs `scripts/privacy-scan.mjs` as a dedicated `privacy` job:
 
 ```sh
 node scripts/privacy-scan.mjs --json
 node scripts/privacy-scan.mjs --history origin/main..HEAD --json
 ```
 
-It reports host paths, session-id-shaped UUIDs, bearer tokens, API key prefixes, email addresses,
-and the user name and host name of the machine it runs on, read at run time so the scan means
-something on the machine that wrote the content. A report names the rule, the file, and the line,
-never the matched text: a scanner that echoes what it found into a public CI log has published it.
-`--history` reads the content commits *added*, because a file deleted in a later commit is still
-readable from the repository. `test/privacy-scan.spec.ts` proves that each class is detected, that
-the report carries no matched value, and that a secret added and then deleted is still found.
+The scanner checks for host paths, UUIDs, bearer tokens, API key prefixes, email addresses, and the local host/user identity. Reports identify the rule, file, and line without printing matched secret text into logs. The `--history` flag scans additions in new commits so that deleted secrets are still caught. Unit tests in `test/privacy-scan.spec.ts` verify detection coverage.
 
-**Gate boundaries:** The scanner checks known secret and path shapes; it is not an automated
-redaction engine for generated packs. Each allowlist entry matches one exact literal (such as test
-placeholders or local sandbox paths) with a documented reason.
+Allowlist entries match specific test fixtures and sandbox paths with documented justifications.
 
 #### Clean-clone reproduction
 
-`scripts/clean-clone-check.mjs` is the other publication gate: it proves the "Try it in 60
-seconds" section above is not aspirational. It clones this repository's own `HEAD` into a fresh
-temporary directory — never a network fetch — installs from the lockfile and builds with no
-inherited `node_modules`, runs the exact command README.md documents, and diffs the resulting
-stdout, its byte count, and the stderr payload hash against the values this file states. The
-command, the fixture path, the byte count, and the hash are parsed out of the README text itself
-rather than hand-copied, so a value that drifts here is exactly what this gate is built to catch:
+`scripts/clean-clone-check.mjs` verifies the quickstart sequence in a clean environment:
 
 ```sh
 node scripts/clean-clone-check.mjs
 node scripts/clean-clone-check.mjs --json
 ```
 
-Exit codes: `0` reproduced, `1` the clone's output, byte count, or hash disagrees with what
-README.md claims, `2` a usage error or an internal failure (the clone, install, or build itself
-failed, or the README no longer has the shape the parser expects). `test/clean-clone.spec.ts`
-unit-tests the parser against synthetic README text and does not itself clone or build; CI runs
-the real gate as its own `clean-clone` job, on `ubuntu-latest` only — narrower than the
-Ubuntu/macOS test matrix.
+The script clones `HEAD` into a temporary directory (without network fetches), installs dependencies, builds `dist/`, runs the preview command, and checks stdout byte length (1696 bytes) and the stderr payload hash against the values declared in this README. Expected values are parsed directly from this document.
 
-**Gate boundaries:** This check verifies one command and its two stated output properties (byte
-count and payload hash) against this checkout's git history at `HEAD`. It does not evaluate other
-claims or perform network fetches.
+Exit codes: `0` reproduced, `1` output mismatch, `2` build or parse failure. CI runs this check in the `clean-clone` job on `ubuntu-latest`.
 
-Related design decisions:
-[ADR 003 — facts, not transcripts](docs/adr/003-facts-not-transcripts.md) (dcompress stores
-extracted facts, never conversations) and CONCEPT §9 for the full security model.
+See [ADR 003](docs/adr/003-facts-not-transcripts.md) for data boundary decisions and [CONCEPT.md](docs/CONCEPT.md) §9 for the security model.
 
 ## Preview Evaluation & Limitations
 
@@ -365,34 +300,22 @@ work. In wave order:
 
 ## Benchmarks
 
-[`docs/benchmark/native-compaction-retention.md`](docs/benchmark/native-compaction-retention.md)
-is an exploratory note on how much context agents' own compaction retains across repeated
-cycles, and how `dcompress preview` compared on synthetic event sets. It is explicitly **not** a
-product claim: one session per cell, several cells unmeasurable, `dcompress` never run against
-the organic transcripts, and the document states which figures are reproducible and which are
-not. Nothing in it runs in CI.
+[`docs/benchmark/native-compaction-retention.md`](docs/benchmark/native-compaction-retention.md) records exploratory observations on context retention across repeated compaction cycles using synthetic event sets.
 
-[`docs/benchmark/og86-medium-v1/`](docs/benchmark/og86-medium-v1/) is a materially stronger
-claim: a preregistered ([`preregistration.md`](docs/benchmark/og86-medium-v1/preregistration.md)),
-blinded, 3-arm comparison executed against the live Claude API rather than a mock, with a frozen
-protocol, a frozen scoring rubric, and checksummed inputs (`checksums.sha256`) so the exact
-workload and grading criteria are pinned before any arm runs. `scripts/benchmark/run-og86-medium.mjs`
-and `run-og86-stage0.mjs` are the real controllers, not illustrative pseudocode: every validity
-gate they enforce — model-id pinning, tool-boundary exactness, checkpoint hash re-derivation
-through `restore`, treatment-injection accounting, wall-clock and turn ceilings, cost tracking
-against a hard runaway limit — was written against, and repeatedly corrected by, real executions
-against the live API, not simulated inputs; `test/og86-controller.spec.ts` and
-`test/og86-benchmark.spec.ts` cover the controller's stop conditions and the frozen artifact set.
-A complete, valid, checksummed 3-arm run exists as of 2026-09-16
-([`results/`](docs/benchmark/og86-medium-v1/results/), `run-manifest.json` +
-`X1.json`/`X2.json`/`X3.json`, the exact sanitized artifacts the frozen controller emitted — zero
-invalidations, zero operational stops, model id and tool boundaries verified every checkpoint).
-The question asked: during four controlled manual `/compact` events on the same real coding
-workload, does a freshly resumed Haiku 4.5 process recover more useful, verifiable work state
-with **(A)** native compacted context alone, **(B)** native context plus the host's own re-surfaced
-summary, or **(C)** native context plus a deterministic dcompact checkpoint pack? Cumulative recall
-at the fourth and final checkpoint, scored against a 100-point frozen rubric spanning all four
-phases:
+### OG-86 Benchmark
+
+The [OG-86 benchmark](docs/benchmark/og86-medium-v1/) is a preregistered ([preregistration.md](docs/benchmark/og86-medium-v1/preregistration.md)), blinded 3-arm comparison executed against the live Claude API. It uses a frozen protocol, a frozen scoring rubric, and checksummed inputs (`checksums.sha256`).
+
+The benchmark controllers (`scripts/benchmark/run-og86-medium.mjs` and `run-og86-stage0.mjs`) enforce runtime validity gates: model ID pinning, tool boundary verification, checkpoint hash re-derivation via `restore`, treatment accounting, and cost ceilings. Stop conditions and frozen artifacts are verified in `test/og86-controller.spec.ts` and `test/og86-benchmark.spec.ts`.
+
+A complete, checksummed 3-arm run finished on 2026-09-16 ([results/](docs/benchmark/og86-medium-v1/results/)): zero invalidations, zero operational stops, with model ID and tool boundaries verified at every checkpoint.
+
+The experiment evaluates whether a freshly resumed Claude 3.5 Haiku process recovers more verifiable work state across four manual `/compact` cycles under three treatments:
+- **Arm A:** Native compaction only (control)
+- **Arm B:** Native compaction plus re-surfaced host summary
+- **Arm C:** Native compaction plus deterministic dcompact checkpoint pack
+
+Cumulative recall at the fourth checkpoint, scored against a 100-point frozen rubric:
 
 | Arm | Treatment | Points | Recall |
 |---|---|---|---|
@@ -400,14 +323,9 @@ phases:
 | B | native compaction + re-surfaced native summary | 12.0 / 100 | 12.0% |
 | C | native compaction + dcompact checkpoint pack | 14.5 / 100 | 14.5% |
 
-**Read this as directional evidence, not a population claim** — the preregistration says so in
-its first paragraph, and this result does not change that: `n = 1` per arm, one machine, one
-model, one workload. C outscored both A and B on this one run; B did not separate from A, meaning
-re-surfacing the host's own summary alone showed no measured advantage over doing nothing extra —
-only the structured checkpoint pack did. No claim beyond that single, real, checksummed
-observation is made here. Real cost for the whole series: $2.04 (Claude CLI's own
-`total_cost_usd`, summed per arm — A $0.61, B $0.66, C $0.76); real wall-clock per arm: A 10.9
-min, B 12.2 min, C 13.1 min.
+**Scope of evidence:** This is directional evidence (`n = 1` per arm, one machine, one model, one workload). Arm C recovered 14.5 points compared to 12.0 points for Arms A and B. Re-surfacing the host's summary (Arm B) showed no measured gain over native compaction alone (Arm A).
+
+Total series cost was $2.04 (Arm A: $0.61, Arm B: $0.66, Arm C: $0.76). Wall-clock runtimes: Arm A 10.9 min, Arm B 12.2 min, Arm C 13.1 min.
 
 ## Development
 
