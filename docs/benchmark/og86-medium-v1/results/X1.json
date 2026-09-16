@@ -1,0 +1,2516 @@
+{
+  "opaqueArm": "X1",
+  "modelCounts": {
+    "assistantRecords": 202,
+    "matchingModelRecords": 202,
+    "fallbackOrModelSwitch": 0
+  },
+  "processes": [
+    {
+      "label": "C:1:work",
+      "role": "work",
+      "incarnation": 1,
+      "assistantRecords": 36,
+      "matchingModelRecords": 36,
+      "fallbackOrModelSwitchRecords": 0,
+      "cumulativeAssistantRecords": 36,
+      "monotonic": true
+    },
+    {
+      "label": "C:1:compact",
+      "role": "compact",
+      "incarnation": 1,
+      "assistantRecords": 0,
+      "matchingModelRecords": 0,
+      "fallbackOrModelSwitchRecords": 0,
+      "cumulativeAssistantRecords": 0,
+      "monotonic": true
+    },
+    {
+      "label": "C:1:fork",
+      "role": "probe",
+      "incarnation": 1,
+      "assistantRecords": 0,
+      "matchingModelRecords": 0,
+      "fallbackOrModelSwitchRecords": 0,
+      "cumulativeAssistantRecords": 0,
+      "monotonic": true
+    },
+    {
+      "label": "C:1:probe",
+      "role": "probe",
+      "incarnation": 2,
+      "assistantRecords": 2,
+      "matchingModelRecords": 2,
+      "fallbackOrModelSwitchRecords": 0,
+      "cumulativeAssistantRecords": 2,
+      "monotonic": true
+    },
+    {
+      "label": "C:1:continuation",
+      "role": "continuation",
+      "incarnation": 1,
+      "assistantRecords": 5,
+      "matchingModelRecords": 5,
+      "fallbackOrModelSwitchRecords": 0,
+      "cumulativeAssistantRecords": 5,
+      "monotonic": true
+    },
+    {
+      "label": "C:2:work",
+      "role": "work",
+      "incarnation": 1,
+      "assistantRecords": 25,
+      "matchingModelRecords": 25,
+      "fallbackOrModelSwitchRecords": 0,
+      "cumulativeAssistantRecords": 25,
+      "monotonic": true
+    },
+    {
+      "label": "C:2:compact",
+      "role": "compact",
+      "incarnation": 1,
+      "assistantRecords": 0,
+      "matchingModelRecords": 0,
+      "fallbackOrModelSwitchRecords": 0,
+      "cumulativeAssistantRecords": 0,
+      "monotonic": true
+    },
+    {
+      "label": "C:2:fork",
+      "role": "probe",
+      "incarnation": 1,
+      "assistantRecords": 0,
+      "matchingModelRecords": 0,
+      "fallbackOrModelSwitchRecords": 0,
+      "cumulativeAssistantRecords": 0,
+      "monotonic": true
+    },
+    {
+      "label": "C:2:probe",
+      "role": "probe",
+      "incarnation": 2,
+      "assistantRecords": 2,
+      "matchingModelRecords": 2,
+      "fallbackOrModelSwitchRecords": 0,
+      "cumulativeAssistantRecords": 2,
+      "monotonic": true
+    },
+    {
+      "label": "C:2:continuation",
+      "role": "continuation",
+      "incarnation": 1,
+      "assistantRecords": 2,
+      "matchingModelRecords": 2,
+      "fallbackOrModelSwitchRecords": 0,
+      "cumulativeAssistantRecords": 2,
+      "monotonic": true
+    },
+    {
+      "label": "C:3:work",
+      "role": "work",
+      "incarnation": 1,
+      "assistantRecords": 40,
+      "matchingModelRecords": 40,
+      "fallbackOrModelSwitchRecords": 0,
+      "cumulativeAssistantRecords": 40,
+      "monotonic": true
+    },
+    {
+      "label": "C:3:compact",
+      "role": "compact",
+      "incarnation": 1,
+      "assistantRecords": 0,
+      "matchingModelRecords": 0,
+      "fallbackOrModelSwitchRecords": 0,
+      "cumulativeAssistantRecords": 0,
+      "monotonic": true
+    },
+    {
+      "label": "C:3:fork",
+      "role": "probe",
+      "incarnation": 1,
+      "assistantRecords": 0,
+      "matchingModelRecords": 0,
+      "fallbackOrModelSwitchRecords": 0,
+      "cumulativeAssistantRecords": 0,
+      "monotonic": true
+    },
+    {
+      "label": "C:3:probe",
+      "role": "probe",
+      "incarnation": 2,
+      "assistantRecords": 2,
+      "matchingModelRecords": 2,
+      "fallbackOrModelSwitchRecords": 0,
+      "cumulativeAssistantRecords": 2,
+      "monotonic": true
+    },
+    {
+      "label": "C:3:continuation",
+      "role": "continuation",
+      "incarnation": 1,
+      "assistantRecords": 35,
+      "matchingModelRecords": 35,
+      "fallbackOrModelSwitchRecords": 0,
+      "cumulativeAssistantRecords": 35,
+      "monotonic": true
+    },
+    {
+      "label": "C:4:work",
+      "role": "work",
+      "incarnation": 1,
+      "assistantRecords": 25,
+      "matchingModelRecords": 25,
+      "fallbackOrModelSwitchRecords": 0,
+      "cumulativeAssistantRecords": 25,
+      "monotonic": true
+    },
+    {
+      "label": "C:4:compact",
+      "role": "compact",
+      "incarnation": 1,
+      "assistantRecords": 0,
+      "matchingModelRecords": 0,
+      "fallbackOrModelSwitchRecords": 0,
+      "cumulativeAssistantRecords": 0,
+      "monotonic": true
+    },
+    {
+      "label": "C:4:fork",
+      "role": "probe",
+      "incarnation": 1,
+      "assistantRecords": 0,
+      "matchingModelRecords": 0,
+      "fallbackOrModelSwitchRecords": 0,
+      "cumulativeAssistantRecords": 0,
+      "monotonic": true
+    },
+    {
+      "label": "C:4:probe",
+      "role": "probe",
+      "incarnation": 2,
+      "assistantRecords": 2,
+      "matchingModelRecords": 2,
+      "fallbackOrModelSwitchRecords": 0,
+      "cumulativeAssistantRecords": 2,
+      "monotonic": true
+    },
+    {
+      "label": "C:4:continuation",
+      "role": "continuation",
+      "incarnation": 1,
+      "assistantRecords": 26,
+      "matchingModelRecords": 26,
+      "fallbackOrModelSwitchRecords": 0,
+      "cumulativeAssistantRecords": 26,
+      "monotonic": true
+    }
+  ],
+  "checkpoints": [
+    {
+      "ordinal": 1,
+      "manualCompaction": true,
+      "steps": [
+        "send-phase-prompt",
+        "run-phase-acceptance",
+        "invoke-manual-compact",
+        "capture-native-summary",
+        "create-score-fork",
+        "resume-fork-tools-disabled",
+        "verify-source-stability",
+        "resume-source-with-treatment"
+      ],
+      "elapsedWallSeconds": 138.567032333,
+      "assistantTurns": 43,
+      "nativeSummaryBytes": 9540,
+      "sourceTranscriptBytesBefore": 435772,
+      "sourceTranscriptLinesBefore": 152,
+      "sourceTranscriptSha256Before": "sha256:c10e4dd2ef4a89bd98c812a74557c197f9eac2dae41c4f4d1d8e7ce1c61f7439",
+      "treatmentBytes": 3488,
+      "treatmentSha256": "sha256:e96b4e7e0808068c445c4276eb25cb9d30dfd903315e2461683316d476c4396a",
+      "probeToolDecisions": [],
+      "score": {
+        "checkpoint": 1,
+        "points": 6.5,
+        "denominator": 25,
+        "recall": 0.26,
+        "exact": 1,
+        "partial": 11,
+        "missing": 13,
+        "falseFacts": 0,
+        "criticalExact": false,
+        "byCategory": {
+          "command_test": {
+            "points": 0,
+            "total": 4,
+            "exact": 0
+          },
+          "file_symbol": {
+            "points": 3,
+            "total": 5,
+            "exact": 1
+          },
+          "linkage": {
+            "points": 1,
+            "total": 4,
+            "exact": 0
+          },
+          "negative_constraint": {
+            "points": 0,
+            "total": 4,
+            "exact": 0
+          },
+          "provenance": {
+            "points": 1,
+            "total": 2,
+            "exact": 0
+          },
+          "requirement": {
+            "points": 1.5,
+            "total": 3,
+            "exact": 0
+          },
+          "unresolved": {
+            "points": 0,
+            "total": 3,
+            "exact": 0
+          }
+        },
+        "rows": [
+          {
+            "id": "P1-FS-01",
+            "category": "file_symbol",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P1-FS-02",
+            "category": "file_symbol",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P1-FS-03",
+            "category": "file_symbol",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P1-FS-04",
+            "category": "file_symbol",
+            "outcome": "exact",
+            "points": 1,
+            "critical": false
+          },
+          {
+            "id": "P1-FS-05",
+            "category": "file_symbol",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P1-RQ-01",
+            "category": "requirement",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P1-RQ-02",
+            "category": "requirement",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P1-RQ-03",
+            "category": "requirement",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P1-NC-01",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-NC-02",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-NC-03",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-NC-04",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-LK-01",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-LK-02",
+            "category": "linkage",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": true
+          },
+          {
+            "id": "P1-LK-03",
+            "category": "linkage",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": true
+          },
+          {
+            "id": "P1-LK-04",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-CT-01",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-CT-02",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-CT-03",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-CT-04",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-UN-01",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-UN-02",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-UN-03",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-PV-01",
+            "category": "provenance",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P1-PV-02",
+            "category": "provenance",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          }
+        ]
+      },
+      "sourceTranscriptBytesAfter": 435772,
+      "sourceTranscriptLinesAfter": 152,
+      "sourceTranscriptSha256After": "sha256:c10e4dd2ef4a89bd98c812a74557c197f9eac2dae41c4f4d1d8e7ce1c61f7439",
+      "sourceTranscriptStable": true,
+      "canaryOccurrenceCount": 0,
+      "privateTreeModes": {
+        "rootPresent": true,
+        "readFailureCount": 0,
+        "directoryModes": {
+          "700": 9
+        },
+        "fileModes": {
+          "600": 34
+        },
+        "directoryCount": 9,
+        "fileCount": 34,
+        "symlinkCount": 0,
+        "allDirectoriesOwnerOnly": true,
+        "allFilesOwnerOnly": true,
+        "zeroSymlinks": true
+      },
+      "resumeTreatmentBytes": 3488,
+      "resumeTreatmentSha256": "sha256:e96b4e7e0808068c445c4276eb25cb9d30dfd903315e2461683316d476c4396a",
+      "treatmentIdentity": {
+        "arm": "C",
+        "phase": 1,
+        "scored": {
+          "bytes": 3488,
+          "sha256": "sha256:e96b4e7e0808068c445c4276eb25cb9d30dfd903315e2461683316d476c4396a"
+        },
+        "resume": {
+          "bytes": 3488,
+          "sha256": "sha256:e96b4e7e0808068c445c4276eb25cb9d30dfd903315e2461683316d476c4396a"
+        },
+        "matches": true,
+        "reason": "identical"
+      },
+      "armC": {
+        "retainedPrefixBytes": 398672,
+        "retainedPrefixLines": 131,
+        "retainedPrefixSha256": "sha256:b3d2ce9db0bf0e9d4a3c6776457abeee148b5ea37e7994db34ed20a11e155d3a",
+        "prefixEndsAtLineBoundary": true,
+        "evidenceLineCount": 131,
+        "envelopeBytesMatch": true,
+        "envelopeLinesMatch": true,
+        "checkpointEvidenceEntriesMatched": 30,
+        "checkpointEvidenceEntriesRequired": 30,
+        "checkpointEvidenceEntriesMismatched": [],
+        "checkpointEvidenceEntriesOutOfPrefix": [],
+        "evidenceFullyBound": true,
+        "checkpointHashShapeValid": true,
+        "previousHashShapeValid": true,
+        "pathClassExcludesFixtureAndReplay": true,
+        "checkpointHashRecomputedByRestore": true,
+        "checkpointHashRecomputeRefusalCode": null,
+        "checkpointHashRecomputeDetail": null
+      },
+      "injectedSizeRatio": 0.38045375218150085,
+      "crossArmTreatmentBytes": {
+        "C": 3488,
+        "B": 9168,
+        "A": 0
+      }
+    },
+    {
+      "ordinal": 2,
+      "manualCompaction": true,
+      "steps": [
+        "send-phase-prompt",
+        "run-phase-acceptance",
+        "invoke-manual-compact",
+        "capture-native-summary",
+        "create-score-fork",
+        "resume-fork-tools-disabled",
+        "verify-source-stability",
+        "resume-source-with-treatment"
+      ],
+      "elapsedWallSeconds": 195.671103207,
+      "assistantTurns": 29,
+      "nativeSummaryBytes": 16084,
+      "sourceTranscriptBytesBefore": 881624,
+      "sourceTranscriptLinesBefore": 285,
+      "sourceTranscriptSha256Before": "sha256:a5ed3799e43af2c220266553eb71eafa9404b0e7206fbebc0ac3a9872f7da122",
+      "treatmentBytes": 3853,
+      "treatmentSha256": "sha256:e0e7d37008e2a313820189ce61ee0b2620d9ca89733109bb9beb9e556a9a9a72",
+      "probeToolDecisions": [],
+      "score": {
+        "checkpoint": 2,
+        "points": 9.5,
+        "denominator": 50,
+        "recall": 0.19,
+        "exact": 1,
+        "partial": 17,
+        "missing": 32,
+        "falseFacts": 0,
+        "criticalExact": false,
+        "byCategory": {
+          "command_test": {
+            "points": 0,
+            "total": 8,
+            "exact": 0
+          },
+          "file_symbol": {
+            "points": 3.5,
+            "total": 10,
+            "exact": 0
+          },
+          "linkage": {
+            "points": 1.5,
+            "total": 8,
+            "exact": 0
+          },
+          "negative_constraint": {
+            "points": 1.5,
+            "total": 8,
+            "exact": 1
+          },
+          "provenance": {
+            "points": 1.5,
+            "total": 4,
+            "exact": 0
+          },
+          "requirement": {
+            "points": 1.5,
+            "total": 6,
+            "exact": 0
+          },
+          "unresolved": {
+            "points": 0,
+            "total": 6,
+            "exact": 0
+          }
+        },
+        "rows": [
+          {
+            "id": "P1-FS-01",
+            "category": "file_symbol",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P1-FS-02",
+            "category": "file_symbol",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P1-FS-03",
+            "category": "file_symbol",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P1-FS-04",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-FS-05",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-RQ-01",
+            "category": "requirement",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-RQ-02",
+            "category": "requirement",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-RQ-03",
+            "category": "requirement",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-NC-01",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-NC-02",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-NC-03",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-NC-04",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-LK-01",
+            "category": "linkage",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": true
+          },
+          {
+            "id": "P1-LK-02",
+            "category": "linkage",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": true
+          },
+          {
+            "id": "P1-LK-03",
+            "category": "linkage",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": true
+          },
+          {
+            "id": "P1-LK-04",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-CT-01",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-CT-02",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-CT-03",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-CT-04",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-UN-01",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-UN-02",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-UN-03",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-PV-01",
+            "category": "provenance",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-PV-02",
+            "category": "provenance",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P2-FS-01",
+            "category": "file_symbol",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P2-FS-02",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-FS-03",
+            "category": "file_symbol",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P2-FS-04",
+            "category": "file_symbol",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P2-FS-05",
+            "category": "file_symbol",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P2-RQ-01",
+            "category": "requirement",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P2-RQ-02",
+            "category": "requirement",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P2-RQ-03",
+            "category": "requirement",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P2-NC-01",
+            "category": "negative_constraint",
+            "outcome": "exact",
+            "points": 1,
+            "critical": true
+          },
+          {
+            "id": "P2-NC-02",
+            "category": "negative_constraint",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": true
+          },
+          {
+            "id": "P2-NC-03",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-NC-04",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-LK-01",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-LK-02",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-LK-03",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-LK-04",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-CT-01",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-CT-02",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-CT-03",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-CT-04",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-UN-01",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-UN-02",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-UN-03",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-PV-01",
+            "category": "provenance",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P2-PV-02",
+            "category": "provenance",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          }
+        ]
+      },
+      "sourceTranscriptBytesAfter": 881624,
+      "sourceTranscriptLinesAfter": 285,
+      "sourceTranscriptSha256After": "sha256:a5ed3799e43af2c220266553eb71eafa9404b0e7206fbebc0ac3a9872f7da122",
+      "sourceTranscriptStable": true,
+      "canaryOccurrenceCount": 0,
+      "privateTreeModes": {
+        "rootPresent": true,
+        "readFailureCount": 0,
+        "directoryModes": {
+          "700": 10
+        },
+        "fileModes": {
+          "600": 57
+        },
+        "directoryCount": 10,
+        "fileCount": 57,
+        "symlinkCount": 0,
+        "allDirectoriesOwnerOnly": true,
+        "allFilesOwnerOnly": true,
+        "zeroSymlinks": true
+      },
+      "resumeTreatmentBytes": 3853,
+      "resumeTreatmentSha256": "sha256:e0e7d37008e2a313820189ce61ee0b2620d9ca89733109bb9beb9e556a9a9a72",
+      "treatmentIdentity": {
+        "arm": "C",
+        "phase": 2,
+        "scored": {
+          "bytes": 3853,
+          "sha256": "sha256:e0e7d37008e2a313820189ce61ee0b2620d9ca89733109bb9beb9e556a9a9a72"
+        },
+        "resume": {
+          "bytes": 3853,
+          "sha256": "sha256:e0e7d37008e2a313820189ce61ee0b2620d9ca89733109bb9beb9e556a9a9a72"
+        },
+        "matches": true,
+        "reason": "identical"
+      },
+      "armC": {
+        "retainedPrefixBytes": 398672,
+        "retainedPrefixLines": 131,
+        "retainedPrefixSha256": "sha256:b3d2ce9db0bf0e9d4a3c6776457abeee148b5ea37e7994db34ed20a11e155d3a",
+        "prefixEndsAtLineBoundary": true,
+        "evidenceLineCount": 131,
+        "envelopeBytesMatch": true,
+        "envelopeLinesMatch": true,
+        "checkpointEvidenceEntriesMatched": 30,
+        "checkpointEvidenceEntriesRequired": 30,
+        "checkpointEvidenceEntriesMismatched": [],
+        "checkpointEvidenceEntriesOutOfPrefix": [],
+        "evidenceFullyBound": true,
+        "checkpointHashShapeValid": true,
+        "previousHashShapeValid": true,
+        "pathClassExcludesFixtureAndReplay": true,
+        "checkpointHashRecomputedByRestore": true,
+        "checkpointHashRecomputeRefusalCode": null,
+        "checkpointHashRecomputeDetail": null
+      },
+      "injectedSizeRatio": 0.35303280190580905,
+      "crossArmTreatmentBytes": {
+        "C": 3853,
+        "B": 10914,
+        "A": 0
+      }
+    },
+    {
+      "ordinal": 3,
+      "manualCompaction": true,
+      "steps": [
+        "send-phase-prompt",
+        "run-phase-acceptance",
+        "invoke-manual-compact",
+        "capture-native-summary",
+        "create-score-fork",
+        "resume-fork-tools-disabled",
+        "verify-source-stability",
+        "resume-source-with-treatment"
+      ],
+      "elapsedWallSeconds": 216.81378166599998,
+      "assistantTurns": 77,
+      "nativeSummaryBytes": 8721,
+      "sourceTranscriptBytesBefore": 1375042,
+      "sourceTranscriptLinesBefore": 453,
+      "sourceTranscriptSha256Before": "sha256:30e8b01a903119a68c34faec2c95655ee28c438b258ea095d3bf0749b8b1bc7a",
+      "treatmentBytes": 9377,
+      "treatmentSha256": "sha256:01548f20a3529ad5e7f0090881b370240d04bd8b2b47b4e562bf4eddc278ab93",
+      "probeToolDecisions": [],
+      "score": {
+        "checkpoint": 3,
+        "points": 5.5,
+        "denominator": 75,
+        "recall": 0.07333333333333333,
+        "exact": 2,
+        "partial": 7,
+        "missing": 66,
+        "falseFacts": 0,
+        "criticalExact": false,
+        "byCategory": {
+          "command_test": {
+            "points": 0,
+            "total": 12,
+            "exact": 0
+          },
+          "file_symbol": {
+            "points": 2.5,
+            "total": 15,
+            "exact": 2
+          },
+          "linkage": {
+            "points": 0.5,
+            "total": 12,
+            "exact": 0
+          },
+          "negative_constraint": {
+            "points": 1,
+            "total": 12,
+            "exact": 0
+          },
+          "provenance": {
+            "points": 0.5,
+            "total": 6,
+            "exact": 0
+          },
+          "requirement": {
+            "points": 1,
+            "total": 9,
+            "exact": 0
+          },
+          "unresolved": {
+            "points": 0,
+            "total": 9,
+            "exact": 0
+          }
+        },
+        "rows": [
+          {
+            "id": "P1-FS-01",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-FS-02",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-FS-03",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-FS-04",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-FS-05",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-RQ-01",
+            "category": "requirement",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-RQ-02",
+            "category": "requirement",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-RQ-03",
+            "category": "requirement",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-NC-01",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-NC-02",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-NC-03",
+            "category": "negative_constraint",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": true
+          },
+          {
+            "id": "P1-NC-04",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-LK-01",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-LK-02",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-LK-03",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-LK-04",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-CT-01",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-CT-02",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-CT-03",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-CT-04",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-UN-01",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-UN-02",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-UN-03",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-PV-01",
+            "category": "provenance",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-PV-02",
+            "category": "provenance",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-FS-01",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-FS-02",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-FS-03",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-FS-04",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-FS-05",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-RQ-01",
+            "category": "requirement",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-RQ-02",
+            "category": "requirement",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P2-RQ-03",
+            "category": "requirement",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-NC-01",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-NC-02",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-NC-03",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-NC-04",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-LK-01",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-LK-02",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-LK-03",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-LK-04",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-CT-01",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-CT-02",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-CT-03",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-CT-04",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-UN-01",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-UN-02",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-UN-03",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-PV-01",
+            "category": "provenance",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-PV-02",
+            "category": "provenance",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P3-FS-01",
+            "category": "file_symbol",
+            "outcome": "exact",
+            "points": 1,
+            "critical": false
+          },
+          {
+            "id": "P3-FS-02",
+            "category": "file_symbol",
+            "outcome": "exact",
+            "points": 1,
+            "critical": false
+          },
+          {
+            "id": "P3-FS-03",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P3-FS-04",
+            "category": "file_symbol",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P3-FS-05",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P3-RQ-01",
+            "category": "requirement",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P3-RQ-02",
+            "category": "requirement",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P3-RQ-03",
+            "category": "requirement",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P3-NC-01",
+            "category": "negative_constraint",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": true
+          },
+          {
+            "id": "P3-NC-02",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P3-NC-03",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P3-NC-04",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P3-LK-01",
+            "category": "linkage",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": true
+          },
+          {
+            "id": "P3-LK-02",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P3-LK-03",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P3-LK-04",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P3-CT-01",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P3-CT-02",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P3-CT-03",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P3-CT-04",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P3-UN-01",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P3-UN-02",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P3-UN-03",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P3-PV-01",
+            "category": "provenance",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P3-PV-02",
+            "category": "provenance",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          }
+        ]
+      },
+      "sourceTranscriptBytesAfter": 1375042,
+      "sourceTranscriptLinesAfter": 453,
+      "sourceTranscriptSha256After": "sha256:30e8b01a903119a68c34faec2c95655ee28c438b258ea095d3bf0749b8b1bc7a",
+      "sourceTranscriptStable": true,
+      "canaryOccurrenceCount": 0,
+      "privateTreeModes": {
+        "rootPresent": true,
+        "readFailureCount": 0,
+        "directoryModes": {
+          "700": 11
+        },
+        "fileModes": {
+          "600": 76
+        },
+        "directoryCount": 11,
+        "fileCount": 76,
+        "symlinkCount": 0,
+        "allDirectoriesOwnerOnly": true,
+        "allFilesOwnerOnly": true,
+        "zeroSymlinks": true
+      },
+      "resumeTreatmentBytes": 9377,
+      "resumeTreatmentSha256": "sha256:01548f20a3529ad5e7f0090881b370240d04bd8b2b47b4e562bf4eddc278ab93",
+      "treatmentIdentity": {
+        "arm": "C",
+        "phase": 3,
+        "scored": {
+          "bytes": 9377,
+          "sha256": "sha256:01548f20a3529ad5e7f0090881b370240d04bd8b2b47b4e562bf4eddc278ab93"
+        },
+        "resume": {
+          "bytes": 9377,
+          "sha256": "sha256:01548f20a3529ad5e7f0090881b370240d04bd8b2b47b4e562bf4eddc278ab93"
+        },
+        "matches": true,
+        "reason": "identical"
+      },
+      "armC": {
+        "retainedPrefixBytes": 398672,
+        "retainedPrefixLines": 131,
+        "retainedPrefixSha256": "sha256:b3d2ce9db0bf0e9d4a3c6776457abeee148b5ea37e7994db34ed20a11e155d3a",
+        "prefixEndsAtLineBoundary": true,
+        "evidenceLineCount": 131,
+        "envelopeBytesMatch": true,
+        "envelopeLinesMatch": true,
+        "checkpointEvidenceEntriesMatched": 30,
+        "checkpointEvidenceEntriesRequired": 30,
+        "checkpointEvidenceEntriesMismatched": [],
+        "checkpointEvidenceEntriesOutOfPrefix": [],
+        "evidenceFullyBound": true,
+        "checkpointHashShapeValid": true,
+        "previousHashShapeValid": true,
+        "pathClassExcludesFixtureAndReplay": true,
+        "checkpointHashRecomputedByRestore": true,
+        "checkpointHashRecomputeRefusalCode": null,
+        "checkpointHashRecomputeDetail": null
+      },
+      "injectedSizeRatio": 0.8592504352606982,
+      "crossArmTreatmentBytes": {
+        "C": 9377,
+        "B": 10913,
+        "A": 0
+      }
+    },
+    {
+      "ordinal": 4,
+      "manualCompaction": true,
+      "steps": [
+        "send-phase-prompt",
+        "run-phase-acceptance",
+        "invoke-manual-compact",
+        "capture-native-summary",
+        "create-score-fork",
+        "resume-fork-tools-disabled",
+        "verify-source-stability",
+        "resume-source-with-treatment"
+      ],
+      "elapsedWallSeconds": 234.036548126,
+      "assistantTurns": 53,
+      "nativeSummaryBytes": 11181,
+      "sourceTranscriptBytesBefore": 2008220,
+      "sourceTranscriptLinesBefore": 687,
+      "sourceTranscriptSha256Before": "sha256:6c3927096ffc4082683bb9f325f8416cd14528e0cf87b282bcf3f2d0f26c5fcd",
+      "treatmentBytes": 10584,
+      "treatmentSha256": "sha256:cbb66188d2139cc0231dd7af08306277d791aab3c9d2dbed8d151f816e426f7a",
+      "probeToolDecisions": [],
+      "score": {
+        "checkpoint": 4,
+        "points": 14.5,
+        "denominator": 100,
+        "recall": 0.145,
+        "exact": 3,
+        "partial": 23,
+        "missing": 74,
+        "falseFacts": 0,
+        "criticalExact": false,
+        "byCategory": {
+          "command_test": {
+            "points": 0,
+            "total": 16,
+            "exact": 0
+          },
+          "file_symbol": {
+            "points": 5.5,
+            "total": 20,
+            "exact": 3
+          },
+          "linkage": {
+            "points": 2,
+            "total": 16,
+            "exact": 0
+          },
+          "negative_constraint": {
+            "points": 1.5,
+            "total": 16,
+            "exact": 0
+          },
+          "provenance": {
+            "points": 1,
+            "total": 8,
+            "exact": 0
+          },
+          "requirement": {
+            "points": 3,
+            "total": 12,
+            "exact": 0
+          },
+          "unresolved": {
+            "points": 1.5,
+            "total": 12,
+            "exact": 0
+          }
+        },
+        "rows": [
+          {
+            "id": "P1-FS-01",
+            "category": "file_symbol",
+            "outcome": "exact",
+            "points": 1,
+            "critical": false
+          },
+          {
+            "id": "P1-FS-02",
+            "category": "file_symbol",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P1-FS-03",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-FS-04",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-FS-05",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-RQ-01",
+            "category": "requirement",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-RQ-02",
+            "category": "requirement",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-RQ-03",
+            "category": "requirement",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P1-NC-01",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-NC-02",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-NC-03",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-NC-04",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-LK-01",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-LK-02",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-LK-03",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-LK-04",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-CT-01",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-CT-02",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-CT-03",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-CT-04",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-UN-01",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-UN-02",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-UN-03",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P1-PV-01",
+            "category": "provenance",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P1-PV-02",
+            "category": "provenance",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P2-FS-01",
+            "category": "file_symbol",
+            "outcome": "exact",
+            "points": 1,
+            "critical": false
+          },
+          {
+            "id": "P2-FS-02",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-FS-03",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-FS-04",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-FS-05",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-RQ-01",
+            "category": "requirement",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-RQ-02",
+            "category": "requirement",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-RQ-03",
+            "category": "requirement",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P2-NC-01",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-NC-02",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-NC-03",
+            "category": "negative_constraint",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": true
+          },
+          {
+            "id": "P2-NC-04",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-LK-01",
+            "category": "linkage",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": true
+          },
+          {
+            "id": "P2-LK-02",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-LK-03",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-LK-04",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-CT-01",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-CT-02",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-CT-03",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-CT-04",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-UN-01",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-UN-02",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-UN-03",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P2-PV-01",
+            "category": "provenance",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P2-PV-02",
+            "category": "provenance",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P3-FS-01",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P3-FS-02",
+            "category": "file_symbol",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P3-FS-03",
+            "category": "file_symbol",
+            "outcome": "exact",
+            "points": 1,
+            "critical": false
+          },
+          {
+            "id": "P3-FS-04",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P3-FS-05",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P3-RQ-01",
+            "category": "requirement",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P3-RQ-02",
+            "category": "requirement",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P3-RQ-03",
+            "category": "requirement",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P3-NC-01",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P3-NC-02",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P3-NC-03",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P3-NC-04",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P3-LK-01",
+            "category": "linkage",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": true
+          },
+          {
+            "id": "P3-LK-02",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P3-LK-03",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P3-LK-04",
+            "category": "linkage",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": true
+          },
+          {
+            "id": "P3-CT-01",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P3-CT-02",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P3-CT-03",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P3-CT-04",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P3-UN-01",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P3-UN-02",
+            "category": "unresolved",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": true
+          },
+          {
+            "id": "P3-UN-03",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P3-PV-01",
+            "category": "provenance",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P3-PV-02",
+            "category": "provenance",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P4-FS-01",
+            "category": "file_symbol",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P4-FS-02",
+            "category": "file_symbol",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P4-FS-03",
+            "category": "file_symbol",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P4-FS-04",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P4-FS-05",
+            "category": "file_symbol",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P4-RQ-01",
+            "category": "requirement",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P4-RQ-02",
+            "category": "requirement",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P4-RQ-03",
+            "category": "requirement",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P4-NC-01",
+            "category": "negative_constraint",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": true
+          },
+          {
+            "id": "P4-NC-02",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P4-NC-03",
+            "category": "negative_constraint",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": true
+          },
+          {
+            "id": "P4-NC-04",
+            "category": "negative_constraint",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P4-LK-01",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P4-LK-02",
+            "category": "linkage",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": true
+          },
+          {
+            "id": "P4-LK-03",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P4-LK-04",
+            "category": "linkage",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P4-CT-01",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P4-CT-02",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P4-CT-03",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P4-CT-04",
+            "category": "command_test",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          },
+          {
+            "id": "P4-UN-01",
+            "category": "unresolved",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": true
+          },
+          {
+            "id": "P4-UN-02",
+            "category": "unresolved",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": true
+          },
+          {
+            "id": "P4-UN-03",
+            "category": "unresolved",
+            "outcome": "missing",
+            "points": 0,
+            "critical": true
+          },
+          {
+            "id": "P4-PV-01",
+            "category": "provenance",
+            "outcome": "partial",
+            "points": 0.5,
+            "critical": false
+          },
+          {
+            "id": "P4-PV-02",
+            "category": "provenance",
+            "outcome": "missing",
+            "points": 0,
+            "critical": false
+          }
+        ]
+      },
+      "sourceTranscriptBytesAfter": 2008220,
+      "sourceTranscriptLinesAfter": 687,
+      "sourceTranscriptSha256After": "sha256:6c3927096ffc4082683bb9f325f8416cd14528e0cf87b282bcf3f2d0f26c5fcd",
+      "sourceTranscriptStable": true,
+      "canaryOccurrenceCount": 0,
+      "privateTreeModes": {
+        "rootPresent": true,
+        "readFailureCount": 0,
+        "directoryModes": {
+          "700": 12
+        },
+        "fileModes": {
+          "600": 95
+        },
+        "directoryCount": 12,
+        "fileCount": 95,
+        "symlinkCount": 0,
+        "allDirectoriesOwnerOnly": true,
+        "allFilesOwnerOnly": true,
+        "zeroSymlinks": true
+      },
+      "resumeTreatmentBytes": 10584,
+      "resumeTreatmentSha256": "sha256:cbb66188d2139cc0231dd7af08306277d791aab3c9d2dbed8d151f816e426f7a",
+      "treatmentIdentity": {
+        "arm": "C",
+        "phase": 4,
+        "scored": {
+          "bytes": 10584,
+          "sha256": "sha256:cbb66188d2139cc0231dd7af08306277d791aab3c9d2dbed8d151f816e426f7a"
+        },
+        "resume": {
+          "bytes": 10584,
+          "sha256": "sha256:cbb66188d2139cc0231dd7af08306277d791aab3c9d2dbed8d151f816e426f7a"
+        },
+        "matches": true,
+        "reason": "identical"
+      },
+      "armC": {
+        "retainedPrefixBytes": 398672,
+        "retainedPrefixLines": 131,
+        "retainedPrefixSha256": "sha256:b3d2ce9db0bf0e9d4a3c6776457abeee148b5ea37e7994db34ed20a11e155d3a",
+        "prefixEndsAtLineBoundary": true,
+        "evidenceLineCount": 131,
+        "envelopeBytesMatch": true,
+        "envelopeLinesMatch": true,
+        "checkpointEvidenceEntriesMatched": 30,
+        "checkpointEvidenceEntriesRequired": 30,
+        "checkpointEvidenceEntriesMismatched": [],
+        "checkpointEvidenceEntriesOutOfPrefix": [],
+        "evidenceFullyBound": true,
+        "checkpointHashShapeValid": true,
+        "previousHashShapeValid": true,
+        "pathClassExcludesFixtureAndReplay": true,
+        "checkpointHashRecomputedByRestore": true,
+        "checkpointHashRecomputeRefusalCode": null,
+        "checkpointHashRecomputeDetail": null
+      },
+      "injectedSizeRatio": 0.9762036524626453,
+      "crossArmTreatmentBytes": {
+        "C": 10584,
+        "B": 10842,
+        "A": 0
+      }
+    }
+  ],
+  "continuation": {
+    "manualCompactions": 4
+  },
+  "invalidations": [],
+  "operationalStops": [],
+  "advisoryCostEquivalentUsd": 0.764949,
+  "pricingSource": "Claude CLI total_cost_usd field from the same process output",
+  "wallSeconds": 785.088465332,
+  "runnerRevisionDigest": "sha256:562c62275a6bb5b66d0c42c1fd015b2b9ac4121390ae9bd9915f2e217a71508a",
+  "scorerRevisionDigest": "sha256:38d77ee4c50750ba8adaaad7787b8aacaf7ec30864f3faa952e5076cfc3ca4df"
+}

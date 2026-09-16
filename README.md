@@ -35,7 +35,10 @@ machine, any timezone, any locale — proven in CI, not asserted in prose.
   ship with a caveat.
 - **A real, scored benchmark, not a self-report.** [OG-86](docs/benchmark/og86-medium-v1/) is a
   preregistered, blinded, 3-arm comparison executed against the live Claude API — frozen
-  protocol, frozen scoring rubric, checksummed inputs — built and hardened by finding and fixing
+  protocol, frozen scoring rubric, checksummed inputs. First complete, valid, checksummed run
+  (`n = 1`, directional — see [Benchmarks](#benchmarks) for the full caveat): the dcompact
+  checkpoint pack arm recovered **14.5/100** vs **12/100** for native compaction alone and
+  **12/100** for the host's own re-surfaced summary. Built and hardened by finding and fixing
   real bugs against real runs rather than mocks (see the commit history under
   `scripts/benchmark/`).
 - **Publication gates, not just tests.** Every change is scanned for what it leaks
@@ -380,8 +383,31 @@ through `restore`, treatment-injection accounting, wall-clock and turn ceilings,
 against a hard runaway limit — was written against, and repeatedly corrected by, real executions
 against the live API, not simulated inputs; `test/og86-controller.spec.ts` and
 `test/og86-benchmark.spec.ts` cover the controller's stop conditions and the frozen artifact set.
-Results are not yet final; this section will name the scored outcome once a complete, valid
-3-arm run exists.
+A complete, valid, checksummed 3-arm run exists as of 2026-09-16
+([`results/`](docs/benchmark/og86-medium-v1/results/), `run-manifest.json` +
+`X1.json`/`X2.json`/`X3.json`, the exact sanitized artifacts the frozen controller emitted — zero
+invalidations, zero operational stops, model id and tool boundaries verified every checkpoint).
+The question asked: during four controlled manual `/compact` events on the same real coding
+workload, does a freshly resumed Haiku 4.5 process recover more useful, verifiable work state
+with **(A)** native compacted context alone, **(B)** native context plus the host's own re-surfaced
+summary, or **(C)** native context plus a deterministic dcompact checkpoint pack? Cumulative recall
+at the fourth and final checkpoint, scored against a 100-point frozen rubric spanning all four
+phases:
+
+| Arm | Treatment | Points | Recall |
+|---|---|---|---|
+| A | native compaction only (control) | 12.0 / 100 | 12.0% |
+| B | native compaction + re-surfaced native summary | 12.0 / 100 | 12.0% |
+| C | native compaction + dcompact checkpoint pack | 14.5 / 100 | 14.5% |
+
+**Read this as directional evidence, not a population claim** — the preregistration says so in
+its first paragraph, and this result does not change that: `n = 1` per arm, one machine, one
+model, one workload. C outscored both A and B on this one run; B did not separate from A, meaning
+re-surfacing the host's own summary alone showed no measured advantage over doing nothing extra —
+only the structured checkpoint pack did. No claim beyond that single, real, checksummed
+observation is made here. Real cost for the whole series: $2.04 (Claude CLI's own
+`total_cost_usd`, summed per arm — A $0.61, B $0.66, C $0.76); real wall-clock per arm: A 10.9
+min, B 12.2 min, C 13.1 min.
 
 ## Development
 

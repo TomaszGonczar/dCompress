@@ -1,0 +1,17 @@
+{
+  "series": "OG86-medium-v1",
+  "freezeCommit": "d6425558323e583791d7e3e15dc1a02462062822",
+  "armOrder": [
+    "C",
+    "B",
+    "A"
+  ],
+  "blinding": {
+    "C": "X1",
+    "B": "X2",
+    "A": "X3"
+  },
+  "armOrderDerivation": "sort A, B, C by sha256(\"OG86-medium-v1|<freezeCommit>|<arm>\")",
+  "advisoryTelemetryUsd": 0.35,
+  "runawayCeilingUsd": 5
+}
