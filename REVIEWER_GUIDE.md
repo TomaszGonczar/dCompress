@@ -2,9 +2,8 @@
 
 ## Review State
 
-* **Evidence commit:** `56c23c19024a1517bbdd779e9b3c731ecf059ed1` (`56c23c1`)
-* **Current revision:** `a8b22a8`
-* **Test suite:** 516 tests passed across 33 files (Node 20/22 × macOS/Linux CI matrix)
+* **Evidence commit (Foundation & Core):** `56c23c19024a1517bbdd779e9b3c731ecf059ed1` (`56c23c1` · 516 tests across 33 files)
+* **Current revision (Post-OG-86):** `main` (704 tests across 35 files)
 * **License:** MIT · Single-author repository
 
 ---
@@ -22,7 +21,7 @@
 
 * **No production deployment:** This is an active core engine under independent development, not a deployed SaaS or multi-tenant service.
 * **No multi-contributor team development:** Single-author repository with self-administered PR reviews and CI automation, not human peer review.
-* **No completed competitive benchmark:** The OG-86 benchmark against native compaction is preregistered and exploratory; no published win claims are made.
+* **No population-level benchmark claims:** The OG-86 medium-series benchmark has completed its first valid checksummed run (`n = 1`, directional evidence: dcompact checkpoint pack scored 14.5/100 vs 12.0/100 for native compaction alone and 12.0/100 for native summary); no claims beyond this single, real, checksummed observation are made.
 * **No published npm package:** Distributed as source/snapshot only.
 
 ---
@@ -40,25 +39,27 @@
 ## Reproduce the Review State
 
 ```bash
-# Checkout the review commit
-git checkout 56c23c1
-
-# Install dependencies
+# Option A: Run the complete current suite (including OG-86 controller and benchmark suites)
+git checkout main
 npm ci
-
-# Run test suite
-# NOTE: Use 'npm test', not 'npx vitest run' directly — 'pretest' compiles dist/cli.js
 npm test
-
-# Run static analysis & typecheck
 npm run lint
 npm run typecheck
+
+# Option B: Checkout the earlier foundation milestone commit
+git checkout 56c23c1
+npm ci
+npm test
 ```
 
-Expected output:
+Expected output on `main`:
+* `Test Files: 35 passed (35)`
+* `Tests: 704 passed (704)`
+* ESLint & TypeScript compile with 0 errors.
+
+Expected output at `56c23c1`:
 * `Test Files: 33 passed (33)`
 * `Tests: 516 passed (516)`
-* ESLint & TypeScript compile with 0 errors.
 
 ---
 
@@ -78,6 +79,6 @@ Single-author repository. Tomasz Gonczar owns all requirements, architectural de
 
 ## Known Limits
 
-1. **Benchmark phase:** Exploratory testing shows prompt context reduction from 32k to 6k tokens on organic sessions, but full formal benchmark suite remains unexecuted.
+1. **Benchmark scope:** OG-86 medium-series completed one full valid 3-arm run (`n = 1`, directional evidence); multi-run statistical distributions and broader model suites remain future work.
 2. **Adapter scope:** Production adapter implemented for Claude Code transcripts; other coding agent formats are currently stubs or exploratory.
 3. **Single-machine target:** Concurrency and locking are designed for local filesystem processes, not distributed consensus.
