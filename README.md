@@ -21,6 +21,34 @@
   <a href="docs/SCHEMA.md"><img src="https://img.shields.io/badge/determinism-byte--level%20enforced-purple.svg" alt="Byte Determinism"></a>
 </p>
 
+## TL;DR
+
+`dcompress` turns a coding agent's raw JSONL transcript into a small, verifiable fact pack —
+files touched, commands run, errors raised and fixed, decisions stated — with **zero LLM calls
+in the extraction path**. Same transcript in, byte-identical pack and SHA-256 hash out, on any
+machine, any timezone, any locale — proven in CI, not asserted in prose.
+
+- **704 tests, 0 runtime dependencies, MIT.** `npm test && npm run lint && npm run typecheck`
+  all clean on Node 20 and 22, Ubuntu and macOS.
+- **Determinism as a release gate.** `test/determinism.spec.ts` re-runs every committed fixture
+  under a perturbed clock, locale, and `$HOME`; a non-deterministic payload fails CI, it does not
+  ship with a caveat.
+- **A real, scored benchmark, not a self-report.** [OG-86](docs/benchmark/og86-medium-v1/) is a
+  preregistered, blinded, 3-arm comparison executed against the live Claude API — frozen
+  protocol, frozen scoring rubric, checksummed inputs — built and hardened by finding and fixing
+  real bugs against real runs rather than mocks (see the commit history under
+  `scripts/benchmark/`).
+- **Publication gates, not just tests.** Every change is scanned for what it leaks
+  (`scripts/privacy-scan.mjs`, working tree *and* history) and proven reproducible from a clean
+  clone (`scripts/clean-clone-check.mjs`) before it is considered publishable — both wired into
+  CI, both runnable locally in seconds.
+- **Honest about what is not done.** The status table below marks continuity/install as
+  experimental and Claude-only, MCP and other adapters as not implemented, and secret redaction
+  as not yet built. Nothing here is oversold to look finished.
+
+Try it in 60 seconds ⬇, or jump to [How it works](#how-it-works) /
+[Determinism](#determinism) / [Benchmarks](#benchmarks).
+
 When a coding agent compacts, it replaces the older half of its own context with a few
 paragraphs of model-written prose. `dcompress` takes the opposite approach: it reads the
 agent's own transcript with deterministic rules and turns what actually happened — files
@@ -355,6 +383,20 @@ cycles, and how `dcompress preview` compared on synthetic event sets. It is expl
 product claim: one session per cell, several cells unmeasurable, `dcompress` never run against
 the organic transcripts, and the document states which figures are reproducible and which are
 not. Nothing in it runs in CI.
+
+[`docs/benchmark/og86-medium-v1/`](docs/benchmark/og86-medium-v1/) is a materially stronger
+claim: a preregistered ([`preregistration.md`](docs/benchmark/og86-medium-v1/preregistration.md)),
+blinded, 3-arm comparison executed against the live Claude API rather than a mock, with a frozen
+protocol, a frozen scoring rubric, and checksummed inputs (`checksums.sha256`) so the exact
+workload and grading criteria are pinned before any arm runs. `scripts/benchmark/run-og86-medium.mjs`
+and `run-og86-stage0.mjs` are the real controllers, not illustrative pseudocode: every validity
+gate they enforce — model-id pinning, tool-boundary exactness, checkpoint hash re-derivation
+through `restore`, treatment-injection accounting, wall-clock and turn ceilings, cost tracking
+against a hard runaway limit — was written against, and repeatedly corrected by, real executions
+against the live API, not simulated inputs; `test/og86-controller.spec.ts` and
+`test/og86-benchmark.spec.ts` cover the controller's stop conditions and the frozen artifact set.
+Results are not yet final; this section will name the scored outcome once a complete, valid
+3-arm run exists.
 
 ## Development
 
