@@ -1,0 +1,6 @@
+{
+  "name": "og86-stage0-clamp",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test" }
+}

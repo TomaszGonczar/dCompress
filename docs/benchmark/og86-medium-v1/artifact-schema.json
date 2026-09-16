@@ -1,0 +1,341 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OG-86 sanitized arm result",
+  "type": "object",
+  "required": [
+    "opaqueArm",
+    "modelCounts",
+    "checkpoints",
+    "continuation",
+    "invalidations",
+    "processes",
+    "runnerRevisionDigest",
+    "scorerRevisionDigest",
+    "advisoryCostEquivalentUsd",
+    "wallSeconds"
+  ],
+  "properties": {
+    "opaqueArm": {
+      "enum": [
+        "X1",
+        "X2",
+        "X3"
+      ]
+    },
+    "modelCounts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "properties": {
+        "fallbackOrModelSwitch": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "processes": {
+      "description": "labeled process roles and incarnations, not only an aggregate count",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "label",
+          "role",
+          "incarnation",
+          "assistantRecords",
+          "matchingModelRecords"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "enum": [
+              "work",
+              "compact",
+              "probe",
+              "continuation"
+            ]
+          },
+          "incarnation": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "assistantRecords": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "matchingModelRecords": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "fallbackOrModelSwitchRecords": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failedModelSwitchChecks": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "checkpoints": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "required": [
+          "ordinal",
+          "manualCompaction",
+          "sourceTranscriptBytesBefore",
+          "sourceTranscriptBytesAfter",
+          "sourceTranscriptLinesBefore",
+          "sourceTranscriptLinesAfter",
+          "sourceTranscriptSha256Before",
+          "sourceTranscriptSha256After",
+          "sourceTranscriptStable",
+          "treatmentBytes",
+          "treatmentSha256",
+          "injectedSizeRatio",
+          "elapsedWallSeconds",
+          "canaryOccurrenceCount",
+          "score",
+          "privateTreeModes"
+        ],
+        "properties": {
+          "ordinal": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4
+          },
+          "manualCompaction": {
+            "const": true
+          },
+          "sourceTranscriptBytesBefore": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sourceTranscriptBytesAfter": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sourceTranscriptLinesBefore": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sourceTranscriptLinesAfter": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sourceTranscriptSha256Before": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "sourceTranscriptSha256After": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "sourceTranscriptStable": {
+            "const": true
+          },
+          "treatmentBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 16384
+          },
+          "treatmentSha256": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "treatmentTokens": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "injectedSizeRatio": {
+            "description": "measured covariate only; no representation claim is derived from it, because C versus B is not a representation comparison in this series at any size ratio",
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "elapsedWallSeconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "canaryOccurrenceCount": {
+            "const": 0
+          },
+          "privateTreeModes": {
+            "description": "owner-only mode summary for the arm's private tree at this checkpoint; mode tallies and booleans only, never a path",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "rootPresent",
+              "readFailureCount",
+              "directoryModes",
+              "fileModes",
+              "directoryCount",
+              "fileCount",
+              "symlinkCount",
+              "allDirectoriesOwnerOnly",
+              "allFilesOwnerOnly",
+              "zeroSymlinks"
+            ],
+            "properties": {
+              "rootPresent": {
+                "description": "the root was a readable real directory, so the reading measured something",
+                "const": true
+              },
+              "readFailureCount": {
+                "description": "entries that could not be read; a vacuous reading is refused",
+                "const": 0
+              },
+              "directoryModes": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "fileModes": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "directoryCount": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "fileCount": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "symlinkCount": {
+                "const": 0
+              },
+              "allDirectoriesOwnerOnly": {
+                "const": true
+              },
+              "allFilesOwnerOnly": {
+                "const": true
+              },
+              "zeroSymlinks": {
+                "const": true
+              }
+            }
+          },
+          "armC": {
+            "description": "present only for arm C; null or absent for A and B",
+            "type": [
+              "object",
+              "null"
+            ],
+            "required": [
+              "retainedPrefixBytes",
+              "retainedPrefixLines",
+              "retainedPrefixSha256",
+              "checkpointEvidenceEntriesMatched",
+              "checkpointEvidenceEntriesRequired",
+              "checkpointHashShapeValid",
+              "checkpointHashRecomputedByRestore",
+              "pathClassExcludesFixtureAndReplay"
+            ],
+            "properties": {
+              "retainedPrefixBytes": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "retainedPrefixLines": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "retainedPrefixSha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "checkpointEvidenceEntriesMatched": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "checkpointEvidenceEntriesRequired": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "checkpointHashShapeValid": {
+                "description": "shape-only check on the recorded digest; it asserts the string looks like sha256:<64 hex> and never refutes a tampered payload",
+                "const": true
+              },
+              "checkpointHashRecomputedByRestore": {
+                "description": "real verification: dcompact restore re-derived the payload hash from the checkpoint body and accepted it, so the checkpoint is intact rather than merely well-shaped",
+                "const": true
+              },
+              "pathClassExcludesFixtureAndReplay": {
+                "const": true
+              }
+            },
+            "additionalProperties": true
+          },
+          "score": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "continuation": {
+      "type": "object"
+    },
+    "invalidations": {
+      "description": "hard scientific invalidity only; an advisory cost overage is never recorded here and an emergency runaway abort is reported separately as an operational stop",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "operationalStops": {
+      "description": "operational aborts such as reaching the emergency runaway ceiling; carries no scientific invalidity",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "advisoryCostEquivalentUsd": {
+      "description": "advisory telemetry, not a validity gate",
+      "type": "number",
+      "minimum": 0
+    },
+    "pricingSource": {
+      "type": "string",
+      "minLength": 1
+    },
+    "wallSeconds": {
+      "type": "number",
+      "minimum": 0
+    },
+    "runnerRevisionDigest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "scorerRevisionDigest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": true
+}

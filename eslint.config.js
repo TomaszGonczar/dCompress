@@ -514,7 +514,7 @@ const clockBoundaryRule = {
 
 export default [
   {
-    ignores: ["coverage/**", "dist/**", "node_modules/**"],
+    ignores: ["coverage/**", "dist/**", "node_modules/**", "sessions/**"],
   },
   eslint.configs.recommended,
   ...typescriptEslint.configs.recommended,
@@ -523,6 +523,12 @@ export default [
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
+      globals: {
+        Buffer: "readonly",
+        URL: "readonly",
+        console: "readonly",
+        process: "readonly",
+      },
     },
   },
   {

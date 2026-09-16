@@ -1,0 +1,154 @@
+{
+  "schemaVersion": 1,
+  "series": "OG86-medium-v1",
+  "preregistrationCommit": "fd1c5ed7e872243f94746402f5b61790614d4ea9",
+  "freezeCommit": "d6425558323e583791d7e3e15dc1a02462062822",
+  "workloadCommit": "fd1c5ed7e872243f94746402f5b61790614d4ea9",
+  "dcompactBaseCommit": "9ebd0a1130198d2d4aa85cd38cbea4e42844ea6d",
+  "stage": "medium",
+  "samplePerArm": 1,
+  "arms": {
+    "A": "native compact only",
+    "B": "native compact plus exact native summary resurfaced on the next explicit resume",
+    "C": "native compact plus dcompact checkpoint and pack injected on the next explicit resume"
+  },
+  "model": {
+    "requested": "claude-haiku-4-5-20251001",
+    "ordinaryAssistantTurnMustMatch": true,
+    "internalCompactionSummarizer": "unproven unless session evidence exposes it"
+  },
+  "runtime": {
+    "claudeCode": "2.1.270",
+    "node": "26.7.0",
+    "os": "macOS 27.0",
+    "pricingSource": "Claude CLI total_cost_usd field from the same process output"
+  },
+  "workload": {
+    "kind": "synthetic repository with organic agent execution",
+    "atoms": 100
+  },
+  "packBudgetBytes": 16384,
+  "nativeSummaryBudgetBytes": 16384,
+  "injectedSizeInterpretation": {
+    "cVersusBRepresentationClaim": "not supported by this series at any size ratio",
+    "reason": "B re-surfaces the host-own summary whose length the protocol does not control, while C injects a pack bounded by packBudgetBytes; equal byte ceilings do not produce equal injected sizes and no observed threshold restores that control",
+    "reporting": "record per-checkpoint injected bytes and tokens and the B/C ratio as a measured covariate for every arm; derive no representation claim from them",
+    "stage0Observation": {
+      "nativeSummaryBytes": 7371,
+      "dcompactPackBytes": 1246,
+      "note": "one micro-workload checkpoint, recorded as an observation and not as a prediction or bound"
+    },
+    "sizeMatchedFollowUp": "requires a separate preregistration that controls injected size directly"
+  },
+  "costAndLimits": {
+    "advisoryTelemetry": {
+      "role": "advisory measurement, never a validity gate and never a stop condition",
+      "perScoredArmUsd": 0.35,
+      "mediumSeriesUsd": 1.2,
+      "neverPassedToCli": true
+    },
+    "emergencyRunawayCeiling": {
+      "role": "operational resource guard, not an evidence rule; aborts only on a pathological loop and is reported as an operational stop with no admissible score for the affected arm",
+      "perScoredArmUsd": 5.0,
+      "mediumSeriesUsd": 15.0,
+      "enforcement": "enforced by the controller's remaining-budget tracker before every Claude call and by passing the remaining allowance as that call's own --max-budget-usd; the advisory figure is never passed to the CLI and never blocks a call"
+    },
+    "hardLimits": {
+      "perScoredArmMinutes": 60,
+      "mediumSeriesMinutes": 210,
+      "assistantTurnsPerArm": 300,
+      "manualCompactionsPerArm": 4
+    },
+    "stage0": {
+      "capUsd": 0.25,
+      "observedUsd": 0.143467,
+      "scoredCallsStarted": false
+    }
+  },
+  "primaryEvidence": {
+    "label": "controlled medium series",
+    "definition": "three independent arms, each with exactly four operator-invoked manual compactions at the frozen checkpoints",
+    "scopeLimit": "measures retention across controlled repeated compaction; makes no claim about natural or automatic compaction trigger behavior"
+  },
+  "naturalExhaustionFollowUp": {
+    "label": "organic natural-exhaustion follow-up",
+    "status": "separately labeled follow-up, not primary evidence and not authorized by this document",
+    "design": "organic workload compacted by the host on its own, three to six times",
+    "requirement": "own preregistration, own freeze commit, own validity gates"
+  },
+  "checkpointOrder": [
+    "send frozen phase prompt to source session",
+    "run npm test and verify phase acceptance",
+    "invoke native /compact once",
+    "wait for PostCompact capture",
+    "create score fork from the compacted source before any treatment reaches the source",
+    "resume score fork in a new process with exactly one frozen treatment and tools disabled, then record the neutral recall response",
+    "re-read source transcript and require byte-identical stability across fork creation and probing",
+    "resume source in a new process with exactly one arm treatment and continue"
+  ],
+  "evidenceRequirements": {
+    "rule": "every gate value supporting a public claim is independently recomputable from a committed sanitized artifact; a bare boolean is not evidence",
+    "perCheckpoint": [
+      "sourceTranscriptBytesBefore",
+      "sourceTranscriptBytesAfter",
+      "sourceTranscriptLinesBefore",
+      "sourceTranscriptLinesAfter",
+      "sourceTranscriptSha256Before",
+      "sourceTranscriptSha256After",
+      "sourceTranscriptStable",
+      "elapsedWallSeconds",
+      "assistantRecordCountsByProcessRole",
+      "assistantModelMatchCountsByProcessRole",
+      "fallbackOrModelSwitchCounts",
+      "injectedTreatmentBytes",
+      "injectedTreatmentSha256",
+      "injectedSizeRatioVersusOtherArms",
+      "canaryOccurrenceCount",
+      "privateTreeModes",
+      "advisoryCostEquivalentUsd",
+      "runnerRevisionDigest",
+      "scorerRevisionDigest"
+    ],
+    "armCAdditional": [
+      "retainedPrefixBytes",
+      "retainedPrefixLines",
+      "retainedPrefixSha256",
+      "checkpointEvidenceEntriesMatched",
+      "checkpointEvidenceEntriesRequired",
+      "checkpointHashShapeValid",
+      "checkpointHashRecomputedByRestore",
+      "pathClassExcludesFixtureAndReplay"
+    ],
+    "processLabels": [
+      "work",
+      "compact",
+      "probe",
+      "continuation"
+    ],
+    "generateFailsOnAnyFalseGate": true
+  },
+  "freezeScope": {
+    "rule": "checksums.sha256 covers every frozen input and every execution utility that can change a result",
+    "requiredCoverage": [
+      "benchmark spec",
+      "eslint config",
+      "input generator",
+      "privacy scanner",
+      "protocol and preregistration inputs",
+      "scorer",
+      "stage0 runner",
+      "vitest config"
+    ]
+  },
+  "privacy": {
+    "rawSessions": "private-only",
+    "rawHookEvents": "private-only",
+    "sessionIds": "private-only",
+    "publicArtifacts": "sanitized and recomputable only",
+    "historyScope": "benchmark directory, the complete PR diff, and every reachable history object the PR adds, including commits reachable only through pull refs"
+  },
+  "freezeRule": "Any post-score change to workload, prompts, atoms, scorer, schedule, hooks, model, budgets, or validity rules creates a new series. The seed commit S is part of the freeze and is the one enumerated exception: its only permitted change is recording freezeCommit and armOrderSeedCommit and regenerating the manifest rows those two fields invalidate. No scientific input, scorer, schedule, budget, or validity rule may differ between the content commit F and S, and any other difference between F and S creates a new series.",
+  "armOrderDerivation": "sort A, B, C by sha256(OG86-medium-v1|freezeCommit|arm); no arm order is fixed before freezeCommit exists",
+  "stage0Design": "one untreated compacted organic source with three pre-treatment forks; scored arms remain independent source sessions",
+  "largeStage": "not authorized until the complete medium result is valid and publication margin remains"
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "phase": 1,
+    "prompt": "Work in this reservation-ledger repository. Run npm test, diagnose both seeded failures, and fix them. Preserve the exported parseReservation and addReservation signatures, exact integer-cent arithmetic, insertion order, and the existing JSON record shape. Do not add a dependency or rewrite existing ledger history. Add focused regression coverage if useful, run npm test again, and report the symptom, root cause, chosen fix, rejected shortcut, and exact verification outcome."
+  },
+  {
+    "phase": 2,
+    "prompt": "Extend the same project with idempotent event replay. Replaying an event sequence twice must produce the same logical ledger as replaying it once, while preserving stable first-seen insertion order. Work across src/replay.js, src/ledger.js, and tests. Explicitly reject a process-global cache and do not add a runtime dependency. Keep the public record shape unchanged. Leave tombstone compaction policy unresolved and state that open question in chat. Run the relevant tests and report the decision and verification."
+  },
+  {
+    "phase": 3,
+    "prompt": "Diagnose and fix the cancellation/report inconsistency: after a reservation is cancelled, active revenue must exclude it without rewriting the append-only event history. Work across src/ledger.js, src/report.js, and tests. Preserve exported signatures, integer cents, insertion order, and serialized record shape. Reject deleting or rewriting stored records as a repair. Report the observed symptom, root cause, rejected repair, chosen fix, and exact test verification, then run npm test."
+  },
+  {
+    "phase": 4,
+    "prompt": "Add dry-run batch-import validation across src/import.js, src/cli.js, and tests. Dry-run must validate every input line and report the proposed count without mutating the ledger. Invalid input must fail with the source line number. Preserve the public CLI arguments and serialized record format; add no dependency and no global cache. Run npm test. In chat only, record the single highest-priority unfinished item: make a non-dry-run mixed-validity batch import atomic so an invalid later row leaves the ledger unchanged. Do not write that unfinished item into source, tests, README, comments, or a TODO file."
+  }
+]

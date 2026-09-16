@@ -1,0 +1,39 @@
+{
+  "status": "pass",
+  "scoredCallsStarted": false,
+  "passed": [
+    "dependencies OG-84 and OG-85 are in the benchmark base",
+    "Claude Code 2.1.270 accepted claude-haiku-4-5-20251001",
+    "the one-defect organic micro-workload reached its green test state",
+    "manual compact emitted one compact boundary and one summary",
+    "dcompact created a checkpoint and injected a marked pack",
+    "three forks were created from one untreated compacted source before parent resume",
+    "A received zero treatment copies; B and C each received exactly one frozen treatment copy on explicit resume",
+    "all fork creation and probes left the source transcript byte-identical",
+    "a fresh source resume used a distinct process and the task-owned tool gate allowed workload operations while denying raw-state operations",
+    "the forbidden canary value occurred zero times in the retained transcript",
+    "the checkpoint envelope matched the retained real-transcript prefix at its recorded byte and line boundary",
+    "private root and settings modes were 0700 and 0600"
+  ],
+  "protocolCorrectionsBeforeFreeze": [
+    "PostCompact occurs after SessionStart source=compact, so B and C treatment delivery is moved to the next explicit SessionStart source=resume",
+    "a direct fork probe does not fire SessionStart, so create the fork first and explicitly resume it for scoring",
+    "the Stage-0 exploration cap was revised from 0.15 USD to 0.25 USD before any scored call",
+    "three replacement attempts stopped on too-small per-call caps before this complete run; none entered scored evidence",
+    "the live transcript grew by two host queue records between hook entry and the dcompact read; binding is therefore recomputed from the retained prefix at envelope.transcript_bytes rather than assuming hook-entry length"
+  ],
+  "observed": {
+    "finalRunCostEquivalentUsd": 0.143467,
+    "capUsd": 0.25,
+    "nativeSummaryBytes": 7371,
+    "dcompactPackBytes": 1246,
+    "sourceAssistantRecords": 30,
+    "assistantRecordsPerScoreFork": 4,
+    "modelId": "claude-haiku-4-5-20251001",
+    "fallbackRecords": 0,
+    "distinctProcessLabels": 3,
+    "canaryValueOccurrences": 0
+  },
+  "unproven": ["internal compaction summarizer model identity"],
+  "decision": "Implementable Stage-0 gates pass. Scored execution may start only after this result and all frozen inputs are committed; the internal summarizer remains an explicit symmetric confound."
+}
